@@ -1,13 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ValidationIssue } from '@office-kit/docx';
+  import DocumentPreview from '$lib/components/DocumentPreview.svelte';
+  import ValidationReport from '$lib/components/ValidationReport.svelte';
+  import { downloadDocx } from '$lib/download';
 
   type Stats = ReturnType<typeof import('@office-kit/docx').statistics>;
 
-  const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const DOCX_ACCEPT =
+    '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const SAMPLE_NAME = 'office-kit-demo.docx';
 
-  let container = $state<HTMLDivElement | null>(null);
   let status = $state('Loading the library…');
   let busy = $state(false);
   let dropping = $state(false);
@@ -18,42 +21,34 @@
   let issues = $state<ValidationIssue[]>([]);
   // The re-saved bytes, which are also what the preview below is showing.
   let savedBytes = $state<Uint8Array | null>(null);
-  let disposePreview: (() => void) | undefined;
 
   // Opens the file with the library, saves it again, and previews the saved
   // bytes rather than the upload: what is on screen is the round trip.
   async function inspect(bytes: Uint8Array, name: string): Promise<void> {
-    if (!container) return;
     busy = true;
     fileName = name;
     status = `Opening ${name}…`;
     try {
-      const [core, preview] = await Promise.all([
-        import('@office-kit/docx'),
-        import('@office-kit/docx-preview'),
-      ]);
+      const core = await import('@office-kit/docx');
       const doc = core.openDocx(bytes);
       stats = core.statistics(doc);
       docTitle = core.title(doc);
       docAuthor = core.author(doc);
       issues = core.validate(doc);
-      const saved = core.toUint8Array(doc);
-
-      disposePreview?.();
-      const handle = await preview.previewToDOM(saved, container);
-      disposePreview = () => handle.dispose();
-      savedBytes = saved;
-      status = `Opened ${name} (${bytes.byteLength.toLocaleString()} bytes), saved it again (${saved.byteLength.toLocaleString()} bytes), and rendered the saved copy.`;
+      savedBytes = core.toUint8Array(doc);
+      status = `Opened ${name} (${bytes.byteLength.toLocaleString()} bytes) and saved it again (${savedBytes.byteLength.toLocaleString()} bytes). The preview shows the saved copy.`;
     } catch (err) {
-      disposePreview?.();
-      disposePreview = undefined;
-      stats = null;
-      issues = [];
-      savedBytes = null;
-      status = `This file could not be opened: ${err instanceof Error ? err.message : String(err)}`;
+      fail(err);
     } finally {
       busy = false;
     }
+  }
+
+  function fail(err: unknown): void {
+    stats = null;
+    issues = [];
+    savedBytes = null;
+    status = `This file could not be opened: ${err instanceof Error ? err.message : String(err)}`;
   }
 
   // Gives a visitor with no .docx at hand something real to inspect: the
@@ -78,13 +73,7 @@
   }
 
   function downloadSaved(): void {
-    if (!savedBytes) return;
-    const url = URL.createObjectURL(new Blob([savedBytes.slice()], { type: DOCX_MIME }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName.replace(/\.docx$/i, '') + '.roundtrip.docx';
-    a.click();
-    URL.revokeObjectURL(url);
+    if (savedBytes) downloadDocx(savedBytes, fileName.replace(/\.docx$/i, '') + '.roundtrip.docx');
   }
 
   const cells = $derived(
@@ -103,10 +92,7 @@
       : [],
   );
 
-  onMount(() => {
-    void loadSample();
-    return () => disposePreview?.();
-  });
+  onMount(() => void loadSample());
 </script>
 
 <svelte:head>
@@ -138,7 +124,7 @@
       <label class="btn primary drop-pick">
         <input
           type="file"
-          accept=".docx,{DOCX_MIME}"
+          accept={DOCX_ACCEPT}
           onchange={(e) => {
             const file = e.currentTarget.files?.[0];
             if (file) void onFileChosen(file);
@@ -178,26 +164,12 @@
 
   {#if stats}
     <h2>Validation</h2>
-    {#if issues.length === 0}
-      <p class="clean"><code>validate(doc)</code> found nothing wrong with the package.</p>
-    {:else}
-      <ul class="issues">
-        {#each issues as issue, i (i)}
-          <li class="issue issue-{issue.level}">
-            <span class="issue-level">{issue.level}</span>
-            <span class="issue-msg">{issue.message}</span>
-            {#if issue.partName}<code>{issue.partName}</code>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
+    <ValidationReport {issues} />
   {/if}
 
   <h2>Preview</h2>
-  <!-- A scrollable region must be focusable, or keyboard users cannot scroll it. -->
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <div class="preview" tabindex="0" role="region" aria-label="Rendered document">
-    <div bind:this={container}></div>
+  <div class="preview-frame">
+    <DocumentPreview bytes={savedBytes} maxHeight="80vh" onerror={fail} />
   </div>
 </section>
 
@@ -334,61 +306,10 @@
     overflow-wrap: anywhere;
   }
 
-  .clean {
-    color: var(--ink-2);
-  }
-
-  .issues {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .issue {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.4rem 0.75rem;
-    margin: 0;
-    padding: 0.7rem 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 0.93rem;
-  }
-
-  .issue-level {
-    flex: none;
-    padding: 0.05rem 0.5rem;
-    border-radius: 999px;
-    background: var(--wash);
-    border: 1px solid var(--line-strong);
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
-
-  .issue-error .issue-level {
-    background: var(--accent-wash);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
-
-  .issue-msg {
-    flex: 1 1 16rem;
-  }
-
-  /* docx-preview lays pages out at their real size (A4 is 794 CSS pixels
-   * wide), so the pane scrolls sideways on a phone instead of the page. It
-   * paints its own grey desk and white sheets; those are the document's
-   * colours, not this site's, so they do not follow the dark theme. */
-  .preview {
-    max-height: 80vh;
-    overflow: auto;
+  .preview-frame {
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
-    background: #808080;
-  }
-
-  .preview > div {
-    min-height: 12rem;
+    overflow: hidden;
   }
 
   @media (max-width: 560px) {
