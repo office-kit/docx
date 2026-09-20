@@ -75,6 +75,7 @@
   <li><a href="{base}/docs/recipes">Recipes</a>: common scenarios you can copy.</li>
   <li><a href="{base}/api">API reference</a>: every public export, grouped by area.</li>
   <li><a href="{base}/playground">Playground</a>: drop in a .docx and see the preview.</li>
+  <li><a href="{base}/repl">REPL</a>: edit code and watch the document it builds.</li>
   <li><a href="https://github.com/office-kit/docx">GitHub</a>: source and issues.</li>
 </ul>
 

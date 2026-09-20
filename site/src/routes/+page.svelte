@@ -1,6 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import { FamilyGrid, InstallCommand, getProduct } from '@office-kit/site-kit';
+  import { downloadDocx } from '$lib/download';
   import type { PageRun } from '$lib/server/page-view';
   import type { PageProps } from './$types';
 
@@ -8,7 +9,6 @@
 
   const currentProduct = getProduct('docx');
 
-  const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const DOWNLOAD_NAME = 'office-kit-demo.docx';
 
   let download = $state<{ state: 'idle' | 'working' | 'done' | 'failed'; note: string }>({
@@ -26,12 +26,7 @@
         import('$lib/examples/hero-document'),
       ]);
       const bytes = toUint8Array(buildHeroDocument());
-      const url = URL.createObjectURL(new Blob([bytes.slice()], { type: DOCX_MIME }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = DOWNLOAD_NAME;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadDocx(bytes, DOWNLOAD_NAME);
       download = {
         state: 'done',
         note: `Saved ${DOWNLOAD_NAME} (${(bytes.byteLength / 1024).toFixed(1)} KB), built in this tab.`,
@@ -50,8 +45,8 @@
       title: 'Start from an empty document',
       body: 'createDocx() returns a document with its styles part and relationships already in place, so there is no template file to ship. Append headings, paragraphs, bullet and numbered lists, tables, inline images, headers, footers, footnotes, and a table of contents.',
       code: 'createDocx()',
-      href: '/docs/getting-started',
-      link: 'Read the getting started guide',
+      href: '/repl',
+      link: 'Write one in the REPL',
     },
     {
       title: 'Edit a file you already have',

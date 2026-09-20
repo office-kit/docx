@@ -26,6 +26,7 @@ This file is a short index. For every page concatenated into a single Markdown d
 - [Recipes](./docs/recipes) — type-checked snippets for mail-merge across every part, starting from a designed base, tracked changes, and the browser embed.
 - [API reference](./api) — every public export grouped by area: lifecycle, paragraphs & blocks, inline & text, styles & numbering, tables, images, headers/footers/sections, comments/notes/hyperlinks/bookmarks, fields & tracked changes, document properties, diagnostics, browser preview.
 - [Playground](./playground) — drop a \`.docx\` (or load the built-in sample) to open it, validate it, re-save it, and see the re-saved copy rendered by \`@office-kit/docx-preview\`. The bytes never leave the page.
+- [REPL](./repl) — an in-browser editor where every \`@office-kit/docx\` export is in scope and \`doc\` is a fresh document. The code runs on each edit, the result is saved with \`toUint8Array\`, and those bytes are rendered by \`@office-kit/docx-preview\` and checked with \`validate\`. Nothing is sent to a server.
 
 ## Scope
 

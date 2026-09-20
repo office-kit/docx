@@ -125,6 +125,9 @@ const PLAYGROUND = `An interactive page at \`/playground\`. Drop a \`.docx\` ont
 The "Download the re-saved file" button hands back the round-tripped document.
 `;
 
+const REPL = `An interactive page at \`/repl\`. A code editor on the left, the document it builds on the right. Every \`@office-kit/docx\` export is in scope without an import, and \`doc\` is a fresh document from \`createDocx({ paragraphs: [] })\`. On each edit the code runs, the result is saved with \`toUint8Array\`, and those bytes are rendered with \`@office-kit/docx-preview\` and checked with \`validate\`. When the code throws, the last good preview stays on screen and the error is shown with the line of the visitor's code it came from. "Download .docx" saves the bytes the preview shows. Nothing is sent to a server.
+`;
+
 const SCOPE = `## In scope
 
 WordprocessingML (\`.docx\`) — read, edit, write. OPC packaging (ECMA-376 Part 2) and DrawingML are part of the OOXML stack and are bundled into the package, but exist to serve docx. Browser preview lives in the companion \`@office-kit/docx-preview\`.
@@ -146,6 +149,7 @@ function buildBody(): string {
     "\n---\n\n<!-- Page: /docs/recipes -->\n# Recipes\n\n" + buildRecipesMarkdown(),
     "\n---\n\n<!-- Page: /api -->\n# API reference\n\n" + buildApiMarkdown(),
     "\n---\n\n<!-- Page: /playground -->\n# Playground\n\n" + PLAYGROUND,
+    "\n---\n\n<!-- Page: /repl -->\n# REPL\n\n" + REPL,
     "\n---\n\n<!-- Page: scope -->\n# Scope\n\n" + SCOPE,
   ];
   return parts.join("\n");
