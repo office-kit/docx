@@ -1,6 +1,6 @@
 // Resolve tracked changes (Word's "Accept / Reject all changes") in
-// bulk. word-kit walks every w:ins / w:del / w:moveFrom / w:moveTo
-// marker in the package and either bakes it in or removes it.
+// bulk. The library walks every w:ins / w:del marker in the document
+// body and either bakes it in or removes it.
 //
 // `acceptAllRevisions` inlines the inserted ranges and deletes the
 // deleted ones. `rejectAllRevisions` does the reverse: keeps deletions

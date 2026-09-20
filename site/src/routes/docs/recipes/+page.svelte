@@ -1,152 +1,101 @@
 <script lang="ts">
-  import { base } from "$app/paths";
-  import CodeBlock from "$lib/components/CodeBlock.svelte";
-  import type { PageProps } from "./$types";
+  import { base } from '$app/paths';
+  import CodeBlock from '$lib/components/CodeBlock.svelte';
+  import type { PageProps } from './$types';
 
   const { data }: PageProps = $props();
-
-  // Cross-reference pointers: which sample file (from `pnpm sample`) or
-  // integration test demonstrates each recipe end-to-end. Kept in a
-  // separate map from the type-checked examples so the snippet stays
-  // minimal and the cross-reference is a hairline pointer underneath.
-  const pointers: Record<string, string> = {
-    recipeMailMerge: "samples/20-mailmerge-text-replace-*.docx (run `pnpm sample`)",
-    recipeStyledBase: "samples/30-styled-base-*.docx",
-    recipeTrackedChanges: "samples/09-tracked-changes.docx",
-    previewEmbed: "see live in the /playground page",
-  };
 </script>
 
 <svelte:head>
-  <title>Recipes · word-kit</title>
+  <title>Recipes · @office-kit/docx</title>
 </svelte:head>
 
-<article class="prose">
-  <p class="eyebrow">§ 02 · Recipes</p>
-  <h1>Common scenarios, type-checked snippets.</h1>
+<h1>Recipes</h1>
 
-  <p class="lede">
-    Every snippet below lives under <code>site/src/lib/examples/</code> and is
-    type-checked by <code>svelte-check</code> against the live
-    <code>@office-kit/docx</code> / <code>@office-kit/docx-preview</code> surface. An API
-    rename breaks this page before anything ships. Pointers under each snippet
-    name the matching sample file produced by <code>pnpm sample</code> (or the
-    integration test that exercises the same path).
-  </p>
+<p class="lede">
+  Working code for common tasks. Every snippet is a real file under
+  <code>site/src/lib/examples/</code> that is type-checked against the library on every build, so
+  an API rename breaks this page before it ships. For a specific function, see the
+  <a href="{base}/api">API reference</a>.
+</p>
 
-  {#each data.recipes as r, i (r.key)}
-    <section class="recipe">
-      <header class="r-head">
-        <span class="r-num">{String(i + 1).padStart(2, "0")}</span>
-        <div class="r-text">
-          <h2>{r.title}</h2>
-          <p>{r.description}</p>
-          <p class="r-pointer">
-            <span class="label">where:</span>
-            <code>{pointers[r.key] ?? "—"}</code>
-          </p>
-        </div>
-      </header>
-      <CodeBlock
-        html={r.html}
-        source={r.source}
-        title={r.path}
-        coord={String.fromCharCode(64 + i + 1) + "1"}
-      />
-    </section>
+<nav class="jump" aria-label="Recipes on this page">
+  {#each data.recipes as r (r.key)}
+    <a href="#{r.key}">{r.title}</a>
   {/each}
+</nav>
 
-  <p class="more">
-    Want to drive a doc end-to-end? Walk the
-    <a href="{base}/docs/getting-started">Getting started</a> page, then poke at
-    <a href="{base}/playground">the playground</a> to see the rendered output.
-  </p>
-</article>
+{#each data.recipes as r (r.key)}
+  <section class="recipe" id={r.key}>
+    <h2><a href="#{r.key}">{r.title}</a></h2>
+    <p>{r.description}</p>
+    <CodeBlock html={r.html} title={r.path} />
+    {#if r.seeAlso}
+      <p class="see-also">{r.seeAlso}</p>
+    {/if}
+  </section>
+{/each}
+
+<p class="more">
+  To build a document end to end, walk through
+  <a href="{base}/docs/getting-started">Getting started</a>, then open
+  <a href="{base}/playground">the playground</a> to see the rendered output.
+</p>
 
 <style>
-  .prose {
-    max-width: var(--max-content);
-    margin: 0 auto;
-    padding: 3rem 1.5rem 5rem;
-  }
-
-  h1 {
-    font-family: var(--display);
-    font-weight: 460;
-    font-size: clamp(2rem, 4.6vw, 2.95rem);
-    line-height: 1.05;
-    letter-spacing: -0.026em;
-    margin: 0 0 1rem;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
-    max-width: 22ch;
-  }
-
   .lede {
-    color: var(--fg-soft);
-    font-size: 1.06rem;
-    line-height: 1.55;
-    max-width: 64ch;
-    margin: 0 0 2rem;
+    color: var(--ink-2);
+    font-size: 1.08rem;
+  }
+
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.75rem 0 0;
+  }
+
+  .jump a {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-2);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .jump a:hover {
+    color: var(--ink);
+    border-color: var(--ink-3);
+    text-decoration: none;
   }
 
   .recipe {
-    margin: 2.5rem 0 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    scroll-margin-top: calc(var(--header-h) + 1rem);
   }
 
-  .r-head {
-    display: grid;
-    grid-template-columns: 4ch 1fr;
-    gap: 1.25rem;
-    margin: 0 0 0.5rem;
+  .recipe h2 {
+    margin: 0 0 0.4rem;
   }
 
-  .r-num {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    color: var(--accent);
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    margin-top: 0.55rem;
+  .recipe h2 a {
+    color: inherit;
   }
 
-  .r-text h2 {
-    margin: 0 0 0.5rem;
-    border: none;
-    padding: 0;
-    font-family: var(--display);
-    font-size: 1.45rem;
-    font-weight: 540;
-    font-variation-settings: "opsz" 64, "SOFT" 25;
-  }
-
-  .r-text p {
+  .recipe > p {
     margin: 0;
-    color: var(--fg-soft);
-    font-size: 1rem;
-    line-height: 1.55;
+    color: var(--ink-2);
   }
 
-  .r-pointer {
-    margin-top: 0.55rem !important;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    color: var(--fg-muted);
-  }
-
-  .r-pointer .label {
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-right: 0.4rem;
-    color: var(--fg-faint);
+  .recipe .see-also {
+    font-size: 0.9rem;
   }
 
   .more {
-    margin-top: 2.5rem;
-    border-top: 1px solid var(--border);
-    padding-top: 1.25rem;
-    color: var(--fg-soft);
-    font-size: 0.95rem;
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-2);
   }
 </style>

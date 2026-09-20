@@ -1,587 +1,399 @@
 <script lang="ts">
-  import { base } from '$app/paths';
   import { onMount } from 'svelte';
+  import type { ValidationIssue } from '@office-kit/docx';
+
+  type Stats = ReturnType<typeof import('@office-kit/docx').statistics>;
+
+  const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const SAMPLE_NAME = 'office-kit-demo.docx';
 
   let container = $state<HTMLDivElement | null>(null);
-  let status = $state<string>('Ready.');
-  let busy = $state<boolean>(false);
-  let fileName = $state<string>('built-in sample');
-  let docxBytes = $state<number>(0);
-  let dropping = $state<boolean>(false);
-  let docxModule = $state<typeof import('@office-kit/docx') | null>(null);
-  let previewModule = $state<typeof import('@office-kit/docx-preview') | null>(null);
-  // The actual bytes currently mounted in the preview, kept so that the
-  // download button can return the same .docx the user is looking at —
-  // whether that's the built-in sample or a file they just uploaded.
-  let lastBytes = $state<Uint8Array | null>(null);
-  let currentDispose: (() => void) | null = null;
+  let status = $state('Loading the library…');
+  let busy = $state(false);
+  let dropping = $state(false);
+  let fileName = $state('');
+  let stats = $state<Stats | null>(null);
+  let docTitle = $state<string | undefined>();
+  let docAuthor = $state<string | undefined>();
+  let issues = $state<ValidationIssue[]>([]);
+  // The re-saved bytes, which are also what the preview below is showing.
+  let savedBytes = $state<Uint8Array | null>(null);
+  let disposePreview: (() => void) | undefined;
 
-  async function ensureModules(): Promise<{
-    core: typeof import('@office-kit/docx');
-    preview: typeof import('@office-kit/docx-preview');
-  }> {
-    if (docxModule && previewModule) return { core: docxModule, preview: previewModule };
-    status = 'Loading @office-kit/docx + @office-kit/docx-preview…';
-    const [coreMod, previewMod] = await Promise.all([
-      import('@office-kit/docx'),
-      import('@office-kit/docx-preview'),
-    ]);
-    docxModule = coreMod;
-    previewModule = previewMod;
-    return { core: coreMod, preview: previewMod };
-  }
-
-  function buildSampleBytes(core: typeof import('@office-kit/docx')): Uint8Array {
-    const {
-      addBulletList,
-      addTable,
-      appendHeading,
-      appendParagraph,
-      createDocx,
-      MARGINS_NORMAL,
-      PAGE_SIZE_A4,
-      setCoreProperties,
-      setPageMargins,
-      setPageSize,
-      toUint8Array,
-    } = core;
-
-    const doc = createDocx({ paragraphs: [] });
-    setPageSize(doc, PAGE_SIZE_A4);
-    setPageMargins(doc, MARGINS_NORMAL);
-    setCoreProperties(doc, {
-      title: 'word-kit playground sample',
-      creator: 'word-kit',
-      description: 'Built in the browser by @office-kit/docx, rendered by @office-kit/docx-preview.',
-    });
-
-    appendHeading(doc, 'word-kit — playground sample', 1);
-    appendParagraph(
-      doc,
-      'This document was generated entirely in the browser by @office-kit/docx, then mounted into the page by @office-kit/docx-preview. No server, no Word, no PDF.',
-    );
-
-    appendHeading(doc, 'What you can do here', 2);
-    addBulletList(doc, [
-      'Paragraphs, headings, and run formatting',
-      'Numbered and bulleted lists',
-      'Tables with rows and columns',
-      'A4 / Letter page sizes and margins',
-      'Tracked changes, comments, footnotes (see Recipes)',
-      'Lossless round-trip — open and re-save without breaking the file',
-    ]);
-
-    appendHeading(doc, 'A small table', 2);
-    addTable(doc, [
-      ['Quarter', 'Shipped', 'Open'],
-      ['Q1', '14', '3'],
-      ['Q2', '19', '5'],
-      ['Q3', '22', '2'],
-    ]);
-
-    appendHeading(doc, 'How to drive this from your own code', 2);
-    appendParagraph(
-      doc,
-      "Drop any .docx onto the surface to the right, or open one with the file picker. The bytes never leave the page — preview runs entirely in your browser.",
-    );
-
-    return toUint8Array(doc);
-  }
-
-  async function renderBytes(bytes: Uint8Array): Promise<void> {
+  // Opens the file with the library, saves it again, and previews the saved
+  // bytes rather than the upload: what is on screen is the round trip.
+  async function inspect(bytes: Uint8Array, name: string): Promise<void> {
     if (!container) return;
     busy = true;
+    fileName = name;
+    status = `Opening ${name}…`;
     try {
-      const { preview } = await ensureModules();
-      currentDispose?.();
-      container.innerHTML = '';
-      status = `Rendering ${bytes.byteLength.toLocaleString()} bytes…`;
-      const handle = await preview.previewToDOM(bytes, container, {
-        classPrefix: 'wk-',
-        inWrapper: true,
-        breakPages: true,
-        renderFonts: true,
-      });
-      currentDispose = () => handle.dispose();
-      docxBytes = bytes.byteLength;
-      lastBytes = bytes;
-      status = `Rendered ${fileName} — ${bytes.byteLength.toLocaleString()} bytes.`;
+      const [core, preview] = await Promise.all([
+        import('@office-kit/docx'),
+        import('@office-kit/docx-preview'),
+      ]);
+      const doc = core.openDocx(bytes);
+      stats = core.statistics(doc);
+      docTitle = core.title(doc);
+      docAuthor = core.author(doc);
+      issues = core.validate(doc);
+      const saved = core.toUint8Array(doc);
+
+      disposePreview?.();
+      const handle = await preview.previewToDOM(saved, container);
+      disposePreview = () => handle.dispose();
+      savedBytes = saved;
+      status = `Opened ${name} (${bytes.byteLength.toLocaleString()} bytes), saved it again (${saved.byteLength.toLocaleString()} bytes), and rendered the saved copy.`;
     } catch (err) {
-      status = `Failed: ${(err as Error).message}`;
+      disposePreview?.();
+      disposePreview = undefined;
+      stats = null;
+      issues = [];
+      savedBytes = null;
+      status = `This file could not be opened: ${err instanceof Error ? err.message : String(err)}`;
     } finally {
       busy = false;
     }
   }
 
+  // Gives a visitor with no .docx at hand something real to inspect: the
+  // document from the landing page, built in this tab.
   async function loadSample(): Promise<void> {
-    const { core } = await ensureModules();
-    fileName = 'built-in sample';
-    const bytes = buildSampleBytes(core);
-    await renderBytes(bytes);
+    const [{ toUint8Array }, { buildHeroDocument }] = await Promise.all([
+      import('@office-kit/docx'),
+      import('$lib/examples/hero-document'),
+    ]);
+    await inspect(toUint8Array(buildHeroDocument()), SAMPLE_NAME);
   }
 
-  async function loadFromFile(file: File): Promise<void> {
-    fileName = file.name;
-    const buf = await file.arrayBuffer();
-    await renderBytes(new Uint8Array(buf));
+  async function onFileChosen(file: File): Promise<void> {
+    await inspect(new Uint8Array(await file.arrayBuffer()), file.name);
   }
 
-  function handleFileInput(event: Event): void {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) void loadFromFile(file);
-  }
-
-  function handleDrop(event: DragEvent): void {
+  function onDrop(event: DragEvent): void {
     event.preventDefault();
     dropping = false;
     const file = event.dataTransfer?.files[0];
-    if (file) void loadFromFile(file);
+    if (file) void onFileChosen(file);
   }
 
-  function handleDragOver(event: DragEvent): void {
-    event.preventDefault();
-    dropping = true;
-  }
-
-  function handleDragLeave(): void {
-    dropping = false;
-  }
-
-  function downloadCurrent(): void {
-    if (!lastBytes) return;
-    // Slice the in-memory bytes into a fresh ArrayBuffer so Blob's
-    // BlobPart type (which wants ArrayBuffer-backed views, not
-    // SharedArrayBuffer) is satisfied under strict TS lib settings.
-    const ab = lastBytes.slice().buffer as ArrayBuffer;
-    const blob = new Blob([ab], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    });
-    const url = URL.createObjectURL(blob);
+  function downloadSaved(): void {
+    if (!savedBytes) return;
+    const url = URL.createObjectURL(new Blob([savedBytes.slice()], { type: DOCX_MIME }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileName.endsWith('.docx') ? fileName : `${fileName || 'word-kit'}.docx`;
-    document.body.appendChild(a);
+    a.download = fileName.replace(/\.docx$/i, '') + '.roundtrip.docx';
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
+  const cells = $derived(
+    stats
+      ? [
+          { label: 'Paragraphs', value: stats.paragraphs },
+          { label: 'Headings', value: stats.headings },
+          { label: 'Tables', value: stats.tables },
+          { label: 'Images', value: stats.images },
+          { label: 'Words', value: stats.words.toLocaleString() },
+          { label: 'Comments', value: stats.comments },
+          { label: 'Footnotes and endnotes', value: stats.footnotes + stats.endnotes },
+          { label: 'Title', value: docTitle || 'Not set' },
+          { label: 'Author', value: docAuthor || 'Not set' },
+        ]
+      : [],
+  );
+
   onMount(() => {
     void loadSample();
-    return () => currentDispose?.();
+    return () => disposePreview?.();
   });
 </script>
 
 <svelte:head>
-  <title>Playground · word-kit</title>
+  <title>Playground · @office-kit/docx</title>
 </svelte:head>
 
-<section class="head">
-  <div class="head-inner">
-    <p class="eyebrow">Playground</p>
-    <h1>Render a <em>.docx</em> in your browser.</h1>
-    <p class="lede">
-      Drop a Word document onto the canvas, or generate a built-in sample with
-      <code>@office-kit/docx</code>. Preview is rendered by
-      <a href="{base}/api">@office-kit/docx-preview</a> entirely client-side — your file never
-      leaves the page.
-    </p>
-  </div>
-</section>
+<section class="content">
+  <h1>Open a .docx in your browser</h1>
+  <p class="lede">
+    Drop a file and this page opens it with <code>@office-kit/docx</code>, counts what is inside,
+    validates the package, saves it again, and renders the saved copy with
+    <code>@office-kit/docx-preview</code>. Nothing is uploaded: the whole pipeline runs in this tab.
+  </p>
 
-<section class="workbench">
-  <aside class="controls" aria-label="Playground controls">
-    <header class="controls-head">
-      <span class="bracket">[</span>
-      <span class="title">controls</span>
-      <span class="bracket">]</span>
-    </header>
-
-    <button class="btn primary" onclick={loadSample} disabled={busy}>
-      <span>Generate sample</span>
-      <span class="arrow">↻</span>
-    </button>
-
-    <label class="file-btn">
-      <input type="file" accept=".docx" onchange={handleFileInput} />
-      <span>Open .docx…</span>
-    </label>
-
-    <button class="btn ghost" onclick={downloadCurrent} disabled={!lastBytes}>
-      Download current bytes
-    </button>
-
-    <dl class="status">
-      <div>
-        <dt>file</dt>
-        <dd>{fileName}</dd>
-      </div>
-      <div>
-        <dt>size</dt>
-        <dd>{docxBytes ? `${docxBytes.toLocaleString()} B` : '—'}</dd>
-      </div>
-      <div>
-        <dt>state</dt>
-        <dd class:busy>{status}</dd>
-      </div>
-    </dl>
-
-    <p class="note">
-      <strong>What is this?</strong>
-      <br />
-      A read-only render. To edit, build a <code>Docx</code> with
-      <code>@office-kit/docx</code>; <em>Download current bytes</em> hands you back
-      whatever <code>.docx</code> is mounted right now — sample or upload.
-    </p>
-
-    <p class="note muted">
-      Bundle: <code>@office-kit/docx</code> ~131 KB full · <code>@office-kit/docx-preview</code> wraps the OSS
-      <code>docx-preview</code> renderer.
-    </p>
-  </aside>
-
-  <div class="stage" class:dropping ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop} role="region" aria-label="Document preview">
-    <div class="stage-shell">
-      <div class="stage-head">
-        <span class="dot dot-a"></span>
-        <span class="dot dot-b"></span>
-        <span class="dot dot-c"></span>
-        <span class="stage-name">{fileName}</span>
-      </div>
-      <div class="stage-scroll">
-        <div bind:this={container} class="stage-canvas">
-          <p class="stage-placeholder">Loading word-kit modules…</p>
-        </div>
-      </div>
-      {#if dropping}
-        <div class="drop-overlay">
-          <span>Drop the .docx to render</span>
-        </div>
+  <div
+    class="drop"
+    class:dropping
+    role="group"
+    aria-label="Choose a .docx file"
+    ondragover={(e) => {
+      e.preventDefault();
+      dropping = true;
+    }}
+    ondragleave={() => (dropping = false)}
+    ondrop={onDrop}
+  >
+    <p class="drop-text">{fileName || 'Drop a .docx file here'}</p>
+    <div class="drop-actions">
+      <label class="btn primary drop-pick">
+        <input
+          type="file"
+          accept=".docx,{DOCX_MIME}"
+          onchange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            if (file) void onFileChosen(file);
+          }}
+        />
+        Choose a file
+      </label>
+      <button type="button" class="btn" onclick={loadSample} disabled={busy}>
+        Load the sample document
+      </button>
+      {#if savedBytes}
+        <button type="button" class="btn" onclick={downloadSaved}>Download the re-saved file</button>
       {/if}
     </div>
+  </div>
+
+  <p class="caveat">
+    The preview is drawn by the open-source docx-preview renderer, which approximates Word’s layout:
+    pagination, fonts, and floating objects can differ. Word and LibreOffice remain the exact
+    renderers.
+  </p>
+
+  <p class="status" class:busy aria-live="polite">{status}</p>
+
+  {#if cells.length > 0}
+    <div class="meta-clip">
+      <dl class="meta">
+        {#each cells as cell (cell.label)}
+          <div class="cell">
+            <dt>{cell.label}</dt>
+            <dd>{cell.value}</dd>
+          </div>
+        {/each}
+      </dl>
+    </div>
+  {/if}
+
+  {#if stats}
+    <h2>Validation</h2>
+    {#if issues.length === 0}
+      <p class="clean"><code>validate(doc)</code> found nothing wrong with the package.</p>
+    {:else}
+      <ul class="issues">
+        {#each issues as issue, i (i)}
+          <li class="issue issue-{issue.level}">
+            <span class="issue-level">{issue.level}</span>
+            <span class="issue-msg">{issue.message}</span>
+            {#if issue.partName}<code>{issue.partName}</code>{/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {/if}
+
+  <h2>Preview</h2>
+  <!-- A scrollable region must be focusable, or keyboard users cannot scroll it. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div class="preview" tabindex="0" role="region" aria-label="Rendered document">
+    <div bind:this={container}></div>
   </div>
 </section>
 
 <style>
-  .head {
-    padding: 2.6rem 1.5rem 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .head-inner {
-    max-width: var(--max-wide);
+  .content {
+    max-width: 1000px;
     margin: 0 auto;
-  }
-
-  h1 {
-    font-family: var(--display);
-    font-weight: 460;
-    font-size: clamp(1.9rem, 4.5vw, 2.85rem);
-    line-height: 1.05;
-    margin: 0 0 0.85rem;
-    font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    letter-spacing: -0.025em;
-    max-width: 18ch;
-  }
-
-  h1 em {
-    color: var(--accent);
-    font-style: italic;
-    font-variation-settings: 'opsz' 144, 'SOFT' 70;
+    padding: 2.75rem var(--gutter) 5rem;
   }
 
   .lede {
-    color: var(--fg-soft);
-    font-size: 1.04rem;
-    line-height: 1.55;
-    max-width: 64ch;
-    margin: 0;
+    max-width: 66ch;
+    color: var(--ink-2);
+    font-size: 1.08rem;
   }
 
-  .workbench {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 0;
-    max-width: var(--max-wide);
-    margin: 0 auto;
-    padding: 1.75rem 1.5rem 4rem;
+  .lede code {
+    white-space: nowrap;
   }
 
-  @media (max-width: 880px) {
-    .workbench {
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
-    }
-  }
-
-  .controls {
-    border: 1px solid var(--border);
-    border-right: none;
-    border-radius: var(--radius) 0 0 var(--radius);
-    background: var(--bg-elev);
-    padding: 1.1rem 1.1rem 1.25rem;
+  .drop {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  @media (max-width: 880px) {
-    .controls {
-      border-right: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-  }
-
-  .controls-head {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--fg-muted);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-bottom: 0.25rem;
-    display: flex;
-    gap: 0.4rem;
     align-items: center;
-  }
-
-  .controls-head .bracket {
-    color: var(--accent);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.65rem 0.85rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--bg-soft);
-    color: var(--fg);
-    font-family: var(--sans);
-    font-size: 0.9rem;
-    font-weight: 540;
-    cursor: pointer;
-    transition:
-      background 120ms ease,
-      border-color 120ms ease,
-      color 120ms ease,
-      transform 120ms ease;
-  }
-
-  .btn:hover:not([disabled]) {
-    background: var(--bg-paper);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
-  }
-
-  .btn[disabled] {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .btn.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    box-shadow: 0 8px 24px -14px var(--accent-glow);
-  }
-
-  .btn.primary:hover:not([disabled]) {
-    background: var(--accent-hot);
-    border-color: var(--accent-hot);
-  }
-
-  .btn.ghost {
-    background: transparent;
-  }
-
-  .btn .arrow {
-    color: var(--bg);
-    opacity: 0.7;
-  }
-
-  .file-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.65rem 0.85rem;
-    border-radius: var(--radius-sm);
-    border: 1px dashed var(--border-strong);
-    background: var(--bg-soft);
-    color: var(--fg);
-    font-family: var(--sans);
-    font-size: 0.9rem;
-    font-weight: 540;
-    cursor: pointer;
+    gap: 1.1rem;
+    margin: 2rem 0 0;
+    padding: 2.25rem 1.25rem;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 12px;
+    background: var(--wash);
     text-align: center;
-    transition: background 120ms ease, border-color 120ms ease;
+    transition:
+      border-color 120ms ease,
+      background 120ms ease;
   }
 
-  .file-btn:hover {
-    background: var(--bg-paper);
+  .drop.dropping {
     border-color: var(--accent);
-    color: var(--fg);
+    background: var(--accent-wash);
   }
 
-  .file-btn input {
-    display: none;
+  .drop-text {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    overflow-wrap: anywhere;
   }
 
-  .status {
-    margin: 0.5rem 0 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--code-bg);
-    padding: 0.7rem 0.75rem;
+  .drop-actions {
     display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    font-family: var(--mono);
-    font-size: 11.5px;
-  }
-
-  .status > div {
-    display: grid;
-    grid-template-columns: 4ch 1fr;
-    align-items: baseline;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.6rem;
   }
 
-  .status dt {
-    color: var(--fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 10px;
+  .drop-pick input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
   }
 
-  .status dd {
-    color: var(--fg);
-    margin: 0;
-    word-break: break-word;
+  .drop-pick:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
-  .status dd.busy {
-    color: var(--accent);
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
   }
 
-  .note {
-    color: var(--fg-soft);
-    font-size: 0.86rem;
-    line-height: 1.5;
-    margin: 0;
+  .caveat {
+    max-width: 72ch;
+    margin: 1rem 0 0;
+    color: var(--ink-3);
+    font-size: 0.88rem;
   }
 
-  .note.muted {
-    color: var(--fg-muted);
-    font-size: 0.78rem;
+  .status {
+    min-height: 1.6em;
+    margin: 1.5rem 0 0;
+    color: var(--ink-2);
+    font-size: 0.95rem;
   }
 
-  .note strong {
-    color: var(--fg);
+  .status.busy {
+    color: var(--accent-ink);
   }
 
-  .stage {
-    border: 1px solid var(--border);
-    border-radius: 0 var(--radius) var(--radius) 0;
-    background: var(--bg-paper);
+  h2 {
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 1.4rem;
+  }
+
+  /* Each cell draws its own right and bottom rule and the grid is pulled 1px
+   * past the clipping box, so the outer edge never doubles up and a short last
+   * row leaves plain paper rather than a filled gap. */
+  .meta-clip {
+    margin-top: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
     overflow: hidden;
-    position: relative;
-    min-height: 70vh;
   }
 
-  @media (max-width: 880px) {
-    .stage {
-      border-radius: var(--radius);
-    }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin: 0 -1px -1px 0;
   }
 
-  .stage-shell {
+  .cell {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    gap: 0.15rem;
+    padding: 0.8rem 1rem;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
   }
 
-  .stage-head {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.6rem 0.85rem;
-    background: var(--bg-elev);
-    border-bottom: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--fg-muted);
+  .cell dt {
+    color: var(--ink-3);
+    font-size: 0.8rem;
   }
 
-  .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--bg-soft);
-    border: 1px solid var(--border-strong);
-  }
-
-  .dot-a {
-    background: color-mix(in oklab, var(--accent) 60%, var(--bg-soft));
-    border-color: var(--accent-soft);
-  }
-
-  .dot-b {
-    background: color-mix(in oklab, var(--brass) 50%, var(--bg-soft));
-    border-color: var(--brass-soft);
-  }
-
-  .stage-name {
-    margin-left: 0.4rem;
-    color: var(--fg-soft);
-  }
-
-  /* The scroll slot has zero padding so docx-preview's own wrapper (which
-   * applies its own padding + centring) sits flush against the edges.
-   * Overflow auto handles documents whose page width exceeds the viewport. */
-  .stage-scroll {
-    flex: 1;
-    overflow: auto;
-    padding: 0;
-    background: var(--bg-paper);
-  }
-
-  /* Transparent slot for docx-preview's rendered tree. The renderer paints
-   * its own grey wrapper + white pages + page shadows; we deliberately
-   * don't fight those styles with our own border / background / padding —
-   * doing so used to push the page off the top-left of the canvas. */
-  .stage-canvas {
-    min-height: 60vh;
-  }
-
-  .stage-placeholder {
-    color: var(--fg-muted);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 1.2rem 1.4rem;
+  .cell dd {
     margin: 0;
+    font-weight: 600;
+    font-size: 0.97rem;
+    overflow-wrap: anywhere;
   }
 
-  .drop-overlay {
-    position: absolute;
-    inset: 0;
+  .clean {
+    color: var(--ink-2);
+  }
+
+  .issues {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .issue {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in oklab, var(--accent) 18%, transparent);
-    border: 2px dashed var(--accent);
-    color: var(--fg);
-    font-family: var(--mono);
-    font-size: 14px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    backdrop-filter: blur(2px);
-    pointer-events: none;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.75rem;
+    margin: 0;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.93rem;
   }
 
-  .stage.dropping {
+  .issue-level {
+    flex: none;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--wash);
+    border: 1px solid var(--line-strong);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .issue-error .issue-level {
+    background: var(--accent-wash);
     border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .issue-msg {
+    flex: 1 1 16rem;
+  }
+
+  /* docx-preview lays pages out at their real size (A4 is 794 CSS pixels
+   * wide), so the pane scrolls sideways on a phone instead of the page. It
+   * paints its own grey desk and white sheets; those are the document's
+   * colours, not this site's, so they do not follow the dark theme. */
+  .preview {
+    max-height: 80vh;
+    overflow: auto;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: #808080;
+  }
+
+  .preview > div {
+    min-height: 12rem;
+  }
+
+  @media (max-width: 560px) {
+    .drop-actions .btn {
+      flex: 1 1 100%;
+    }
   }
 </style>

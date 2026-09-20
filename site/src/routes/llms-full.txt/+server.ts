@@ -2,10 +2,9 @@
 // document. Companion of /llms.txt (which is just an index): this is the
 // payload, intended for LLM ingestion in one fetch.
 //
-// Sibling of xlsx-kit's /llms-full.txt. xlsx-kit assembles its body by
-// glob-loading mdsvex `.svx` files; word-kit's docs pages are
-// hand-written `.svelte`, so we render the same content from two
-// already-existing sources of truth instead:
+// The docs pages are hand-written `.svelte` rather than Markdown, so there
+// is no page source to concatenate. The body is assembled from the two
+// sources of truth the pages themselves render from:
 //
 //   * `$lib/examples` — the type-checked example files used by the home
 //     page and the recipes page.
@@ -21,23 +20,23 @@ import type { RequestHandler } from "./$types";
 
 export const prerender = true;
 
-const PREAMBLE = `# word-kit — full documentation
+const PREAMBLE = `# @office-kit/docx — full documentation
 
-This file is the concatenation of every page on the word-kit docs site, intended for LLM ingestion in a single fetch. Page boundaries are marked with H1 headings prefixed by the source path. The companion index at \`/llms.txt\` lists the same pages with one-line descriptions.
+This file is the concatenation of every page on the @office-kit/docx docs site, intended for LLM ingestion in a single fetch. Page boundaries are marked with H1 headings prefixed by the source path. The companion index at \`/llms.txt\` lists the same pages with one-line descriptions.
 
 Source repo: https://github.com/office-kit/docx
 `;
 
-const PROJECT_OVERVIEW = `OOXML-compliant (ECMA-376 Part 1 — WordprocessingML) Word \`.docx\` library for Node 22+ and modern browsers. Function-first API: every operation is a standalone, tree-shakeable export, never a method on a class. Lossless round-trip for every element the library does not yet model, so hand-designed templates survive intact.
+const PROJECT_OVERVIEW = `OOXML-compliant (ECMA-376 Part 1 — WordprocessingML) Word \`.docx\` library for Node (tested on 22 and 24) and modern browsers. Function-first API: every operation is a standalone, tree-shakeable export, never a method on a class. Elements and parts the library does not yet model are passed through unchanged on save, so hand-designed templates survive an edit.
 
 Two packages on npm:
 
 - \`@office-kit/docx\` — the public authoring API.
 - \`@office-kit/docx-preview\` — optional companion that mounts a read-only preview of any \`Docx\` (or raw bytes) into a DOM container, by wrapping the OSS \`docx-preview\` renderer.
 
-Bundle budgets (CI-enforced): minimal \`createDocx + appendParagraph + toUint8Array\` slice ~42 KB minified; full surface ~131 KB.
+Bundle sizes: minimal \`createDocx + appendParagraph + toUint8Array\` slice ~42 KB minified (CI fails above 50 KB); full surface ~133 KB.
 
-Test gate: 512 vitest tests on Node 22 and 24 every change. Real-Word fixture corpora (mammoth.js + python-docx) round-trip-verified.
+Test gate: the vitest suite runs on Node 22 and 24 on every change, and opens, re-saves, and re-reads the mammoth.js and python-docx fixture corpora, comparing paragraphs and text.
 `;
 
 const GETTING_STARTED = `Install both packages:
@@ -58,9 +57,9 @@ ${examples.fromScratch.source.trimEnd()}
 
 ## Open a template, fill placeholders
 
-Existing \`.docx\` files are opened with \`openDocx\` and edited in place. word-kit preserves every XML element it does not yet model as a pass-through node, so re-saving an unmodified template doesn't trip Word's "needs repair" prompt.
+Existing \`.docx\` files are opened with \`openDocx\` and edited in place. Every XML element the library does not yet model is kept as a pass-through node at its original position, so saving a template you did not change does not rewrite it into something else.
 
-\`replaceTextEverywhere\` walks every story — body, headers, footers, footnotes, endnotes, comments, textboxes — not just the main document. Run-spanning matches like \`{{name}}\` split across multiple runs are joined before the regex sees them.
+\`replaceTextEverywhere\` walks the body, headers, footers, footnotes, endnotes, and comments — not just the main document. A match like \`{{name}}\` that is split across several runs of one paragraph is still found; a match that spans two paragraphs is not.
 
 \`\`\`ts title="${examples.templateFill.path}"
 ${examples.templateFill.source.trimEnd()}
@@ -78,7 +77,7 @@ ${examples.previewEmbed.source.trimEnd()}
 function buildRecipesMarkdown(): string {
   const intro = `Type-checked snippets for common scenarios. Every snippet below lives under \`site/src/lib/examples/\` and is type-checked by \`svelte-check\` against the live \`@office-kit/docx\` / \`@office-kit/docx-preview\` surface — an API rename breaks the docs build before anything ships.
 
-Pointers under each snippet name the matching sample file produced by \`pnpm sample\` (or the integration test that exercises the same path).
+A note under each snippet says where the recipe can be seen end to end.
 `;
 
   const recipeKeys = [
@@ -88,22 +87,14 @@ Pointers under each snippet name the matching sample file produced by \`pnpm sam
     "previewEmbed",
   ] as const;
 
-  const pointers: Record<string, string> = {
-    recipeMailMerge: "samples/20-mailmerge-text-replace-*.docx (run `pnpm sample`)",
-    recipeStyledBase: "samples/30-styled-base-*.docx",
-    recipeTrackedChanges: "samples/09-tracked-changes.docx",
-    previewEmbed: "see live in the /playground page",
-  };
-
-  const sections = recipeKeys.map((key, i) => {
+  const sections = recipeKeys.map((key) => {
     const ex = examples[key];
-    const pointer = pointers[key] ?? "—";
     return [
-      `### ${String(i + 1).padStart(2, "0")} · ${ex.title}`,
+      `### ${ex.title}`,
       "",
       ex.description,
       "",
-      `*Where:* \`${pointer}\``,
+      ex.seeAlso,
       "",
       `\`\`\`ts title="${ex.path}"`,
       ex.source.trimEnd(),
@@ -123,24 +114,24 @@ function buildApiMarkdown(): string {
       const sig = e.sig ? `: \`${e.sig}\`` : "";
       return `- \`${e.name}\`${sig}`;
     });
-    return `### ${g.num} · ${g.title}\n\n${items.join("\n")}`;
+    return `### ${g.title}\n\n${g.description}\n\n${items.join("\n")}`;
   });
 
   return `${intro}\n${sections.join("\n\n")}\n`;
 }
 
-const PLAYGROUND = `An interactive page at \`/playground\`. Drop a \`.docx\` onto the canvas (or click "Generate sample" to build one in the browser via \`@office-kit/docx\`) and see it rendered live by \`@office-kit/docx-preview\`. The bytes never leave the browser.
+const PLAYGROUND = `An interactive page at \`/playground\`. Drop a \`.docx\` onto the page (or load the built-in sample, which is built in the browser via \`@office-kit/docx\`). The page opens it with \`openDocx\`, shows \`statistics\` and \`validate\` results, saves it again with \`toUint8Array\`, and renders the saved copy with \`@office-kit/docx-preview\`. The bytes never leave the browser.
 
-The "Download current bytes" button hands back whatever document is mounted right now — useful for shipping an edited workbook back out of the page after a transform.
+The "Download the re-saved file" button hands back the round-tripped document.
 `;
 
 const SCOPE = `## In scope
 
-WordprocessingML (\`.docx\`) — read, edit, write. OPC packaging (ECMA-376 Part 2) and DrawingML are part of the OOXML stack and live in their own packages, but exist to serve docx. Browser preview lives in the companion \`@office-kit/docx-preview\`.
+WordprocessingML (\`.docx\`) — read, edit, write. OPC packaging (ECMA-376 Part 2) and DrawingML are part of the OOXML stack and are bundled into the package, but exist to serve docx. Browser preview lives in the companion \`@office-kit/docx-preview\`.
 
-## Out of scope (for now)
+## Out of scope
 
-\`.pptx\` (PresentationML) and \`.xlsx\` (SpreadsheetML). For spreadsheets, see the sibling project [xlsx-kit](https://github.com/baseballyama/xlsx-kit).
+\`.pptx\` (PresentationML) and \`.xlsx\` (SpreadsheetML). See the sibling libraries [@office-kit/pptx](https://office-kit.github.io/pptx/) and [@office-kit/xlsx](https://office-kit.github.io/xlsx/).
 
 ## Out of scope (permanent)
 
@@ -150,7 +141,7 @@ Rendering to PDF, headless Word automation, binary \`.doc\` (pre-2007 Word).
 function buildBody(): string {
   const parts = [
     PREAMBLE,
-    "\n---\n\n<!-- Page: / -->\n# word-kit — overview\n\n" + PROJECT_OVERVIEW,
+    "\n---\n\n<!-- Page: / -->\n# @office-kit/docx — overview\n\n" + PROJECT_OVERVIEW,
     "\n---\n\n<!-- Page: /docs/getting-started -->\n# Getting started\n\n" + GETTING_STARTED,
     "\n---\n\n<!-- Page: /docs/recipes -->\n# Recipes\n\n" + buildRecipesMarkdown(),
     "\n---\n\n<!-- Page: /api -->\n# API reference\n\n" + buildApiMarkdown(),
