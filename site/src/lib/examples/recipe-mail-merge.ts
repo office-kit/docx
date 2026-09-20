@@ -1,5 +1,5 @@
-// Mail-merge across every story in the package — body, headers,
-// footers, footnotes/endnotes, comments, textboxes. replaceTextEverywhere
+// Mail-merge across every text-bearing part of the package — body,
+// headers, footers, footnotes, endnotes, comments. replaceTextEverywhere
 // follows the same regex/callback contract as replaceText but walks the
 // whole document, so a {{name}} hidden in a header is filled the same
 // way one in the body is.

@@ -18,7 +18,7 @@ setPageSize(doc, PAGE_SIZE_A4);
 
 appendHeading(doc, "Quarterly review", 1);
 appendParagraph(doc, "Highlights from Q3.");
-addBulletList(doc, ["Shipped preview", "Round-trip stable", "512 tests green"]);
+addBulletList(doc, ["Shipped preview", "Round-trip stable", "Docs site live"]);
 
 addTable(doc, [
   ["Metric", "Q2", "Q3"],

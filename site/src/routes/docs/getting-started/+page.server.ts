@@ -3,10 +3,12 @@ import { highlight } from "$lib/server/highlight";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async () => {
-  const fromScratch = await highlight(examples.fromScratch.source, "ts");
-  const templateFill = await highlight(examples.templateFill.source, "ts");
+  const [fromScratch, templateFill] = await Promise.all([
+    highlight(examples.fromScratch.source, "ts"),
+    highlight(examples.templateFill.source, "ts"),
+  ]);
   return {
-    fromScratch: { ...examples.fromScratch, html: fromScratch },
-    templateFill: { ...examples.templateFill, html: templateFill },
+    fromScratch: { path: examples.fromScratch.path, html: fromScratch },
+    templateFill: { path: examples.templateFill.path, html: templateFill },
   };
 };

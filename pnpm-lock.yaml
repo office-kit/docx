@@ -64,6 +64,9 @@ importers:
         specifier: workspace:*
         version: link:../packages/preview
     devDependencies:
+      '@office-kit/site-kit':
+        specifier: github:office-kit/office-kit.github.io#site-kit
+        version: https://codeload.github.com/office-kit/office-kit.github.io/tar.gz/37735122933c20f091fd5df535ee8a138e20a981(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)(typescript@5.9.3)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)
       '@sveltejs/adapter-static':
         specifier: ^3.0.10
         version: 3.0.10(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)(typescript@5.9.3)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))
@@ -599,6 +602,13 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@office-kit/site-kit@https://codeload.github.com/office-kit/office-kit.github.io/tar.gz/37735122933c20f091fd5df535ee8a138e20a981':
+    resolution: {tarball: https://codeload.github.com/office-kit/office-kit.github.io/tar.gz/37735122933c20f091fd5df535ee8a138e20a981}
+    version: 0.1.0
+    peerDependencies:
+      '@sveltejs/kit': ^2.0.0
+      svelte: ^5.0.0
 
   '@oxc-project/types@0.130.0':
     resolution: {integrity: sha512-ibD2usx9JRu7f5pu2tMKMI4cpA4NgXJQoYRP4pQ7Pxmn1l6k/53qWtQWZayhYy3X4QZkt90Ot+mJEaeXouio6Q==}
@@ -2886,6 +2896,11 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
+
+  '@office-kit/site-kit@https://codeload.github.com/office-kit/office-kit.github.io/tar.gz/37735122933c20f091fd5df535ee8a138e20a981(@sveltejs/kit@2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)(typescript@5.9.3)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)':
+    dependencies:
+      '@sveltejs/kit': 2.60.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0)))(svelte@5.55.7)(typescript@5.9.3)(vite@8.0.13(@types/node@22.19.19)(esbuild@0.28.0))
+      svelte: 5.55.7
 
   '@oxc-project/types@0.130.0': {}
 

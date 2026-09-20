@@ -21,6 +21,8 @@ export type Example = {
   source: string;
   /** Short description used in docs. */
   description: string;
+  /** Where the recipe can be seen end to end: a `pnpm sample` output or a live page. */
+  seeAlso?: string;
 };
 
 export const examples = {
@@ -35,7 +37,7 @@ export const examples = {
     title: "Open a template, fill placeholders",
     path: "site/src/lib/examples/template-fill.ts",
     description:
-      "replaceTextEverywhere walks every story (body, headers, footers, footnotes, textboxes) — not just the main document.",
+      "replaceTextEverywhere walks the body, headers, footers, footnotes, endnotes, and comments — not just the main document.",
     source: templateFill,
   },
   previewEmbed: {
@@ -44,20 +46,23 @@ export const examples = {
     description:
       "previewToDOM mounts a read-only render of any Docx into a DOM container. Returns an idempotent dispose handle.",
     source: previewEmbed,
+    seeAlso: "The playground on this site runs this code.",
   },
   recipeMailMerge: {
-    title: "Mail-merge across every story in the package",
+    title: "Mail-merge across every part of the package",
     path: "site/src/lib/examples/recipe-mail-merge.ts",
     description:
-      "replaceTextEverywhere walks body, headers, footers, footnotes, comments, and textboxes — so a placeholder in a header is filled the same way one in the body is.",
+      "replaceTextEverywhere walks the body, headers, footers, footnotes, endnotes, and comments, so a placeholder in a header is filled the same way one in the body is.",
     source: recipeMailMerge,
+    seeAlso: "pnpm sample writes samples/21-mailmerge-cross-part-template.docx and -filled.docx.",
   },
   recipeStyledBase: {
-    title: "PowerPoint-style designed base",
+    title: "Start from a designed base",
     path: "site/src/lib/examples/recipe-styled-base.ts",
     description:
       "Open a hand-designed .docx, lift its style table into your authoring graph with mergeStylesFromTemplate, then keep appending. Custom styles applied by name via setParagraphStyle.",
     source: recipeStyledBase,
+    seeAlso: "pnpm sample writes samples/30-styled-base-template.docx and -filled.docx.",
   },
   recipeTrackedChanges: {
     title: "Accept or reject tracked changes in bulk",
@@ -65,6 +70,7 @@ export const examples = {
     description:
       "acceptAllRevisions inlines suggested inserts and bakes in deletions. rejectAllRevisions does the inverse — useful for producing both 'final' and 'original' branches from one reviewed doc.",
     source: recipeTrackedChanges,
+    seeAlso: "pnpm sample writes samples/09-tracked-changes.docx.",
   },
 } as const satisfies Record<string, Example>;
 

@@ -7,131 +7,80 @@
 </script>
 
 <svelte:head>
-  <title>Getting started · word-kit</title>
+  <title>Getting started · @office-kit/docx</title>
 </svelte:head>
 
-<article class="prose">
-  <p class="eyebrow">§ 01 · Getting started</p>
-  <h1>Install, build a document, write the bytes.</h1>
+<h1>Getting started</h1>
 
-  <p class="lede">
-    word-kit is a function-first WordprocessingML library. Every operation is a standalone
-    export that takes a <code>Docx</code> value as its first argument; nothing is hidden behind
-    a class instance. That keeps the public surface tree-shakeable and makes the library work
-    the same way in Node and in browsers.
-  </p>
+<p class="lede">
+  <code>@office-kit/docx</code> is a library of plain functions. Every operation is a standalone
+  export that takes a <code>Docx</code> value as its first argument, and nothing is hidden behind a
+  class instance. That keeps the package tree-shakeable and makes it work the same way in Node and
+  in the browser.
+</p>
 
-  <h2>Install</h2>
+<h2>Install</h2>
 
-  <pre class="install"><span class="dollar">$</span> pnpm add @office-kit/docx @office-kit/docx-preview</pre>
+<pre><code>pnpm add @office-kit/docx @office-kit/docx-preview</code></pre>
 
-  <p>
-    <code>@office-kit/docx</code> is the authoring API. <code>@office-kit/docx-preview</code> is an
-    optional companion that mounts a read-only preview of any <code>Docx</code> value into a DOM
-    container. Both ship as ESM with bundled <code>.d.ts</code> types and have no Node-only
-    dependencies.
-  </p>
+<p>
+  <code>@office-kit/docx</code> is the authoring API. <code>@office-kit/docx-preview</code> is an
+  optional companion that mounts a read-only preview of any <code>Docx</code> value into a DOM
+  container. Both ship as ESM with bundled <code>.d.ts</code> types, and neither depends on a Node
+  built-in.
+</p>
 
-  <h2>Build a document from scratch</h2>
+<h2>Build a document from scratch</h2>
 
-  <p>
-    The "hello world" of word-kit. Every helper here lives on
-    <code>@office-kit/docx</code>; <code>createDocx</code> hands back a plain
-    <code>Docx</code> object that the rest of the API treats as a value.
-  </p>
+<p>
+  <code>createDocx</code> hands back a plain <code>Docx</code> object that the rest of the API
+  treats as a value. Append to it, then call <code>toUint8Array</code> for the bytes of the file,
+  or <code>toBlob</code> in the browser.
+</p>
 
-  <CodeBlock
-    html={data.fromScratch.html}
-    source={data.fromScratch.source}
-    title={data.fromScratch.path}
-    coord="A1"
-  />
+<CodeBlock html={data.fromScratch.html} title={data.fromScratch.path} />
 
-  <h2>Open a template, fill placeholders</h2>
+<h2>Open a template and fill placeholders</h2>
 
-  <p>
-    Existing <code>.docx</code> files can be opened with <code>openDocx</code> and edited
-    in place. word-kit preserves every XML element it does not yet model as a pass-through
-    node, so re-saving an unmodified template doesn't trip Word's "needs repair" prompt.
-  </p>
+<p>
+  An existing <code>.docx</code> can be opened with <code>openDocx</code> and edited in place.
+  Every XML element the library does not model is kept as a pass-through node at its original
+  position, so saving a template you did not change does not rewrite it into something else.
+</p>
 
-  <p>
-    <code>replaceTextEverywhere</code> walks every story — body, headers, footers, footnotes,
-    endnotes, comments, textboxes — not just the main document. Run-spanning matches like
-    <code>{'{{name}}'}</code> split across multiple runs are joined before the regex sees them.
-  </p>
+<p>
+  <code>replaceTextEverywhere</code> walks the body, headers, footers, footnotes, endnotes, and
+  comments, not just the main document. A match such as <code>{'{{name}}'}</code> that Word split
+  across several runs of one paragraph is still found; a match that spans two paragraphs is not.
+</p>
 
-  <CodeBlock
-    html={data.templateFill.html}
-    source={data.templateFill.source}
-    title={data.templateFill.path}
-    coord="A2"
-  />
+<CodeBlock html={data.templateFill.html} title={data.templateFill.path} />
 
-  <h2>Render in the browser</h2>
+<h2>Render in the browser</h2>
 
-  <p>
-    The companion package <code>@office-kit/docx-preview</code> mounts a read-only preview of any
-    <code>Docx</code> (or raw bytes) into a DOM container. It wraps the OSS
-    <code>docx-preview</code> renderer behind a stable function-API entry point.
-  </p>
+<p>
+  <code>@office-kit/docx-preview</code> mounts a read-only preview of a <code>Docx</code>, or of
+  raw bytes, into a DOM container. It wraps the open-source <code>docx-preview</code> renderer
+  behind one function, <code>previewToDOM</code>.
+</p>
 
-  <p>
-    You can play with it on the <a href="{base}/playground">playground</a>, or read the
-    <a href="{base}/docs/recipes">recipes</a> for embedding patterns.
-  </p>
+<p>
+  Try it in the <a href="{base}/playground">playground</a>, or read the
+  <a href="{base}/docs/recipes">recipes</a> for the embedding pattern.
+</p>
 
-  <h2>What's next</h2>
+<h2>Where to go next</h2>
 
-  <ul>
-    <li><a href="{base}/docs/recipes">Recipes</a> — common scenarios, copy-paste ready</li>
-    <li><a href="{base}/api">API reference</a> — every public export, grouped by area</li>
-    <li><a href="{base}/playground">Playground</a> — drop a .docx and see preview</li>
-    <li><a href="https://github.com/office-kit/docx">GitHub</a> — source + issues</li>
-  </ul>
-</article>
+<ul>
+  <li><a href="{base}/docs/recipes">Recipes</a>: common scenarios you can copy.</li>
+  <li><a href="{base}/api">API reference</a>: every public export, grouped by area.</li>
+  <li><a href="{base}/playground">Playground</a>: drop in a .docx and see the preview.</li>
+  <li><a href="https://github.com/office-kit/docx">GitHub</a>: source and issues.</li>
+</ul>
 
 <style>
-  .prose {
-    max-width: var(--max-content);
-    margin: 0 auto;
-    padding: 3rem 1.5rem 5rem;
-  }
-
-  h1 {
-    font-family: var(--display);
-    font-weight: 460;
-    font-size: clamp(2rem, 4.6vw, 2.95rem);
-    line-height: 1.05;
-    letter-spacing: -0.026em;
-    margin: 0 0 1rem;
-    font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    max-width: 22ch;
-  }
-
   .lede {
-    color: var(--fg-soft);
-    font-size: 1.06rem;
-    line-height: 1.55;
-    max-width: 64ch;
-    margin: 0 0 1.5rem;
-  }
-
-  .install {
-    border: 1px solid var(--border);
-    background: var(--code-bg);
-    padding: 0.7rem 0.95rem;
-    border-radius: var(--radius-sm);
-    font-family: var(--mono);
-    font-size: 0.9rem;
-    color: var(--fg);
-    margin: 1rem 0 1.5rem;
-    overflow-x: auto;
-  }
-
-  .install .dollar {
-    color: var(--accent);
-    font-weight: 600;
-    margin-right: 0.55rem;
+    color: var(--ink-2);
+    font-size: 1.08rem;
   }
 </style>
