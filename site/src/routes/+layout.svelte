@@ -1,6 +1,6 @@
 <script lang="ts">
   import '@office-kit/site-kit/site.css';
-  import { KitFooter, KitHeader, type NavLink } from '@office-kit/site-kit';
+  import { KitFooter, KitHeader, KitSeo, type NavLink } from '@office-kit/site-kit';
   import CodeCopyEnhancer from '$lib/components/CodeCopyEnhancer.svelte';
   import Search from '$lib/components/Search.svelte';
 
@@ -17,6 +17,12 @@
     { path: '/playground', label: 'Playground' },
   ];
 </script>
+
+<KitSeo
+  product="docx"
+  title="@office-kit/docx: read, edit, and write Word documents in TypeScript"
+  description="Build a .docx from nothing or open one that already exists and change it. Paragraphs, lists, tables, images, headers, comments, and tracked changes are plain typed functions. Runs in Node and the browser."
+/>
 
 <a class="skip" href="#main">Skip to content</a>
 
