@@ -656,6 +656,9 @@
     background: #f3f2f1;
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #201f1e;
+    /* The site root is `color-scheme: dark`, which gives native selects and
+       inputs light default text; on this light UI their values were unreadable. */
+    color-scheme: light;
   }
   .titlebar {
     display: flex;

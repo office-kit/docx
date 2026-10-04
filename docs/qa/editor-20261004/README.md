@@ -1,26 +1,28 @@
 # Editor UI screenshots (2026-10-04)
 
-Screenshots of the `/editor` route for PR #21. They show the source tree of
-the commit that adds this folder (the folder itself is the only change in that
-commit). They were taken from a local dev server
-(`pnpm --filter word-kit-site dev`) with the packages built from that same
-source, in an isolated Chromium at a 1280 × 800 viewport, on
-2026-10-04 around 01:50 UTC. The documents are small generated fixtures with
-no real content.
+Screenshots of the `/editor` route for PR #21, taken from a local dev server
+(`pnpm --filter word-kit-site dev`) in an isolated headless Chromium at a
+1280 × 800 viewport. The documents are small generated fixtures with no real
+content. They are browser screenshots of this editor only; none of them is a
+comparison with Microsoft Word.
 
-No "before" screenshots: capturing the previous commit (`15aec19`) with the
-same fixtures would need a second build, which was not done.
+The current images were taken on 2026-10-04 between 02:06 and 02:10 UTC, with
+`site/src/routes/editor/+page.svelte` at blob `fa1f742` (the commit that
+updates these images; the rest of the tree is as in `9ff3929`).
 
-| File                            | What it shows                                                                                                                                                                                                                                         |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `01-ribbon-mixed-font.png`      | Runs `Aaaa` (Arial), `Bbbb` (Times New Roman), `Cccc` (Arial), selected from inside the first to inside the last. The Font field's value is "Mixed" (read from the DOM) because the middle run differs; before this PR it showed "Arial" (ends only). |
-| `02-named-highlight.png`        | `Hello` highlighted with the named color `darkYellow`, chosen from the highlight list that replaces the color picker (`w:highlight` accepts only named colors). The caret is in the second line so the highlight is not covered by the selection.     |
-| `03-replace-all-table-cell.png` | Replace All `DRAFT` → `FINAL` on a document whose body starts with a table: "Replaced 3 occurrences.", including the table cell. Before this PR the cell was skipped (2 occurrences).                                                                 |
+The images first committed in `9ff3929` (taken ~01:50 UTC, same fixtures and
+viewport) serve as the "before" for the contrast fix: the site root is
+`color-scheme: dark`, so the ribbon selects and the find inputs drew their
+values in light text on a white background and were unreadable. The editor
+now declares `color-scheme: light` on its own root. There is no "before" for
+the earlier fixes (mixed font, named highlight, table replace): capturing
+`15aec19` would have needed a second build, which was not done.
 
-Known issue visible here, not fixed in this PR: the site sets
-`color-scheme: dark` on the root, and the editor ribbon gives its selects and
-the size box a white background without a text color, so the value of an
-_enabled_ select (Font, highlight, Styles) is drawn in the dark scheme's light
-text color and is not readable (01, 02). Disabled controls use the grey
-disabled color and are readable (03, "No selection"). The same CSS is in
-`15aec19`.
+| File                            | What it shows                                                                                                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `01-ribbon-mixed-font.png`      | Runs `Aaaa` (Arial), `Bbbb` (Times New Roman), `Cccc` (Arial), selected from inside the first to inside the last. The Font field reads "Mixed" because the middle run differs (before the range fix: "Arial"). |
+| `02-named-highlight.png`        | `darkYellow` applied to `Hello` from the named highlight list, then the caret placed inside `Hello` (collapsed, so no selection color): the highlight and the ribbon value `darkYellow` are both visible.      |
+| `03-replace-all-table-cell.png` | Replace All `DRAFT` → `FINAL` on a document whose body starts with a table: "Replaced 3 occurrences.", including the table cell (before the fix the cell was skipped: 2 occurrences).                          |
+
+Visible but not fixed here: the font-size box is too narrow for its
+"Default" placeholder ("Defa").
