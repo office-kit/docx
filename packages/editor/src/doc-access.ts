@@ -4,7 +4,14 @@
  * structure only; they never serialize or mutate.
  */
 
-import type { Docx, WmlBlock, WmlParagraph, WmlRun, WmlTable } from "@office-kit/docx";
+import type {
+  Docx,
+  WmlBlock,
+  WmlParagraph,
+  WmlRun,
+  WmlTable,
+  WmlTableCell,
+} from "@office-kit/docx";
 import type { DocPosition, OrderedSelection } from "./selection.js";
 
 /** All top-level blocks in document order. */
@@ -43,6 +50,13 @@ export function paragraphAt(doc: Docx, pos: DocPosition): WmlParagraph | undefin
   return undefined;
 }
 
+/** The table cell a position addresses, or undefined when it is not in a cell. */
+export function cellAt(doc: Docx, pos: DocPosition): WmlTableCell | undefined {
+  const block = blockAt(doc, pos.block);
+  if (!pos.cell || block?.kind !== "table") return undefined;
+  return block.rows[pos.cell.row]?.cells[pos.cell.col];
+}
+
 /** The runs of the paragraph a position addresses. */
 export function runsAt(doc: Docx, pos: DocPosition): WmlRun[] {
   const para = paragraphAt(doc, pos);
@@ -70,21 +84,6 @@ export function paragraphsInRange(doc: Docx, sel: OrderedSelection): WmlParagrap
           for (const p of cell.paragraphs) out.push(p);
         }
       }
-    }
-  }
-  return out;
-}
-
-/**
- * Every run touched by an ordered selection. When the selection is collapsed
- * (a caret) this is the runs of the caret paragraph, letting toggle commands
- * (bold on an empty selection) still report/flip state.
- */
-export function runsInRange(doc: Docx, sel: OrderedSelection): WmlRun[] {
-  const out: WmlRun[] = [];
-  for (const para of paragraphsInRange(doc, sel)) {
-    for (const child of para.children) {
-      if (child.kind === "run") out.push(child);
     }
   }
   return out;

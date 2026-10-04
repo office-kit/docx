@@ -42,7 +42,7 @@
   },
   "scripts": {
     "build": "tsdown",
-    "build:packages": "pnpm build && pnpm --filter \"@office-kit/docx-preview\" run build",
+    "build:packages": "pnpm build && pnpm --filter \"@office-kit/docx-preview\" run build && pnpm --filter \"@office-kit/docx-editor\" run build",
     "build:all": "pnpm build:packages && pnpm --filter word-kit-site run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

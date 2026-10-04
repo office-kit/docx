@@ -47,16 +47,23 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      # Build the library before typecheck: the preview package consumes
-      # `@office-kit/docx` via a workspace dependency whose `.d.mts` types
-      # live under the root `dist/`. Running `tsc` against an un-built root
-      # fails to resolve `@office-kit/docx`, even though each package is
-      # locally consistent.
+      # Build the packages before typecheck: preview and editor consume
+      # `@office-kit/docx` via workspace dependencies whose `.d.mts` types
+      # live under the root `dist/`, and the site consumes the editor and
+      # preview the same way (no source alias). Running `tsc` / svelte-check
+      # against un-built packages fails to resolve them, even though each
+      # package is locally consistent.
       - name: Build
-        run: pnpm build
+        run: pnpm build:packages
 
       - name: Type check
         run: pnpm -r run typecheck
+
+      # The site (including the editor UI) has `check`, not `typecheck`, so
+      # `pnpm -r run typecheck` skips it; without this it was only checked by
+      # deploy-site after merging.
+      - name: Type check site
+        run: pnpm --filter word-kit-site check
 
       - name: Tree-shake budget
         # Verifies @office-kit/docx can be tree-shaken: a minimal entry

@@ -31,32 +31,45 @@ export type FeatureGroup =
  * it must call {@link EditorModel.beginEdit} before mutating and
  * {@link EditorModel.commit} after (the {@link runCommand} helper does this).
  */
-export interface Command<P = void> {
+export interface Command<P = void, R = void> {
   readonly id: string;
   readonly group: FeatureGroup;
   /** Human label for the UI (English; the UI layer localizes). */
   readonly label: string;
   /** Longer description for tooltips / command palette. */
   readonly description?: string;
-  /** Perform the mutation. Return value is ignored; report failures by throwing. */
-  run(model: EditorModel, params: P): void;
+  /**
+   * Perform the mutation and optionally report a result (e.g. a replacement
+   * count). Report failures by throwing: {@link runCommand} then rolls the
+   * whole edit back.
+   */
+  run(model: EditorModel, params: P): R;
   /** Whether the command applies to the current selection/state. */
   isEnabled?(model: EditorModel): boolean;
   /** For toggle commands (bold, italic…): whether it is currently on. */
   isActive?(model: EditorModel): boolean;
 }
 
-/** Run a command with automatic undo-snapshot + commit around the mutation. */
-export function runCommand<P>(model: EditorModel, command: Command<P>, params: P): void {
-  if (command.isEnabled && !command.isEnabled(model)) return;
+/**
+ * Run a command atomically: snapshot for undo, mutate, commit. Returns the
+ * command's result, or `undefined` when the command is disabled (nothing ran).
+ */
+export function runCommand<P, R>(
+  model: EditorModel,
+  command: Command<P, R>,
+  params: P,
+): R | undefined {
+  if (command.isEnabled && !command.isEnabled(model)) return undefined;
   model.beginEdit();
+  let result: R;
   try {
-    command.run(model, params);
+    result = command.run(model, params);
   } catch (err) {
-    // The mutation failed after we snapshotted; roll back so the model is not
-    // left half-edited, then rethrow so the failure surfaces (anti-swallow).
-    model.undo();
+    // Roll back without touching redo history (undo() would push the
+    // half-applied document onto it), then rethrow so the failure surfaces.
+    model.abortEdit();
     throw err;
   }
   model.commit();
+  return result;
 }

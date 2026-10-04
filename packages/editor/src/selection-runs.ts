@@ -11,14 +11,20 @@
  */
 
 import {
+  type Docx,
   isolateParagraphRunRange,
   runTextLength,
   type WmlParagraph,
   type WmlRun,
 } from "@office-kit/docx";
-import { paragraphAt } from "./doc-access.js";
+import { paragraphAt, paragraphsInRange } from "./doc-access.js";
 import type { EditorModel } from "./model.js";
-import { type CellCoord, type DocPosition, orderSelection } from "./selection.js";
+import {
+  type CellCoord,
+  type DocPosition,
+  type OrderedSelection,
+  orderSelection,
+} from "./selection.js";
 
 function paragraphRuns(para: WmlParagraph): WmlRun[] {
   return para.children.filter((c): c is WmlRun => c.kind === "run");
@@ -50,19 +56,15 @@ function isCollapsed(a: DocPosition, b: DocPosition): boolean {
   );
 }
 
-/** The paragraph windows the selection covers, with per-paragraph char ranges. */
-function selectionWindows(model: EditorModel): ParaWindow[] {
-  const sel = model.selection;
-  if (!sel) return [];
-  const { start, end } = orderSelection(sel);
-
+/** The paragraph windows a range covers, with per-paragraph char ranges. */
+function rangeWindows(doc: Docx, { start, end }: OrderedSelection): ParaWindow[] {
   // Single paragraph (including inside a table cell): a precise char window.
   if (
     start.block === end.block &&
     start.cell?.row === end.cell?.row &&
     start.cell?.col === end.cell?.col
   ) {
-    const para = paragraphAt(model.doc, start);
+    const para = paragraphAt(doc, start);
     if (!para) return [];
     const runs = paragraphRuns(para);
     return [
@@ -79,7 +81,7 @@ function selectionWindows(model: EditorModel): ParaWindow[] {
   // Multi-block selection over top-level paragraphs. Tables fall back to whole
   // cell paragraphs (a rare selection shape not worth per-char precision here).
   const out: ParaWindow[] = [];
-  const blocks = model.doc.document.body.blocks;
+  const blocks = doc.document.body.blocks;
   for (let b = start.block; b <= end.block && b < blocks.length; b++) {
     const node = blocks[b];
     if (node?.kind === "paragraph") {
@@ -105,22 +107,13 @@ function selectionWindows(model: EditorModel): ParaWindow[] {
   return out;
 }
 
-/** Runs overlapping the selection — read-only, for active/enabled state. */
-export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
+function selectionWindows(model: EditorModel): ParaWindow[] {
   const sel = model.selection;
-  if (!sel) return [];
-  const { start, end } = orderSelection(sel);
-  const wins = selectionWindows(model);
+  return sel ? rangeWindows(model.doc, orderSelection(sel)) : [];
+}
 
-  // Collapsed caret: the run at the caret (so toggles still report state).
-  if (isCollapsed(start, end)) {
-    const para = paragraphAt(model.doc, start);
-    if (!para) return [];
-    const runs = paragraphRuns(para);
-    const at = runs[start.inline ?? 0];
-    return at ? [at] : runs.slice(0, 1);
-  }
-
+/** Runs with at least one character inside the windows. */
+function runsCovered(wins: ParaWindow[]): WmlRun[] {
   const out: WmlRun[] = [];
   for (const w of wins) {
     let cursor = 0;
@@ -132,6 +125,36 @@ export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
     }
   }
   return out;
+}
+
+/**
+ * Every run touched by an ordered selection: the runs the range covers at
+ * least one character of, in document order. When the selection is collapsed
+ * (a caret) this is the runs of the caret paragraph, letting toggle commands
+ * (bold on an empty selection) still report/flip state.
+ */
+export function runsInRange(doc: Docx, sel: OrderedSelection): WmlRun[] {
+  if (sel.collapsed) {
+    return paragraphsInRange(doc, sel).flatMap((p) => paragraphRuns(p));
+  }
+  return runsCovered(rangeWindows(doc, sel));
+}
+
+/** Runs overlapping the selection — read-only, for active/enabled state. */
+export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
+  const sel = model.selection;
+  if (!sel) return [];
+  const { start, end } = orderSelection(sel);
+
+  // Collapsed caret: the run at the caret (so toggles still report state).
+  if (isCollapsed(start, end)) {
+    const para = paragraphAt(model.doc, start);
+    if (!para) return [];
+    const runs = paragraphRuns(para);
+    const at = runs[start.inline ?? 0];
+    return at ? [at] : runs.slice(0, 1);
+  }
+  return runsCovered(selectionWindows(model));
 }
 
 /**

@@ -68,3 +68,16 @@ Also newly exported from `@office-kit/docx` (they are part of the public
 surface as parameter/return/AST types): `BuildStyleOptions`, `BuildTableOptions`,
 `DocumentCoreProperties`, `DocumentAppProperties`, and the raw XML AST types
 `XmlElement` / `XmlNode` / `XmlAttr` / `QName`.
+
+Commands are atomic: `runCommand` returns the command's result, and a command
+that throws (including rejected input such as an out-of-range table size or a
+non-http(s)/mailto hyperlink) leaves the document, selection and redo history
+unchanged (`EditorModel.abortEdit`). `replaceAllCommand`, `insertTextCommand` and
+`deleteSelectionCommand` route Find & Replace, paste, and typing or deleting
+over a selection (also across paragraphs) through the same undoable path.
+Consecutive keystrokes undo as one step, Shift+Enter breaks the line at the
+caret, and hyperlinks and field results are visible on the canvas. Enter,
+Backspace and Delete inside a table cell split and join that cell's
+paragraphs. IME input that starts over a selection replaces it in one undo
+step. `splitParagraphAt` moves a paragraph's
+section break to the second half instead of duplicating it.

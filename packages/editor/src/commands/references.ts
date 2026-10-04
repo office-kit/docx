@@ -37,11 +37,29 @@ export const addBookmarkCommand: Command<{ name: string }> = {
   isEnabled: (model) => !!caretParagraph(model),
 };
 
+// Schemes a hyperlink may target. Anything else (notably `javascript:` /
+// `data:`) is rejected: the target ends up as a clickable link in Word and in
+// any HTML rendering of the document.
+const ALLOWED_LINK_PROTOCOLS: ReadonlySet<string> = new Set(["http:", "https:", "mailto:"]);
+
+function assertSafeUrl(url: string): void {
+  let protocol: string;
+  try {
+    protocol = new URL(url).protocol;
+  } catch {
+    throw new Error(`Invalid hyperlink URL: ${JSON.stringify(url)}.`);
+  }
+  if (!ALLOWED_LINK_PROTOCOLS.has(protocol)) {
+    throw new Error(`Unsupported hyperlink scheme ${JSON.stringify(protocol)}.`);
+  }
+}
+
 export const insertHyperlinkCommand: Command<{ url: string; text: string; tooltip?: string }> = {
   id: "references.hyperlink",
   group: "references",
   label: "Hyperlink",
   run(model, { url, text, tooltip }) {
+    assertSafeUrl(url);
     const at = caretBlockIndex(model.doc, model.selection?.focus.block);
     addHyperlink(model.doc, url, text, tooltip !== undefined ? { tooltip } : {});
     moveLastBlockAfter(model.doc, at);

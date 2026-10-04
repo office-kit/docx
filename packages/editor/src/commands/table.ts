@@ -33,14 +33,27 @@ function currentTable(model: EditorModel): WmlTable | undefined {
   return asTable(blockAt(model.doc, block));
 }
 
+// Word's own Insert Table dialog caps a new table at 63 columns; rows are
+// uncapped there, but an unbounded count from a typo would freeze the page.
+const MAX_TABLE_COLS = 63;
+const MAX_TABLE_ROWS = 1000;
+
+function assertGridSize(name: string, value: number, max: number): void {
+  if (!Number.isInteger(value) || value < 1 || value > max) {
+    throw new RangeError(`Table ${name} must be an integer from 1 to ${max}, got ${value}.`);
+  }
+}
+
 export const insertTableCommand: Command<{ rows: number; cols: number }> = {
   id: "table.insert",
   group: "table",
   label: "Insert table",
   run(model, { rows, cols }) {
+    assertGridSize("rows", rows, MAX_TABLE_ROWS);
+    assertGridSize("cols", cols, MAX_TABLE_COLS);
     const at = caretBlockIndex(model.doc, model.selection?.focus.block);
-    const grid: string[][] = Array.from({ length: Math.max(rows, 1) }, () =>
-      Array.from({ length: Math.max(cols, 1) }, () => ""),
+    const grid: string[][] = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => ""),
     );
     const table = addTable(model.doc, grid);
     setTableBorders(table, {});
