@@ -40,6 +40,8 @@ export {
   type ParagraphSpacing,
   paragraphText,
   removeTableRow,
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
   type RunFormatting,
   setElementAttr,
   setElementOnOff,

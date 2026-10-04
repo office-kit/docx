@@ -18,7 +18,22 @@ export interface TextMatch {
 }
 
 /**
- * Find all matches of `query` in every paragraph of the document.
+ * Body paragraphs in document order: top-level ones and those inside table
+ * cells. A table nested in a cell is kept as raw XML in the cell's `extras`
+ * and is not reached.
+ */
+function* bodyParagraphs(doc: WmlDocument): Generator<WmlParagraph> {
+  for (const block of doc.body.blocks) {
+    if (block.kind === "paragraph") yield block;
+    else if (block.kind === "table") {
+      for (const row of block.rows) for (const cell of row.cells) yield* cell.paragraphs;
+    }
+  }
+}
+
+/**
+ * Find all matches of `query` in every paragraph of the document, including
+ * paragraphs in table cells.
  *
  * - When `query` is a string, performs literal, case-sensitive search.
  * - When `query` is a `RegExp`, the search is global regardless of whether
@@ -26,15 +41,13 @@ export interface TextMatch {
  */
 export function findText(doc: WmlDocument, query: string | RegExp): TextMatch[] {
   const matches: TextMatch[] = [];
-  for (const block of doc.body.blocks) {
-    if (block.kind !== "paragraph") continue;
-    matches.push(...findInParagraph(block, query));
-  }
+  for (const para of bodyParagraphs(doc)) matches.push(...findInParagraph(para, query));
   return matches;
 }
 
 /**
- * Replace every occurrence of `query` in the document with `replacement`.
+ * Replace every occurrence of `query` in the document with `replacement`,
+ * including occurrences in table cells.
  *
  * The replacement may either be a plain string or a function that receives
  * each match and returns the replacement text. Returns the number of
@@ -52,10 +65,7 @@ export function replaceText(
   replacement: string | ((match: TextMatch) => string),
 ): number {
   let total = 0;
-  for (const block of doc.body.blocks) {
-    if (block.kind !== "paragraph") continue;
-    total += replaceInParagraph(block, query, replacement);
-  }
+  for (const para of bodyParagraphs(doc)) total += replaceInParagraph(para, query, replacement);
   return total;
 }
 

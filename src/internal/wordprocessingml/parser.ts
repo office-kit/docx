@@ -1,4 +1,4 @@
-import type { XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
+import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
 import type {
   PassThrough,
@@ -67,6 +67,7 @@ function parseBody(body: XmlElement): WmlBody {
   }
 
   return {
+    ...ownAttrs(body),
     blocks,
     ...(sectPr ? { sectPr } : {}),
     extras,
@@ -105,6 +106,7 @@ export function parseParagraph(p: XmlElement): WmlParagraph {
 
   return {
     kind: "paragraph",
+    ...ownAttrs(p),
     ...(pPr ? { pPr } : {}),
     children,
     extras,
@@ -137,6 +139,7 @@ function parseRun(r: XmlElement): WmlRun {
 
   return {
     kind: "run",
+    ...ownAttrs(r),
     ...(rPr ? { rPr } : {}),
     pieces,
     extras,
@@ -239,6 +242,7 @@ function parseTable(tbl: XmlElement): WmlTable {
   }
   return {
     kind: "table",
+    ...ownAttrs(tbl),
     ...(tblPr ? { tblPr } : {}),
     ...(tblGrid ? { tblGrid } : {}),
     rows,
@@ -268,6 +272,7 @@ function parseTableRow(tr: XmlElement): WmlTableRow {
     extras.push({ slot: i, node: child });
   }
   return {
+    ...ownAttrs(tr),
     ...(trPr ? { trPr } : {}),
     cells,
     extras,
@@ -297,10 +302,16 @@ function parseTableCell(tc: XmlElement): WmlTableCell {
     extras.push({ slot: i, node: child });
   }
   return {
+    ...ownAttrs(tc),
     ...(tcPr ? { tcPr } : {}),
     paragraphs,
     extras,
   };
+}
+
+/** `{ attrs }` when the element has attributes, so attribute-less nodes stay unchanged. */
+function ownAttrs(el: XmlElement): { attrs?: readonly XmlAttr[] } {
+  return el.attrs.length > 0 ? { attrs: el.attrs } : {};
 }
 
 function textContent(el: XmlElement): string {

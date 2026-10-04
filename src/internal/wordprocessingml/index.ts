@@ -41,6 +41,8 @@ export {
   type ParagraphShadingOptions,
   type ParagraphSpacing,
   removeTableRow,
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
   type RunFormatting,
   setElementAttr,
   setElementOnOff,

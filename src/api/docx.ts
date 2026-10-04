@@ -1483,11 +1483,17 @@ function isRunSimpleText(run: WmlRun): boolean {
   return run.pieces.every((p) => p.kind === "text");
 }
 
-function makeTextRun(rPr: XmlElement | undefined, text: string): WmlRun {
+/**
+ * A simple text run carrying `source`'s formatting and attributes. Run
+ * attributes are revision ids (`w:rsid*`), which Word allows to repeat, so both
+ * halves of a split run keep them.
+ */
+function makeTextRun(source: WmlRun, text: string): WmlRun {
   const preserveSpace = /^\s|\s$|\s\s/.test(text);
   return {
     kind: "run",
-    ...(rPr ? { rPr: structuredClone(rPr) } : {}),
+    ...(source.attrs ? { attrs: source.attrs } : {}),
+    ...(source.rPr ? { rPr: structuredClone(source.rPr) } : {}),
     pieces: text ? [{ kind: "text", value: text, preserveSpace }] : [],
     extras: [],
   };
@@ -1500,8 +1506,11 @@ function emptyParagraphChildren(): WmlInline[] {
 /**
  * Split the paragraph block at `blockIndex` into two paragraphs at run
  * `inlineIndex` / character `offset`. The new paragraph inherits the original's
- * `pPr`. Returns the new (second) paragraph's block index, or `-1` when the
- * block is not a top-level paragraph.
+ * `pPr`, except that a paragraph-level `<w:sectPr>` (section break) moves to the
+ * new paragraph instead of being duplicated: the break marks the *end* of its
+ * section, which is now the second half. The new paragraph gets no `<w:p>`
+ * attributes, so `w14:paraId` stays unique. Returns the new (second)
+ * paragraph's block index, or `-1` when the block is not a top-level paragraph.
  */
 export function splitParagraphAt(
   doc: Docx,
@@ -1528,8 +1537,8 @@ export function splitParagraphAt(
       after.push(child);
     } else if (isRunSimpleText(child)) {
       const text = simpleRunText(child);
-      before.push(makeTextRun(child.rPr, text.slice(0, offset)));
-      after.push(makeTextRun(child.rPr, text.slice(offset)));
+      before.push(makeTextRun(child, text.slice(0, offset)));
+      after.push(makeTextRun(child, text.slice(offset)));
     } else {
       // A run carrying tabs / breaks / drawings is kept whole; the caret side
       // is chosen by whether the offset is at its very start.
@@ -1544,6 +1553,14 @@ export function splitParagraphAt(
     children: after.length > 0 ? after : emptyParagraphChildren(),
     extras: [],
   };
+  if (para.pPr) {
+    para.pPr = {
+      ...para.pPr,
+      children: para.pPr.children.filter(
+        (c) => !(c.kind === "element" && c.name.uri === WML_NS && c.name.local === "sectPr"),
+      ),
+    };
+  }
   list.splice(blockIndex + 1, 0, newPara);
   doc.dirty = true;
   return blockIndex + 1;
@@ -1634,8 +1651,8 @@ function ensureRunBoundaryAt(para: WmlParagraph, at: number): void {
     para.children.splice(
       i,
       1,
-      makeTextRun(child.rPr, text.slice(0, rel)),
-      makeTextRun(child.rPr, text.slice(rel)),
+      makeTextRun(child, text.slice(0, rel)),
+      makeTextRun(child, text.slice(rel)),
     );
     return;
   }

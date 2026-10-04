@@ -52,7 +52,7 @@ function writeBody(body: WmlBody): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "body", prefix: "w" },
-    attrs: [],
+    attrs: body.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -85,7 +85,7 @@ function tableToElement(t: WmlTable): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tbl", prefix: "w" },
-    attrs: [],
+    attrs: t.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -102,7 +102,7 @@ function tableRowToElement(row: WmlTableRow): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tr", prefix: "w" },
-    attrs: [],
+    attrs: row.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -133,7 +133,7 @@ function tableCellToElement(cell: WmlTableCell): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tc", prefix: "w" },
-    attrs: [],
+    attrs: cell.attrs ?? [],
     children: ensured,
     xmlSpace: "default",
     selfClosing: false,
@@ -155,7 +155,7 @@ export function paragraphToElement(p: WmlParagraph): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "p", prefix: "w" },
-    attrs: [],
+    attrs: p.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -177,7 +177,7 @@ function runToElement(run: WmlRun): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "r", prefix: "w" },
-    attrs: [],
+    attrs: run.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,

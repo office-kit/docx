@@ -398,16 +398,96 @@ export function setTableRowAsHeader(row: WmlTableRow, isHeader = true): void {
   if (!row.trPr) row.trPr = trPr;
 }
 
+/**
+ * Every value `<w:highlight w:val>` accepts: ST_HighlightColor (ECMA-376
+ * Part 1 §17.18.40), in Word's palette order. The list is closed and has no
+ * RGB form; an arbitrary color behind text is run shading (`<w:shd>`).
+ * `"none"` is an explicit "no highlight" that also overrides a highlight
+ * inherited from a style.
+ */
+export const HIGHLIGHT_COLORS = [
+  "yellow",
+  "green",
+  "cyan",
+  "magenta",
+  "blue",
+  "red",
+  "darkBlue",
+  "darkCyan",
+  "darkGreen",
+  "darkMagenta",
+  "darkRed",
+  "darkYellow",
+  "darkGray",
+  "lightGray",
+  "black",
+  "white",
+  "none",
+] as const;
+
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
+
+const HIGHLIGHT_COLOR_SET: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS);
+
+// ST_HexColor (wml.xsd): `auto`, or ST_HexColorRGB — hexBinary of length 3,
+// i.e. six hex digits in either case.
+const HEX_COLOR = /^(?:auto|[0-9A-Fa-f]{6})$/;
+
+/**
+ * Throw if `formatting` would write invalid OOXML. Every writer calls this
+ * before touching the document, so a rejected call changes nothing. Only
+ * schema rules are enforced; application limits (Word's 1–1638 pt font-size
+ * box) are not, since other values are valid files.
+ */
+function assertWritableRunFormatting(formatting: RunFormatting): void {
+  if (formatting.highlight !== undefined && !HIGHLIGHT_COLOR_SET.has(formatting.highlight)) {
+    throw new RangeError(
+      `highlight must be one of ${HIGHLIGHT_COLORS.join(", ")} (ST_HighlightColor), got ${JSON.stringify(formatting.highlight)}.`,
+    );
+  }
+  // `typeof` first: RegExp#test stringifies, so a JS caller's 123456 would pass.
+  const color: unknown = formatting.color;
+  if (color !== undefined && !(typeof color === "string" && HEX_COLOR.test(color))) {
+    throw new RangeError(
+      `color must be six hex digits (no "#") or "auto" (ST_HexColor), got ${typeof color === "string" ? JSON.stringify(color) : typeof color}.`,
+    );
+  }
+  // ST_HpsMeasure (wml.xsd) as a number is ST_UnsignedDecimalNumber: a
+  // non-negative integer, 0 included. Beyond MAX_SAFE_INTEGER a JS number
+  // stops being an exact integer, so that is the practical upper bound.
+  const size = formatting.fontSizeHalfPoints;
+  if (size !== undefined && !(Number.isSafeInteger(size) && size >= 0)) {
+    throw new RangeError(
+      `fontSizeHalfPoints must be a non-negative integer (ST_HpsMeasure), got ${typeof size === "number" ? String(size) : typeof size}.`,
+    );
+  }
+}
+
 export interface RunFormatting {
   readonly bold?: boolean;
   readonly italic?: boolean;
   readonly strike?: boolean;
   readonly underline?: "single" | "double" | "thick" | "dotted" | "wave" | "none";
-  /** Hex RGB without leading `#`. */
+  /**
+   * Six hex digits without a leading `#` (e.g. `"FF0000"`), or `"auto"`.
+   * Writers throw a `RangeError` for anything else, before changing anything;
+   * `getRunFormat` returns the file's value unvalidated.
+   */
   readonly color?: string;
-  /** Hex RGB highlight color. */
+  /**
+   * Text highlight. Writers (`appendTextRun`, `setRunFormat`,
+   * `setParagraphText`, `setTableCellText`) accept only a
+   * {@link HighlightColor} and throw a `RangeError` otherwise, before changing
+   * anything. `getRunFormat` returns whatever the file holds, so a value
+   * written by another tool is read back unvalidated (the same holds for
+   * `color` and `fontSizeHalfPoints`).
+   */
   readonly highlight?: string;
-  /** Font size in half-points (e.g. 24 = 12pt). */
+  /**
+   * Font size in half-points (e.g. 24 = 12pt). Writers accept a non-negative
+   * integer (0 is schema-valid) and throw a `RangeError` otherwise, before
+   * changing anything.
+   */
   readonly fontSizeHalfPoints?: number;
   /** Font family applied to ASCII / hAnsi runs. */
   readonly font?: string;
@@ -421,6 +501,7 @@ export function appendTextRun(
   text: string,
   formatting: RunFormatting = {},
 ): WmlRun {
+  assertWritableRunFormatting(formatting);
   const pieces = splitTextIntoPieces(text);
   const rPrChildren: XmlElement[] = [];
   if (formatting.font || formatting.fontEastAsia) {
@@ -475,6 +556,7 @@ export function appendTextRun(
  * doesn't yet model.
  */
 export function setRunFormat(run: WmlRun, formatting: RunFormatting): void {
+  assertWritableRunFormatting(formatting);
   if (
     formatting.bold === undefined &&
     formatting.italic === undefined &&
@@ -750,10 +832,50 @@ export function appendChildElement(parent: XmlElement, local: string): XmlElemen
   return child;
 }
 
+// Half-points per unit of ST_PositiveUniversalMeasure, as exact fractions
+// [numerator, denominator]: 1pt = 2, 1pc = 1pi = 12pt, 1in = 72pt,
+// 1cm = 72 / 2.54 pt, 1mm = 72 / 25.4 pt.
+const HALF_POINTS_PER_UNIT: Readonly<Record<string, readonly [bigint, bigint]>> = {
+  pt: [2n, 1n],
+  pc: [24n, 1n],
+  pi: [24n, 1n],
+  in: [144n, 1n],
+  cm: [7200n, 127n],
+  mm: [720n, 127n],
+};
+const HALF_POINT_COUNT = /^\+?[0-9]+$/;
+const UNIVERSAL_MEASURE = /^([0-9]+)(?:\.([0-9]+))?(mm|cm|in|pt|pc|pi)$/;
+
+/**
+ * An ST_HpsMeasure value as half-points: a plain count, or a universal measure
+ * ("12pt", "1in", …) converted exactly. `undefined` when the value is invalid
+ * or is not a whole number of half-points ("3mm"); the XML keeps it as is.
+ */
+function halfPointsOf(val: string): number | undefined {
+  let exact: bigint | undefined;
+  if (HALF_POINT_COUNT.test(val)) exact = BigInt(val);
+  else {
+    const m = UNIVERSAL_MEASURE.exec(val);
+    const unit = m && HALF_POINTS_PER_UNIT[m[3]!];
+    if (!m || !unit) return undefined;
+    const fraction = m[2] ?? "";
+    const numerator = BigInt(m[1]! + fraction) * unit[0];
+    const denominator = 10n ** BigInt(fraction.length) * unit[1];
+    if (numerator % denominator !== 0n) return undefined;
+    exact = numerator / denominator;
+  }
+  return exact <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(exact) : undefined;
+}
+
 /**
  * Read back the formatting a run currently has on its `<w:rPr>`. Returns a
  * `RunFormatting` with only the keys that are actually present, so callers
- * can round-trip via `setRunFormat(other, getRunFormat(run))`.
+ * can round-trip via `setRunFormat(other, getRunFormat(run))`. Values are
+ * returned as the file holds them, unvalidated: a `highlight` outside
+ * {@link HIGHLIGHT_COLORS} or a malformed `color` (written by another tool) is
+ * read back as-is, and that copy is rejected by `setRunFormat` rather than
+ * spread further. A font size given in units (`w:sz="12pt"`) is converted to
+ * half-points; one that is not a whole number of half-points is left out.
  */
 export function getRunFormat(run: WmlRun): RunFormatting {
   // Build a writable scratch object; only keys we actually observe will
@@ -786,8 +908,8 @@ export function getRunFormat(run: WmlRun): RunFormatting {
       if (v !== undefined) out.highlight = v;
     } else if (local === "sz") {
       const v = child.attrs.find((a) => a.name.local === "val")?.value;
-      const n = v !== undefined ? Number.parseInt(v, 10) : NaN;
-      if (Number.isFinite(n)) out.fontSizeHalfPoints = n;
+      const n = v !== undefined ? halfPointsOf(v) : undefined;
+      if (n !== undefined) out.fontSizeHalfPoints = n;
     } else if (local === "rFonts") {
       const ascii = child.attrs.find((a) => a.name.local === "ascii")?.value;
       const east = child.attrs.find((a) => a.name.local === "eastAsia")?.value;
@@ -1158,6 +1280,7 @@ export function setParagraphText(
   text: string,
   formatting: RunFormatting = {},
 ): void {
+  assertWritableRunFormatting(formatting);
   p.children = [];
   appendTextRun(p, text, formatting);
 }
@@ -1186,6 +1309,7 @@ export function setTableCellText(
   text: string,
   formatting: RunFormatting = {},
 ): void {
+  assertWritableRunFormatting(formatting);
   const tableRow = table.rows[row];
   if (!tableRow) {
     throw new Error(
