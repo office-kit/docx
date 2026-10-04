@@ -60,6 +60,11 @@ export type MessageKey =
   | "style.heading1"
   | "style.heading2"
   | "style.heading3"
+  | "state.none"
+  | "state.mixed"
+  | "state.inherited"
+  | "color.auto"
+  | "highlight.none"
   | "status.ready"
   | "status.editing"
   | "status.words"
@@ -115,6 +120,11 @@ const en: Dict = {
   "style.heading1": "Heading 1",
   "style.heading2": "Heading 2",
   "style.heading3": "Heading 3",
+  "state.none": "No selection",
+  "state.mixed": "Mixed",
+  "state.inherited": "Default (inherited)",
+  "color.auto": "Automatic",
+  "highlight.none": "No highlight",
   "status.ready": "Ready.",
   "status.editing": "Editing…",
   "status.words": "words",
@@ -169,6 +179,11 @@ const ja: Dict = {
   "style.heading1": "見出し 1",
   "style.heading2": "見出し 2",
   "style.heading3": "見出し 3",
+  "state.none": "選択なし",
+  "state.mixed": "混在",
+  "state.inherited": "既定（継承）",
+  "color.auto": "自動",
+  "highlight.none": "蛍光ペンなし",
   "status.ready": "準備完了。",
   "status.editing": "編集中…",
   "status.words": "単語",
@@ -223,6 +238,11 @@ const es: Dict = {
   "style.heading1": "Título 1",
   "style.heading2": "Título 2",
   "style.heading3": "Título 3",
+  "state.none": "Sin selección",
+  "state.mixed": "Mixto",
+  "state.inherited": "Predeterminado (heredado)",
+  "color.auto": "Automático",
+  "highlight.none": "Sin resaltado",
   "status.ready": "Listo.",
   "status.editing": "Editando…",
   "status.words": "palabras",
@@ -277,6 +297,11 @@ const fr: Dict = {
   "style.heading1": "Titre 1",
   "style.heading2": "Titre 2",
   "style.heading3": "Titre 3",
+  "state.none": "Aucune sélection",
+  "state.mixed": "Mixte",
+  "state.inherited": "Par défaut (hérité)",
+  "color.auto": "Automatique",
+  "highlight.none": "Aucun surlignage",
   "status.ready": "Prêt.",
   "status.editing": "Édition…",
   "status.words": "mots",
@@ -331,6 +356,11 @@ const de: Dict = {
   "style.heading1": "Überschrift 1",
   "style.heading2": "Überschrift 2",
   "style.heading3": "Überschrift 3",
+  "state.none": "Keine Auswahl",
+  "state.mixed": "Gemischt",
+  "state.inherited": "Standard (geerbt)",
+  "color.auto": "Automatisch",
+  "highlight.none": "Keine Hervorhebung",
   "status.ready": "Bereit.",
   "status.editing": "Bearbeiten…",
   "status.words": "Wörter",
@@ -385,6 +415,11 @@ const zh: Dict = {
   "style.heading1": "标题 1",
   "style.heading2": "标题 2",
   "style.heading3": "标题 3",
+  "state.none": "未选择",
+  "state.mixed": "混合",
+  "state.inherited": "默认（继承）",
+  "color.auto": "自动",
+  "highlight.none": "无突出显示",
   "status.ready": "就绪。",
   "status.editing": "编辑中…",
   "status.words": "词",

@@ -1,12 +1,19 @@
 <script lang="ts">
-  import type { EditorModel, DocPosition } from '@office-kit/docx-editor';
+  import type {
+    Command,
+    EditorModel,
+    DocPosition,
+    Selection as EditorSelection,
+  } from '@office-kit/docx-editor';
   import {
     renderDocumentHtml,
+    positionFromDom,
     readDomSelection,
     runAtPath,
     setSimpleRunText,
     runCommand,
     commands,
+    orderSelection,
   } from '@office-kit/docx-editor';
 
   interface Props {
@@ -19,9 +26,11 @@
     onselectionchange?: () => void;
     /** Called after the canvas itself mutates the doc (typing / Enter / paste). */
     onedit?: () => void;
+    /** Called when a canvas gesture's command was rejected (document unchanged). */
+    onerror?: (message: string) => void;
   }
 
-  let { model, version, zoom = 1, onselectionchange, onedit }: Props = $props();
+  let { model, version, zoom = 1, onselectionchange, onedit, onerror }: Props = $props();
 
   let canvas = $state<HTMLDivElement | null>(null);
   // Bumped by structural edits made *inside* the canvas (Enter / Backspace /
@@ -30,8 +39,66 @@
   // owns the caret during input and re-rendering mid-keystroke would reset it.
   let renderTick = $state(0);
 
+  // Whether consecutive keystrokes are being coalesced into one undo step.
+  // The first `input` of a burst snapshots the document (the AST still holds
+  // the pre-keystroke text at that point); the burst ends on any structural
+  // edit, caret jump, blur, or parent re-render, so the next burst gets its
+  // own undo step instead of being folded into an unrelated command.
+  let typingOpen = false;
+  // Set when a typed character replaced a range: the re-render that follows
+  // must not end the burst, so the rest of the word joins the same undo step
+  // (Word undoes "typing over a selection" as one step).
+  let keepBurstAcrossRender = false;
+
+  function endTyping(): void {
+    typingOpen = false;
+  }
+
+  // An IME composition that starts over a *range*. compositionstart cannot be
+  // cancelled, so the browser replaces the range in the DOM natively, across
+  // runs and paragraphs, in a shape the per-run sync cannot map back. While
+  // this is set, DOM→model sync and selection tracking are frozen; when the
+  // composition ends, the composed text replaces the remembered range through
+  // one insertTextCommand (one atomic undo step) and the re-render discards
+  // whatever the browser did to the DOM.
+  let imeRange: EditorSelection | null = null;
+  let imeFinalize: { timer: ReturnType<typeof setTimeout>; run: () => void } | null = null;
+
+  function flushImeFinalize(): void {
+    if (!imeFinalize) return;
+    clearTimeout(imeFinalize.timer);
+    const { run } = imeFinalize;
+    imeFinalize = null;
+    run();
+  }
+
+  function onCompositionStart(): void {
+    // A new composition right after the previous one: apply that one first.
+    flushImeFinalize();
+    if (!hasRangeSelection()) return;
+    endTyping();
+    imeRange = model.selection;
+  }
+
+  function onCompositionEnd(e: CompositionEvent): void {
+    const range = imeRange;
+    if (!range) return;
+    const text = e.data ?? '';
+    const run = (): void => {
+      imeRange = null;
+      model.setSelection(range);
+      // On failure the model is unchanged but the DOM is not: re-render anyway.
+      if (!exec(commands.insertTextCommand, { text })) rerender();
+    };
+    // Deferred one task: Safari dispatches the composition's final `input`
+    // (and `beforeinput`) *after* compositionend, and they must still see the
+    // freeze rather than being synced or replayed as a second insert.
+    imeFinalize = { timer: setTimeout(flushImeFinalize), run };
+  }
+
   /** Re-render after a structural edit the canvas performed itself. */
   function rerender(): void {
+    endTyping();
     renderTick++;
   }
 
@@ -45,24 +112,28 @@
     // Depend on both the parent's structural `version` and the canvas-local
     // `renderTick` so either source of structural change re-renders.
     canvas.dataset.version = `${version}.${renderTick}`;
+    if (keepBurstAcrossRender) keepBurstAcrossRender = false;
+    else endTyping();
     canvas.innerHTML = renderDocumentHtml(model.doc);
     restoreCaret();
   });
 
+  /** Attribute selector for the paragraph a position lives in. */
+  function paragraphSelector(pos: DocPosition): string {
+    return pos.cell
+      ? `[data-wk-block="${pos.block}"][data-wk-cell="${pos.cell.row},${pos.cell.col}"][data-wk-para="${pos.para ?? 0}"]`
+      : `[data-wk-block="${pos.block}"]:not([data-wk-cell])`;
+  }
+
   /** The run span (or paragraph fallback) that hosts a document position. */
   function hostFor(pos: DocPosition): HTMLElement | null {
     if (!canvas) return null;
-    const sel = [`.wk-run[data-wk-block="${pos.block}"]`];
-    if (pos.cell) sel.push(`[data-wk-cell="${pos.cell.row},${pos.cell.col}"]`);
-    else sel.push(':not([data-wk-cell])');
-    sel.push(`[data-wk-inline="${pos.inline ?? 0}"]`);
-    const span = canvas.querySelector<HTMLElement>(sel.join(''));
+    const span = canvas.querySelector<HTMLElement>(
+      `.wk-run${paragraphSelector(pos)}[data-wk-inline="${pos.inline ?? 0}"]`,
+    );
     if (span) return span;
     // Empty paragraph: no run span, caret lives in the <p> itself.
-    const pSel = pos.cell
-      ? `.wk-p[data-wk-block="${pos.block}"][data-wk-cell="${pos.cell.row},${pos.cell.col}"]`
-      : `.wk-p[data-wk-block="${pos.block}"]:not([data-wk-cell])`;
-    return canvas.querySelector<HTMLElement>(pSel);
+    return canvas.querySelector<HTMLElement>(`.wk-p${paragraphSelector(pos)}`);
   }
 
   /** Map a document position to a concrete DOM (textNode, offset) caret point. */
@@ -100,32 +171,62 @@
     if (!canvas) return;
     const spans = canvas.querySelectorAll<HTMLElement>('.wk-run[data-wk-block]');
     for (const span of spans) {
-      const block = Number.parseInt(span.getAttribute('data-wk-block') ?? '', 10);
-      if (Number.isNaN(block)) continue;
-      const cellAttr = span.getAttribute('data-wk-cell');
-      const inlineAttr = span.getAttribute('data-wk-inline');
-      const inline = inlineAttr ? Number.parseInt(inlineAttr, 10) : 0;
-      let cell: { row: number; col: number } | undefined;
-      if (cellAttr) {
-        const [r, c] = cellAttr.split(',').map((n) => Number.parseInt(n, 10));
-        if (r !== undefined && c !== undefined && !Number.isNaN(r) && !Number.isNaN(c))
-          cell = { row: r, col: c };
-      }
-      const pos = { block, inline, ...(cell ? { cell } : {}) };
+      // Same anchor parsing as DOM-selection mapping, so typing and the caret
+      // can never disagree about which run a span is.
+      const pos = positionFromDom(span, 0);
+      if (!pos) continue;
       const run = runAtPath(model.doc, pos);
       if (!run) continue;
       const text = (span.textContent ?? '').replace(/​/g, '');
       setSimpleRunText(run, text);
     }
-    model.doc.dirty = true;
   }
 
   function onInput(): void {
+    if (imeRange) return;
+    if (!typingOpen) {
+      model.beginEdit();
+      typingOpen = true;
+    }
     syncFromDom();
+    model.commit();
     onedit?.();
   }
 
+  /**
+   * Run a command from a canvas gesture; failures are reported, not thrown.
+   * Returns whether it applied.
+   */
+  function exec<P>(cmd: Command<P>, params: P): boolean {
+    endTyping();
+    try {
+      runCommand(model, cmd, params);
+    } catch (err) {
+      // Rolled back atomically, and the gesture's default was prevented, so
+      // the DOM still matches the model: no re-render needed.
+      onerror?.(`${cmd.label}: ${(err as Error).message}`);
+      return false;
+    }
+    rerender();
+    onedit?.();
+    return true;
+  }
+
+  // Keys that move the caret end a typing burst (Word starts a new undo step
+  // after the caret jumps).
+  const CARET_KEYS: ReadonlySet<string> = new Set([
+    'ArrowLeft',
+    'ArrowRight',
+    'ArrowUp',
+    'ArrowDown',
+    'Home',
+    'End',
+    'PageUp',
+    'PageDown',
+  ]);
+
   function onSelChange(): void {
+    if (imeRange) return;
     const sel = readDomSelection(document);
     if (sel) model.setSelection(sel);
     onselectionchange?.();
@@ -149,23 +250,29 @@
     const host = hostFor(pos);
     if (!host) return false;
     // Last run span in the same paragraph?
-    const runs = canvas.querySelectorAll<HTMLElement>(
-      pos.cell
-        ? `.wk-run[data-wk-block="${pos.block}"][data-wk-cell="${pos.cell.row},${pos.cell.col}"]`
-        : `.wk-run[data-wk-block="${pos.block}"]:not([data-wk-cell])`,
-    );
+    const runs = canvas.querySelectorAll<HTMLElement>(`.wk-run${paragraphSelector(pos)}`);
     const isLast = runs.length === 0 || runs[runs.length - 1] === host;
     const len = (host.textContent ?? '').replace(/​/g, '').length;
     return isLast && (pos.offset ?? 0) >= len;
   }
 
   function onKeydown(e: KeyboardEvent): void {
+    // While an IME is composing (Japanese/Chinese input), Enter confirms the
+    // conversion and Backspace edits the candidate — they must not reach the
+    // paragraph commands. Safari reports the composing keydown only through
+    // the legacy keyCode 229.
+    if (e.isComposing || e.keyCode === 229) return;
+    // A key after a range composition must act on the applied result.
+    flushImeFinalize();
+    if (CARET_KEYS.has(e.key)) endTyping();
     const mod = e.ctrlKey || e.metaKey;
 
     // Undo / redo.
     if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
-      syncFromDom();
+      // Typed text is already in the AST (onInput syncs every keystroke), so
+      // undo/redo can act on the model directly.
+      endTyping();
       if (e.shiftKey) model.redo();
       else model.undo();
       rerender();
@@ -174,7 +281,7 @@
     }
     if (mod && e.key.toLowerCase() === 'y') {
       e.preventDefault();
-      syncFromDom();
+      endTyping();
       model.redo();
       rerender();
       onedit?.();
@@ -184,38 +291,49 @@
     // Enter splits the paragraph at the caret (Shift+Enter = soft line break).
     if (e.key === 'Enter') {
       e.preventDefault();
-      syncFromDom();
-      if (e.shiftKey) runCommand(model, commands.insertLineBreakCommand, { kind: 'line' });
-      else runCommand(model, commands.splitParagraphCommand, undefined);
-      rerender();
-      onedit?.();
+      if (e.shiftKey) exec(commands.insertLineBreakCommand, { kind: 'line' });
+      else exec(commands.splitParagraphCommand, undefined);
       return;
     }
 
     // Backspace at paragraph start merges into the previous paragraph.
-    if (e.key === 'Backspace' && caretAtParagraphStart() && (model.selection?.focus.block ?? 0) > 0) {
+    if (
+      e.key === 'Backspace' &&
+      caretAtParagraphStart() &&
+      (commands.mergeBackCommand.isEnabled?.(model) ?? false)
+    ) {
       e.preventDefault();
-      syncFromDom();
-      runCommand(model, commands.mergeBackCommand, undefined);
-      rerender();
-      onedit?.();
+      exec(commands.mergeBackCommand, undefined);
       return;
     }
 
     // Delete at paragraph end pulls the next paragraph up into this one.
     if (e.key === 'Delete' && caretAtParagraphEnd()) {
       const here = model.selection?.focus;
+      if (here?.cell && canvas) {
+        // Inside a cell only the next paragraph *of the same cell* may be
+        // pulled up; at the cell's last paragraph Delete does nothing (as in
+        // Word) instead of letting the browser merge DOM nodes on its own.
+        e.preventDefault();
+        const next = { block: here.block, cell: here.cell, para: (here.para ?? 0) + 1 };
+        const nextExists = !!canvas.querySelector(
+          `.wk-p[data-wk-block="${next.block}"][data-wk-cell="${next.cell.row},${next.cell.col}"][data-wk-para="${next.para}"]`,
+        );
+        if (nextExists) {
+          model.setSelection({ anchor: next, focus: next });
+          if (!exec(commands.mergeBackCommand, undefined)) model.setSelection({ anchor: here, focus: here });
+        }
+        return;
+      }
       if (here && canvas) {
         const nextBlock = here.block + 1;
-        const nextExists = !!canvas.querySelector(`[data-wk-block="${nextBlock}"]`);
+        // Only a top-level paragraph can be pulled up (not a table / raw block).
+        const nextExists = !!canvas.querySelector(`.wk-p[data-wk-block="${nextBlock}"]:not([data-wk-cell])`);
         if (nextExists) {
           e.preventDefault();
-          syncFromDom();
           // Merge the next paragraph into this one, keeping the caret at the join.
           model.setSelection({ anchor: { block: nextBlock }, focus: { block: nextBlock } });
-          runCommand(model, commands.mergeBackCommand, undefined);
-          rerender();
-          onedit?.();
+          if (!exec(commands.mergeBackCommand, undefined)) model.setSelection({ anchor: here, focus: here });
           return;
         }
       }
@@ -224,58 +342,56 @@
     // Formatting shortcuts.
     if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
       e.preventDefault();
-      syncFromDom();
       const cmd =
         e.key.toLowerCase() === 'b'
           ? commands.toggleBoldCommand
           : e.key.toLowerCase() === 'i'
             ? commands.toggleItalicCommand
             : commands.toggleUnderlineCommand;
-      runCommand(model, cmd, undefined);
-      rerender();
-      onedit?.();
+      exec(cmd, undefined);
     }
   }
 
+  function hasRangeSelection(): boolean {
+    const sel = model.selection;
+    return !!sel && !orderSelection(sel).collapsed;
+  }
+
+  /**
+   * Typing / deleting over a *range* is routed to commands: the browser's own
+   * handling would restructure the DOM across runs and paragraphs in ways the
+   * per-run text sync cannot map back. Collapsed-caret typing stays native
+   * (reconciled by onInput) so the caret and IME behave normally.
+   */
+  function onBeforeInput(e: InputEvent): void {
+    if (imeRange || e.isComposing || !hasRangeSelection()) return;
+    if (e.inputType === 'insertText') {
+      e.preventDefault();
+      // The replacement's undo snapshot (taken by runCommand) is the burst's
+      // starting point; following keystrokes sync into it without a new one.
+      if (exec(commands.insertTextCommand, { text: e.data ?? '' })) {
+        typingOpen = true;
+        keepBurstAcrossRender = true;
+      }
+    } else if (e.inputType.startsWith('delete')) {
+      e.preventDefault();
+      exec(commands.deleteSelectionCommand, undefined);
+    }
+  }
+
+  function onCut(e: ClipboardEvent): void {
+    if (!hasRangeSelection() || !e.clipboardData) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', window.getSelection()?.toString() ?? '');
+    exec(commands.deleteSelectionCommand, undefined);
+  }
+
   function onPaste(e: ClipboardEvent): void {
+    flushImeFinalize();
     const text = e.clipboardData?.getData('text/plain');
     if (text === undefined) return;
     e.preventDefault();
-    syncFromDom();
-    const lines = text.split(/\r?\n/);
-    // First line: insert into the caret run at the offset.
-    const pos = model.selection?.focus;
-    if (!pos) return;
-    const run = runAtPath(model.doc, pos);
-    if (run) {
-      const current = run.pieces
-        .filter((p): p is { kind: 'text'; value: string; preserveSpace: boolean } => p.kind === 'text')
-        .map((p) => p.value)
-        .join('');
-      const at = pos.offset ?? 0;
-      const merged = current.slice(0, at) + lines[0] + current.slice(at);
-      setSimpleRunText(run, merged);
-      model.setSelection({
-        anchor: { ...pos, offset: at + (lines[0]?.length ?? 0) },
-        focus: { ...pos, offset: at + (lines[0]?.length ?? 0) },
-      });
-    }
-    model.doc.dirty = true;
-    // Remaining lines become new paragraphs.
-    for (let i = 1; i < lines.length; i++) {
-      runCommand(model, commands.splitParagraphCommand, undefined);
-      const np = model.selection?.focus;
-      const npr = np ? runAtPath(model.doc, np) : undefined;
-      if (npr && lines[i]) {
-        setSimpleRunText(npr, lines[i]!);
-        model.setSelection({
-          anchor: { ...np!, offset: lines[i]!.length },
-          focus: { ...np!, offset: lines[i]!.length },
-        });
-      }
-    }
-    rerender();
-    onedit?.();
+    exec(commands.insertTextCommand, { text });
   }
 
   $effect(() => {
@@ -295,7 +411,13 @@
     aria-label="Document editor"
     oninput={onInput}
     onkeydown={onKeydown}
+    onmousedown={endTyping}
+    onblur={endTyping}
     onpaste={onPaste}
+    onbeforeinput={onBeforeInput}
+    oncut={onCut}
+    oncompositionstart={onCompositionStart}
+    oncompositionend={onCompositionEnd}
   ></div>
 </div>
 
@@ -327,6 +449,17 @@
   .wk-canvas :global(.wk-p) {
     margin: 0 0 8px;
     min-height: 1.4em;
+    /* Runs render tabs and <w:br/> as \t / \n; keep them visible. */
+    white-space: pre-wrap;
+  }
+
+  .wk-canvas :global(.wk-link) {
+    color: #1a56c4;
+    text-decoration: underline;
+  }
+
+  .wk-canvas :global(.wk-inline-raw) {
+    background: #f3f4f6;
   }
 
   .wk-canvas :global(.wk-table) {
