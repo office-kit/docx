@@ -6,12 +6,35 @@
  */
 
 import { getContext, setContext } from "svelte";
-import { caretAt, runCommand, type Command, type EditorModel } from "@office-kit/docx-editor";
+import {
+  caretAt,
+  runCommand,
+  type Command,
+  type DocPosition,
+  type EditorModel,
+} from "@office-kit/docx-editor";
 import { text as documentText } from "@office-kit/docx";
 
 // Word's zoom range: 10 % – 500 %.
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 5;
+
+/** Word's document views (View ▸ Views). */
+export type ViewMode = "print" | "read" | "web" | "outline" | "draft";
+
+/** Review ▸ Display for Review. */
+export type MarkupMode = "simple" | "all" | "none" | "original";
+
+/**
+ * A floating or inline object the user clicked (picture, shape, chart …). The
+ * object-specific contextual tab (Picture Format, Shape Format …) shows while
+ * one is selected.
+ */
+export interface SelectedObject {
+  readonly kind: "picture" | "shape" | "textBox" | "chart" | "smartArt" | "equation" | "ink";
+  /** The run (or inline) that holds the object. */
+  readonly at: DocPosition;
+}
 
 /** Panes docked beside the page, in Word's positions. */
 export type PaneSide = "left" | "right";
@@ -38,6 +61,15 @@ export class EditorSession {
   search = $state("");
   zoom = $state(1);
   showMarks = $state(false);
+  viewMode = $state<ViewMode>("print");
+  pageMovement = $state<"vertical" | "sideToSide">("vertical");
+  showRuler = $state(false);
+  showGridlines = $state(false);
+  markup = $state<MarkupMode>("all");
+  /** Laid-out page count and the page holding the caret, reported by the canvas. */
+  pageCount = $state(1);
+  currentPage = $state(1);
+  selectedObject = $state<SelectedObject | null>(null);
   wordCount = $state(0);
   charCount = $state(0);
 

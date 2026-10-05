@@ -24,6 +24,15 @@ import { SECTION_PROPERTY_ELEMENTS } from "../commands/section-props.js";
 import { SETTINGS_ELEMENTS } from "../commands/settings.js";
 import { STYLE_PROPERTY_ELEMENTS } from "../commands/style-props.js";
 import { TABLE_PROPERTY_BINDINGS } from "../commands/table-props.js";
+import homeEdits from "./edits/home.js";
+import insertEdits from "./edits/insert.js";
+import tablesEdits from "./edits/tables.js";
+import picturesEdits from "./edits/pictures.js";
+import shapesEdits from "./edits/shapes.js";
+import designLayoutEdits from "./edits/design-layout.js";
+import referencesMailingsEdits from "./edits/references-mailings.js";
+import reviewViewEdits from "./edits/review-view.js";
+import canvasEdits from "./edits/canvas.js";
 import universe from "./element-universe.json" with { type: "json" };
 
 export type Disposition = "edit" | "render" | "preserve";
@@ -184,6 +193,20 @@ const EDIT_MAP: Record<string, string> = {
   "pic:nvPicPr": "image.altText",
   "pic:cNvPr": "image.altText",
 };
+
+// Per-feature-area mappings, one module per ribbon area under ./edits/.
+Object.assign(
+  EDIT_MAP,
+  homeEdits,
+  insertEdits,
+  tablesEdits,
+  picturesEdits,
+  shapesEdits,
+  designLayoutEdits,
+  referencesMailingsEdits,
+  reviewViewEdits,
+  canvasEdits,
+);
 
 // Fold in the generic run/paragraph property commands (commands/properties.ts).
 // `??=` so any explicit mapping above wins (e.g. w:spacing → paragraph.spacing).

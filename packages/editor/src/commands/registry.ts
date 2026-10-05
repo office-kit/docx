@@ -7,6 +7,14 @@
  * editable if a real command backs it.
  */
 
+import { designCommands } from "./design.js";
+import { drawingCommands } from "./drawing.js";
+import { insertCommands } from "./insert.js";
+import { layoutCommands } from "./layout.js";
+import { mailingsCommands } from "./mailings.js";
+import { shapeCommands } from "./shapes.js";
+import { storyCommands } from "./stories.js";
+import { viewCommands } from "./view.js";
 import { docpropsCommands } from "./docprops.js";
 import { headerFooterCommands } from "./header-footer.js";
 import { imageCommands } from "./image.js";
@@ -49,6 +57,14 @@ export const ALL_COMMANDS: ReadonlyArray<Command<never>> = [
   ...reviewCommands,
   ...docpropsCommands,
   ...settingsCommands,
+  ...insertCommands,
+  ...drawingCommands,
+  ...shapeCommands,
+  ...designCommands,
+  ...layoutCommands,
+  ...mailingsCommands,
+  ...viewCommands,
+  ...storyCommands,
   ...rawCommands,
 ] as ReadonlyArray<Command<never>>;
 
