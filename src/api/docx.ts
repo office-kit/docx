@@ -115,6 +115,12 @@ import {
   writeWmlDocument,
 } from "../internal/wordprocessingml/index.js";
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../internal/xml/index.js";
+import { resolveSectionScope, type SectionScope } from "../internal/wordprocessingml/sections.js";
+import {
+  SETTINGS_ORDER,
+  setOrderedOnOff,
+  setOrderedVal,
+} from "../internal/wordprocessingml/schema-order.js";
 import { type ValidationIssue, validatePackage } from "./validator.js";
 
 const DOCUMENT_PART_FALLBACK = "/word/document.xml";
@@ -873,36 +879,44 @@ function ensureSettingsPart(doc: Docx): Part {
 }
 
 /**
+ * The root of `word/settings.xml`, created if the document has none. Settings
+ * go through the raw-part cache so every reader and writer (including the
+ * raw-XML inspector) sees one tree.
+ */
+function settingsRoot(doc: Docx): XmlElement {
+  ensureSettingsPart(doc);
+  const root = getRawPartRoot(doc, SETTINGS_PART_NAME);
+  if (!root) throw new Error("word/settings.xml could not be read");
+  return root;
+}
+
+/**
  * Toggle an on-off document setting in `word/settings.xml` (e.g.
  * `evenAndOddHeaders`, `mirrorMargins`, `trackRevisions`, `autoHyphenation`).
  * Creates the settings part if the document has none. Pass `false` to clear.
+ * The element is written at its schema position.
  */
 export function setDocumentSettingOnOff(doc: Docx, local: string, on: boolean): void {
-  const part = ensureSettingsPart(doc);
-  const xmlDoc = parseXml(new TextDecoder("utf-8").decode(part.data));
-  setElementOnOff(xmlDoc.root, local, on);
-  part.data = new TextEncoder().encode(serializeXml(xmlDoc));
+  setOrderedOnOff(settingsRoot(doc), local, on, SETTINGS_ORDER);
+  markRawPartDirty(doc, SETTINGS_PART_NAME);
   doc.dirty = true;
 }
 
 /**
  * Set a single-value document setting in `word/settings.xml` (e.g.
  * `defaultTabStop`, `zoom`, `hyphenationZone`, `characterSpacingControl`).
- * Pass `undefined` to remove it.
+ * Pass `undefined` to remove it. The element is written at its schema position.
  */
 export function setDocumentSettingVal(doc: Docx, local: string, val: string | undefined): void {
-  const part = ensureSettingsPart(doc);
-  const xmlDoc = parseXml(new TextDecoder("utf-8").decode(part.data));
-  setElementValProp(xmlDoc.root, local, val);
-  part.data = new TextEncoder().encode(serializeXml(xmlDoc));
+  setOrderedVal(settingsRoot(doc), local, val, SETTINGS_ORDER);
+  markRawPartDirty(doc, SETTINGS_PART_NAME);
   doc.dirty = true;
 }
 
 /** Read a document setting's presence / value from `word/settings.xml`. */
 export function getDocumentSetting(doc: Docx, local: string): { present: boolean; val?: string } {
-  const part = getPart(doc.opc, SETTINGS_PART_NAME);
-  if (!part) return { present: false };
-  return getElementProp(parseXml(new TextDecoder("utf-8").decode(part.data)).root, local);
+  if (!getPart(doc.opc, SETTINGS_PART_NAME)) return { present: false };
+  return getElementProp(getRawPartRoot(doc, SETTINGS_PART_NAME), local);
 }
 
 /**
@@ -3046,43 +3060,55 @@ export function addFooter(doc: Docx, text: string, type: HeaderFooterType = "def
   return rel.id;
 }
 
-/** Set the page size on the body's trailing `<w:sectPr>`. */
-export function setPageSize(doc: Docx, size: PageSize): void {
-  const sectPr = ensureBodySectPr(doc);
-  setSectPrPageSize(sectPr, size);
+/**
+ * Set the page size of the sections `scope` names (default: the last
+ * section, i.e. the body's trailing `<w:sectPr>`).
+ */
+export function setPageSize(doc: Docx, size: PageSize, scope?: SectionScope): void {
+  for (const sectPr of resolveSectionScope(doc.document, scope)) setSectPrPageSize(sectPr, size);
   doc.dirty = true;
 }
 
-/** Set the page margins on the body's trailing `<w:sectPr>`. */
-export function setPageMargins(doc: Docx, margins: PageMargins): void {
-  const sectPr = ensureBodySectPr(doc);
-  setSectPrPageMargins(sectPr, margins);
+/** Set the page margins of the sections `scope` names (default: the last section). */
+export function setPageMargins(doc: Docx, margins: PageMargins, scope?: SectionScope): void {
+  for (const sectPr of resolveSectionScope(doc.document, scope)) {
+    setSectPrPageMargins(sectPr, margins);
+  }
   doc.dirty = true;
 }
 
-/** Switch the page orientation (portrait/landscape) on the body sectPr. */
-export function setPageOrientation(doc: Docx, orientation: "portrait" | "landscape"): void {
-  const sectPr = ensureBodySectPr(doc);
-  const pgSz = sectPr.children.find(
-    (c): c is XmlElement => c.kind === "element" && c.name.local === "pgSz",
-  );
-  if (pgSz) {
-    // Swap width/height when toggling orientation if needed.
-    const wAttr = pgSz.attrs.find((a) => a.name.local === "w");
-    const hAttr = pgSz.attrs.find((a) => a.name.local === "h");
-    const widthTwips = wAttr ? Number.parseInt(wAttr.value, 10) : PAGE_SIZE_LETTER.widthTwips;
-    const heightTwips = hAttr ? Number.parseInt(hAttr.value, 10) : PAGE_SIZE_LETTER.heightTwips;
-    // For landscape, width > height; for portrait, height > width.
+/**
+ * Switch the page orientation of the sections `scope` names (default: the
+ * last section). Like Word, this swaps the page's width and height so the
+ * longer side runs across for landscape, and keeps the paper code.
+ */
+export function setPageOrientation(
+  doc: Docx,
+  orientation: "portrait" | "landscape",
+  scope?: SectionScope,
+): void {
+  for (const sectPr of resolveSectionScope(doc.document, scope)) {
+    const pgSz = sectPr.children.find(
+      (c): c is XmlElement => c.kind === "element" && c.name.local === "pgSz",
+    );
+    const read = (local: string): number | undefined => {
+      const raw = pgSz?.attrs.find((a) => a.name.local === local)?.value;
+      return raw === undefined ? undefined : Number.parseInt(raw, 10);
+    };
+    const widthTwips = read("w") ?? PAGE_SIZE_LETTER.widthTwips;
+    const heightTwips = read("h") ?? PAGE_SIZE_LETTER.heightTwips;
+    const paperCode = read("code");
     const isLandscape = orientation === "landscape";
-    const newWidth = isLandscape
-      ? Math.max(widthTwips, heightTwips)
-      : Math.min(widthTwips, heightTwips);
-    const newHeight = isLandscape
-      ? Math.min(widthTwips, heightTwips)
-      : Math.max(widthTwips, heightTwips);
-    setSectPrPageSize(sectPr, { widthTwips: newWidth, heightTwips: newHeight, orientation });
-  } else {
-    setSectPrPageSize(sectPr, { ...PAGE_SIZE_LETTER, orientation });
+    setSectPrPageSize(sectPr, {
+      widthTwips: isLandscape
+        ? Math.max(widthTwips, heightTwips)
+        : Math.min(widthTwips, heightTwips),
+      heightTwips: isLandscape
+        ? Math.min(widthTwips, heightTwips)
+        : Math.max(widthTwips, heightTwips),
+      orientation,
+      ...(paperCode === undefined ? {} : { paperCode }),
+    });
   }
   doc.dirty = true;
 }
