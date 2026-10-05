@@ -9,9 +9,11 @@ import {
   getParagraphStyle,
   type HighlightColor,
   type UnderlineStyle,
+  type WmlRun,
 } from "@office-kit/docx";
 import {
   createStyleResolver,
+  hasEastAsianText,
   orderSelection,
   paragraphAt,
   paragraphsInRange,
@@ -76,11 +78,16 @@ export function homeState(session: EditorSession): HomeState {
  */
 export function selectionFormats(model: EditorModel): {
   runs: ResolvedRunFormat[];
+  /**
+   * The font each run shows in the font box: its East Asian font when the run
+   * has East Asian text, as Japanese Word shows ＭＳ 明朝 rather than Century.
+   */
+  fonts: Array<string | undefined>;
   paragraphs: ResolvedParagraphFormat[];
   paragraphStyles: Array<string | undefined>;
 } {
   const sel = model.selection;
-  if (!sel) return { runs: [], paragraphs: [], paragraphStyles: [] };
+  if (!sel) return { runs: [], fonts: [], paragraphs: [], paragraphStyles: [] };
   const doc = model.doc;
   const styles = createStyleResolver(doc);
   const ordered = orderSelection(sel);
@@ -92,23 +99,34 @@ export function selectionFormats(model: EditorModel): {
       ? [caretPara]
       : []
     : paragraphsInRange(doc, ordered);
-  let runs: ResolvedRunFormat[];
+  let found: Array<{ run: WmlRun | undefined; format: ResolvedRunFormat }>;
   if (caretPara) {
-    runs = [styles.run(caretPara, runAtPath(doc, sel.focus))];
+    const run = runAtPath(doc, sel.focus);
+    found = [{ run, format: styles.run(caretPara, run) }];
   } else {
     const owner = new Map(
       paras.flatMap((p) => p.children.filter((c) => c.kind === "run").map((r) => [r, p] as const)),
     );
-    runs = runsInRange(doc, ordered).flatMap((run) => {
+    found = runsInRange(doc, ordered).flatMap((run) => {
       const para = owner.get(run);
-      return para ? [styles.run(para, run)] : [];
+      return para ? [{ run, format: styles.run(para, run) }] : [];
     });
   }
+  const runs = found.map((f) => f.format);
   return {
     runs,
+    fonts: found.map(({ run, format }) =>
+      run && hasEastAsianText(runPlainText(run))
+        ? (format.eastAsiaFont ?? format.font)
+        : format.font,
+    ),
     paragraphs: paras.map((p) => styles.paragraph(p)),
     paragraphStyles: paras.map((p) => getParagraphStyle(p)),
   };
+}
+
+function runPlainText(run: WmlRun): string {
+  return run.pieces.map((p) => (p.kind === "text" ? p.value : "")).join("");
 }
 
 /** One value when every item agrees, else `undefined` (Word's blank "mixed" state). */

@@ -590,7 +590,7 @@
     role="textbox"
     tabindex="0"
     aria-multiline="true"
-    aria-label="Document editor"
+    aria-label={t('canvas.label')}
     oninput={onInput}
     onkeydown={onKeydown}
     onmousedown={endTyping}

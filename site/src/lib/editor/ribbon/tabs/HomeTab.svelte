@@ -39,6 +39,17 @@
     'Impact', 'Lucida Grande', 'Meiryo', 'MS Gothic', 'MS Mincho', 'Palatino', 'Segoe UI', 'Symbol', 'Tahoma',
     'Times New Roman', 'Trebuchet MS', 'Verdana', 'Wingdings', 'Yu Gothic', 'Yu Mincho',
   ];
+  // Japanese Word lists its Japanese fonts by their Japanese names, which is
+  // also the name it writes into the document.
+  const JA_FONT_NAMES: Readonly<Record<string, string>> = {
+    'Yu Mincho': '游明朝',
+    'Yu Gothic': '游ゴシック',
+    'Hiragino Mincho ProN': 'ヒラギノ明朝 ProN',
+    'Hiragino Kaku Gothic ProN': 'ヒラギノ角ゴ ProN',
+    'MS Mincho': 'ＭＳ 明朝',
+    'MS Gothic': 'ＭＳ ゴシック',
+    Meiryo: 'メイリオ',
+  };
   const HIGHLIGHT_MENU: HighlightColor[] = [
     'yellow', 'green', 'cyan', 'magenta', 'blue', 'red', 'darkBlue', 'darkCyan',
     'darkGreen', 'darkMagenta', 'darkRed', 'darkYellow', 'darkGray', 'lightGray', 'black',
@@ -82,11 +93,19 @@
   // Tiles the Styles gallery shows in the ribbon before the expand arrow.
   const GALLERY_TILES = 5;
 
+  const fontList = $derived(
+    locale() === 'ja'
+      ? [
+          ...ALL_FONTS.filter((f) => !(f in JA_FONT_NAMES)),
+          ...Object.values(JA_FONT_NAMES).toSorted((x, y) => x.localeCompare(y, 'ja')),
+        ]
+      : ALL_FONTS,
+  );
   // A fresh wrapper per edit: the model object itself never changes identity,
   // so deriving from it directly would never recompute after an edit.
   const live = $derived(session.tick >= 0 && session.model ? { model: session.model } : null);
-  const formats = $derived(live ? selectionFormats(live.model) : { runs: [], paragraphs: [], paragraphStyles: [] });
-  const fontName = $derived(common(formats.runs.map((f) => f.font)));
+  const formats = $derived(live ? selectionFormats(live.model) : { runs: [], fonts: [], paragraphs: [], paragraphStyles: [] });
+  const fontName = $derived(common(formats.fonts));
   const fontRole = $derived(common(formats.runs.map((f) => f.fontRole)));
   const size = $derived(common(formats.runs.map((f) => (f.sizeHalfPoints === undefined ? undefined : f.sizeHalfPoints / 2))));
   const vertAlign = $derived(common(formats.runs.map((f) => f.vertAlign ?? 'baseline')));
@@ -289,7 +308,7 @@
               {/each}
             {/if}
             <div class="menu-head">{t('home.font.all')}</div>
-            {#each ALL_FONTS as font (font)}
+            {#each fontList as font (font)}
               <button class="mi" role="menuitem" style="font-family:'{font}'" onclick={() => setFont({ font })}>{font}</button>
             {/each}
           </div>

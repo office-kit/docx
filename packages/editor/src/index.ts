@@ -31,6 +31,7 @@ export {
   storyKeyOf,
 } from "./selection.js";
 export { renderDocumentHtml, renderBlocksHtml, paragraphPlainText } from "./render.js";
+export { hasEastAsianText, isEastAsianFont } from "./east-asian-fonts.js";
 export { PAGE_FIELDS, fieldFormatSwitch, fieldType } from "./render-fields.js";
 export * from "./layout/index.js";
 export { highlightCss } from "./highlight.js";
