@@ -82,15 +82,17 @@
   // Tiles the Styles gallery shows in the ribbon before the expand arrow.
   const GALLERY_TILES = 5;
 
-  const model = $derived(session.tick >= 0 ? session.model : null);
-  const formats = $derived(model ? selectionFormats(model) : { runs: [], paragraphs: [], paragraphStyles: [] });
+  // A fresh wrapper per edit: the model object itself never changes identity,
+  // so deriving from it directly would never recompute after an edit.
+  const live = $derived(session.tick >= 0 && session.model ? { model: session.model } : null);
+  const formats = $derived(live ? selectionFormats(live.model) : { runs: [], paragraphs: [], paragraphStyles: [] });
   const fontName = $derived(common(formats.runs.map((f) => f.font)));
   const fontRole = $derived(common(formats.runs.map((f) => f.fontRole)));
   const size = $derived(common(formats.runs.map((f) => (f.sizeHalfPoints === undefined ? undefined : f.sizeHalfPoints / 2))));
   const vertAlign = $derived(common(formats.runs.map((f) => f.vertAlign ?? 'baseline')));
   const underline = $derived(common(formats.runs.map((f) => f.underline ?? 'none')));
-  const lineSpacing = $derived(model ? commands.lineSpacingOf(model) : undefined);
-  const listKind = $derived(model ? commands.selectionListKind(model) : undefined);
+  const lineSpacing = $derived(live ? commands.lineSpacingOf(live.model) : undefined);
+  const listKind = $derived(live ? commands.selectionListKind(live.model) : undefined);
   const themeFonts = $derived(session.version >= 0 && session.model ? readThemeFonts(session.model.doc) : {});
   const gallery = $derived(session.version >= 0 && session.model ? galleryStyles(session.model) : []);
   const previews = $derived(session.version >= 0 && session.model ? stylePreviews(session.model) : undefined);
@@ -99,10 +101,10 @@
     if (ids.length === 0) return undefined;
     const id = common(ids);
     // No pStyle is the default paragraph style.
-    return id ?? (ids.every((x) => x === undefined) && model ? commands.defaultParagraphStyleId(model) : undefined);
+    return id ?? (ids.every((x) => x === undefined) && live ? commands.defaultParagraphStyleId(live.model) : undefined);
   });
-  const hasSelection = $derived(!!model?.selection);
-  const caretInList = $derived(!!model && commands.restartNumberingCommand.isEnabled?.(model));
+  const hasSelection = $derived(!!live?.model.selection);
+  const caretInList = $derived(!!live && commands.restartNumberingCommand.isEnabled?.(live.model));
 
   function effectOn(effect: RunToggle): boolean {
     return formats.runs.length > 0 && formats.runs.every((f) => f.toggles.has(effect));
@@ -217,7 +219,7 @@
       home.painter = null;
       return;
     }
-    const format = model && commands.copyFormat(model);
+    const format = live && commands.copyFormat(live.model);
     if (format) home.painter = { format, sticky: false };
     painterClick = setTimeout(() => (painterClick = undefined), DOUBLE_CLICK_MS);
   }
@@ -466,7 +468,7 @@
           <button class="mi" role="menuitem" onclick={() => session.openDialog('home.paragraph')}>{t('home.spacing.options')}</button>
           <hr />
           {#each ['before', 'after'] as const as side (side)}
-            {@const has = !!model && commands.hasParagraphSpace(model, side)}
+            {@const has = !!live && commands.hasParagraphSpace(live.model, side)}
             <button class="mi" role="menuitem" onclick={() => session.apply(commands.toggleParagraphSpaceCommand, { side })}>{t(`home.spacing.${has ? 'remove' : 'add'}.${side}`)}</button>
           {/each}
         {/snippet}
@@ -478,7 +480,7 @@
       <SplitButton id="home.borders" icon="paragraphBorders" tip={t('home.borders')} onclick={() => session.apply(commands.bordersPresetCommand, { preset: 'bottom' })} disabled={!session.enabled(commands.bordersPresetCommand)}>
         {#snippet menu()}
           {#each BORDER_PRESETS as b (b.preset)}
-            {@const on = b.preset !== 'none' && !!model && commands.bordersPresetActive(model, b.preset)}
+            {@const on = b.preset !== 'none' && !!live && commands.bordersPresetActive(live.model, b.preset)}
             <button class="mi check" class:checked={on} role="menuitemcheckbox" aria-checked={on} onclick={() => session.apply(commands.bordersPresetCommand, { preset: b.preset })}>{t(b.key)}</button>
           {/each}
           <hr />
