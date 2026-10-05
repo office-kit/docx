@@ -1121,7 +1121,7 @@ function addImagePart(doc: Docx, headerPart: string, w: PictureWatermark): strin
 export function setWatermark(doc: Docx, watermark: Watermark | undefined): void {
   const targets = watermark ? headerTargets(doc) : existingHeaderParts(doc);
   const textWidth = (() => {
-    const sectPr = sectionPropertiesList(doc.document)[0];
+    const sectPr = sectionPropertiesList(doc.document, false)[0];
     const pgSz = wmlChild(sectPr, "pgSz");
     const pgMar = wmlChild(sectPr, "pgMar");
     const w = intAttrOf(pgSz, "w");

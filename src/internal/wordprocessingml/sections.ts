@@ -40,16 +40,28 @@ export function ensureBodySectionProperties(document: WmlDocument): XmlElement {
 /**
  * Every section's `<w:sectPr>` in document order: one per section-break
  * paragraph, then the body's own (ECMA-376 §17.6.17: a paragraph's sectPr
- * ends the section that contains it).
+ * ends the section that contains it). With `create: false` a missing body
+ * sectPr is stood in for by a detached empty one, so reading never changes
+ * the document.
  */
-export function sectionPropertiesList(document: WmlDocument): XmlElement[] {
+export function sectionPropertiesList(document: WmlDocument, create = true): XmlElement[] {
   const out: XmlElement[] = [];
   for (const block of document.body.blocks) {
     if (block.kind !== "paragraph") continue;
     const sectPr = paragraphSectPr(block);
     if (sectPr) out.push(sectPr);
   }
-  out.push(ensureBodySectionProperties(document));
+  const body = create ? ensureBodySectionProperties(document) : document.body.sectPr;
+  out.push(
+    body ?? {
+      kind: "element",
+      name: { uri: WML_NS, local: "sectPr", prefix: "w" },
+      attrs: [],
+      children: [],
+      xmlSpace: "default",
+      selfClosing: true,
+    },
+  );
   return out;
 }
 
@@ -68,13 +80,16 @@ export function sectionIndexOfBlock(document: WmlDocument, blockIndex: number): 
 export function resolveSectionScope(
   document: WmlDocument,
   scope: SectionScope | undefined,
+  create = true,
 ): XmlElement[] {
-  const all = sectionPropertiesList(document);
+  const all = sectionPropertiesList(document, create);
   if (scope === "all") return all;
-  const indices = scope === undefined ? [all.length - 1] : typeof scope === "number" ? [scope] : scope;
+  const indices =
+    scope === undefined ? [all.length - 1] : typeof scope === "number" ? [scope] : scope;
   return indices.map((i) => {
     const sectPr = all[i];
-    if (!sectPr) throw new RangeError(`Section ${i} does not exist (the document has ${all.length}).`);
+    if (!sectPr)
+      throw new RangeError(`Section ${i} does not exist (the document has ${all.length}).`);
     return sectPr;
   });
 }

@@ -408,7 +408,7 @@ function oneOf<T extends string>(
 
 /** The number of sections in the document. */
 export function sectionCount(doc: Docx): number {
-  return sectionPropertiesList(doc.document).length;
+  return sectionPropertiesList(doc.document, false).length;
 }
 
 /** The index of the section that holds body block `blockIndex`. */
@@ -538,7 +538,7 @@ function sectionPropertiesOf(sectPr: XmlElement): SectionProperties {
 
 /** A section's layout (default: the last section). */
 export function getSectionProperties(doc: Docx, section?: number): SectionProperties {
-  const [sectPr] = resolveSectionScope(doc.document, section);
+  const [sectPr] = resolveSectionScope(doc.document, section, false);
   if (!sectPr) throw new RangeError(`Section ${section} does not exist.`);
   return sectionPropertiesOf(sectPr);
 }

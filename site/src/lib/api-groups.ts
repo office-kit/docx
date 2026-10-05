@@ -278,7 +278,10 @@ export const apiGroups: ApiGroup[] = [
       { name: "setThemeColors", sig: "(doc, colors: ThemeColorScheme) => void" },
       { name: "setThemeFonts", sig: "(doc, fonts: ThemeFontScheme) => void" },
       { name: "setThemeEffects", sig: "(doc, effects: ThemeEffectScheme) => void" },
-      { name: "themeColorValue", sig: "(colors, themeColor, { shade?, tint? }?) => string | undefined" },
+      {
+        name: "themeColorValue",
+        sig: "(colors, themeColor, { shade?, tint? }?) => string | undefined",
+      },
       { name: "applyStyleSet", sig: "(doc, set: StyleSetDefinition) => void" },
       { name: "currentStyleSet", sig: "(doc) => StyleSetDefinition | undefined" },
       { name: "setDefaultParagraphSpacing", sig: "(doc, { before, after, line }) => void" },

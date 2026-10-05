@@ -192,7 +192,13 @@ function wmlElement(local: string, val: string | undefined): XmlElement {
     attrs:
       val === undefined
         ? []
-        : [{ name: { uri: WML_NS, local: "val", prefix: "w" }, value: val, isNamespaceDecl: false }],
+        : [
+            {
+              name: { uri: WML_NS, local: "val", prefix: "w" },
+              value: val,
+              isNamespaceDecl: false,
+            },
+          ],
     children: [],
     xmlSpace: "default",
     selfClosing: true,

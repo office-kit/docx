@@ -41,6 +41,19 @@ export { runAtPath, setSimpleRunText } from "./text-edit.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, paragraphAt, paragraphsInRange } from "./doc-access.js";
 export { type RunRef, runsInRange } from "./selection-runs.js";
+export {
+  type PageBackground,
+  type ResolvedSection,
+  resolvePageBackground,
+  resolveSectionLayout,
+} from "./section-layout.js";
+export {
+  type PaletteColor,
+  type PaletteThemeColor,
+  resolveTheme,
+  THEME_PALETTE_COLUMNS,
+  themePalette,
+} from "./theme.js";
 
 // Coverage / capability ledger — the completeness-guarantee surface.
 export {

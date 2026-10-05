@@ -2166,16 +2166,21 @@ export function appendPageBreak(doc: Docx): WmlParagraph {
  * - `"page"` — page break inside the paragraph; Word splits the page
  *   here without inserting a new paragraph above.
  * - `"column"` — column break (only meaningful in multi-column sections).
+ * - `"textWrapping"` — text wrapping break: the next line starts below any
+ *   floating object beside this one (`w:clear="all"`, Word's Breaks ▸ Text
+ *   Wrapping).
  */
 export function appendLineBreak(
   doc: Docx,
   paragraph: WmlParagraph,
-  kind: "line" | "page" | "column" = "line",
+  kind: "line" | "page" | "column" | "textWrapping" = "line",
 ): WmlRun {
   const piece: WmlRunPiece =
     kind === "line"
       ? { kind: "break" }
-      : { kind: "break", breakType: kind === "page" ? "page" : "column" };
+      : kind === "textWrapping"
+        ? { kind: "break", breakType: "textWrapping", clear: "all" }
+        : { kind: "break", breakType: kind };
   const run: WmlRun = { kind: "run", pieces: [piece], extras: [] };
   paragraph.children.push(run);
   doc.dirty = true;
