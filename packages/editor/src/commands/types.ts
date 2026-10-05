@@ -20,6 +20,7 @@ export type FeatureGroup =
   | "list"
   | "table"
   | "image"
+  | "chart"
   | "style"
   | "section"
   | "headerFooter"

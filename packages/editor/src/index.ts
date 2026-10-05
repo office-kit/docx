@@ -34,6 +34,17 @@ export { renderDocumentHtml, renderBlocksHtml, paragraphPlainText } from "./rend
 export { PAGE_FIELDS, fieldFormatSwitch, fieldType } from "./render-fields.js";
 export * from "./layout/index.js";
 export { highlightCss } from "./highlight.js";
+export { EMU_PER_PX, imageDataUrl, pictureSvg, type PictureSvgInput } from "./render-drawing.js";
+export { chartSvg } from "./render-chart.js";
+export { CROP_SHAPES, presetPath } from "./preset-geometry.js";
+export {
+  floatFrameStart,
+  floatOrigin,
+  layoutFloatingObjects,
+  type PageBox,
+  readFloat,
+} from "./float-layout.js";
+export { drawingIndexAt, drawingPositionOf } from "./drawing-access.js";
 export {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,

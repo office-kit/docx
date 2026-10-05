@@ -24,6 +24,7 @@
   import { PageLayout } from './canvas/page-layout';
   import { decorateTableSelection, handleTableKey, tableCanvasStyle, tablePointerDown, tablePointerUp, tableToolAttr } from './table-canvas';
   import { copiesOf, domPoint, focusPage, focusParagraph, mirrorParagraph, paragraphSelector } from './canvas/caret';
+  import ObjectSelection from './picture/ObjectSelection.svelte';
 
   interface Props {
     model: EditorModel;
@@ -589,6 +590,7 @@
   <!-- Off-screen measuring area: blocks are rendered here, measured, then moved into pages. -->
   <div bind:this={galley} class="wk-galley wk-canvas" aria-hidden="true"></div>
 </div>
+<ObjectSelection {canvas} />
 
 <style>
   .wk-page {
@@ -636,8 +638,10 @@
   }
 
   .wk-canvas :global(.wk-pagebox) {
-    /* The positioning context for anchored objects (see --page-* / --m-*). */
+    /* The positioning context for anchored objects (see --page-* / --m-*);
+       isolated so behind-text pictures stay above the page background. */
     position: relative;
+    isolation: isolate;
     display: grid;
     flex: none;
     box-sizing: border-box;

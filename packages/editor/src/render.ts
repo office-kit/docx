@@ -46,6 +46,12 @@ import {
   specialRunHtml,
   underlineStyleCss,
 } from "./render-format.js";
+import {
+  createDrawingContext,
+  type DrawingRenderContext,
+  isDrawingOnlyRun,
+  runDrawingsHtml,
+} from "./render-drawing.js";
 import { WML_NS } from "./wml-ns.js";
 import { deletedRunText, type ReviewDecorations, reviewDecorations } from "./render-revisions.js";
 
@@ -268,6 +274,7 @@ function renderParagraph(
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
+  let textRuns = 0;
   const fields = fieldResultRuns(para);
   // Fields, symbols and equations (Insert tab): see render-fields / render-math.
   const fieldRoles = fieldRunRoles(para);
@@ -289,20 +296,27 @@ function renderParagraph(
         runIndex++;
         return special;
       }
+      const inline = runIndex++;
+      // A picture-only run gets no editable span: typing there could not be
+      // written back into the run, so the caret lives in the text around it.
+      if (isDrawingOnlyRun(child)) return pictureObjectsHtml(child, block, inline, cell);
+      textRuns++;
       const field = fields.get(i);
-      return renderRun(
-        child,
-        css,
-        block,
-        runIndex++,
-        review,
-        cell,
-        field ? fieldAttrs(field) : "",
-        role === "result" ? " wk-fresult" : "",
+      return (
+        renderRun(
+          child,
+          css,
+          block,
+          inline,
+          review,
+          cell,
+          field ? fieldAttrs(field) : "",
+          role === "result" ? " wk-fresult" : "",
+        ) + pictureObjectsHtml(child, block, inline, cell)
       );
     })
     .join("");
-  if (runIndex === 0) inner = `​${inner}`;
+  if (textRuns === 0) inner = `​${inner}`;
   inner = label + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
   const deco = review.paragraph(para);
@@ -333,9 +347,32 @@ function renderBlock(
   }
 }
 
+// Drawing indices and z-order for the render pass in progress. Set for the
+// duration of renderDocumentHtml so the per-run hook needs no extra parameter
+// threaded through every block / paragraph / run function.
+let drawingContext: DrawingRenderContext | undefined;
+
+function pictureObjectsHtml(run: WmlRun, block: number, inline: number, cell?: CellAnchor): string {
+  if (!drawingContext || !run.pieces.some((p) => p.kind === "drawing")) return "";
+  const at = cell
+    ? { block, cell: parseCellCoord(cell.coord), para: cell.para, inline }
+    : { block, inline };
+  return runDrawingsHtml(drawingContext, run, at);
+}
+
+function parseCellCoord(coord: string): { row: number; col: number } {
+  const [row = 0, col = 0] = coord.split(",").map(Number);
+  return { row, col };
+}
+
 /** Render the whole document body to an HTML string for the canvas. */
 export function renderDocumentHtml(doc: Docx): string {
-  return renderBlocksHtml(doc, doc.document.body.blocks);
+  drawingContext = createDrawingContext(doc);
+  try {
+    return renderBlocksHtml(doc, doc.document.body.blocks);
+  } finally {
+    drawingContext = undefined;
+  }
 }
 
 /**

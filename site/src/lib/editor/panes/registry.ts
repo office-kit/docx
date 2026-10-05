@@ -12,6 +12,9 @@ import RestrictEditingPane from "./RestrictEditingPane.svelte";
 import ReviewingPane from "./ReviewingPane.svelte";
 import CitationsPane from "./CitationsPane.svelte";
 import NotesPane from "./NotesPane.svelte";
+import AltTextPane from "./AltTextPane.svelte";
+import FormatPicturePane from "./FormatPicturePane.svelte";
+import SelectionPane from "./SelectionPane.svelte";
 import XmlPane from "./XmlPane.svelte";
 
 export const PANES: Readonly<Record<string, Component>> = {
@@ -24,4 +27,7 @@ export const PANES: Readonly<Record<string, Component>> = {
   restrictEditing: RestrictEditingPane,
   notes: NotesPane,
   citations: CitationsPane,
+  altText: AltTextPane,
+  formatPicture: FormatPicturePane,
+  selection: SelectionPane,
 };
