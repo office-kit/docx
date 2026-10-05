@@ -70,6 +70,8 @@ export class EditorSession {
   pageCount = $state(1);
   currentPage = $state(1);
   selectedObject = $state<SelectedObject | null>(null);
+  /** Toggle Field Codes: show `{ CODE }` instead of field results on the canvas. */
+  showFieldCodes = $state(false);
   wordCount = $state(0);
   charCount = $state(0);
 

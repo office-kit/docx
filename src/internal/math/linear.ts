@@ -191,7 +191,7 @@ const CLOSE_DELIMS = new Set(Object.values(OPEN_DELIMS));
 const GROUP_OPEN = "〖";
 const GROUP_CLOSE = "〗";
 const DELIM_SEPARATOR = "│";
-const OPERATORS = new Set([..."+-−=≠<>≤≥±∓×÷⋅·∙,;:!→←↔⇒⇐⇔∈∉⊂⊃⊆⊇∪∩≈≡∼≅∝∧∨¬∀∃…⋯"]);
+const OPERATORS = new Set("+-−=≠<>≤≥±∓×÷⋅·∙,;:!→←↔⇒⇐⇔∈∉⊂⊃⊆⊇∪∩≈≡∼≅∝∧∨¬∀∃…⋯");
 const COMBINING_ACCENT = /[̀-ͯ⃐-⃿]/;
 const FUNCTION_NAMES = [
   "arcsin",
@@ -475,7 +475,9 @@ class LinearParser {
         : { t: "rad", e: first };
     }
     const e = unwrap(this.scripted(stops));
-    return implicitDegree ? { t: "rad", deg: { t: "text", s: implicitDegree }, e } : { t: "rad", e };
+    return implicitDegree
+      ? { t: "rad", deg: { t: "text", s: implicitDegree }, e }
+      : { t: "rad", e };
   }
 
   private nary(chr: string, stops: ReadonlySet<string>): MathNode {
@@ -521,7 +523,10 @@ class LinearParser {
       break;
     }
     if (isMatrix) return { t: "matrix", rows };
-    return { t: "eqArr", rows: rows.map((r) => (r.length === 1 && r[0] ? r[0] : { t: "row", items: r })) };
+    return {
+      t: "eqArr",
+      rows: rows.map((r) => (r.length === 1 && r[0] ? r[0] : { t: "row", items: r })),
+    };
   }
 }
 
@@ -588,7 +593,13 @@ function mathRun(text: string, style?: "normal" | "plain"): XmlElement {
     kind: "element",
     name: { uri: OMML_NS, local: "t", prefix: "m" },
     attrs: preserve
-      ? [{ name: { uri: XML_NAMESPACE, local: "space", prefix: "xml" }, value: "preserve", isNamespaceDecl: false }]
+      ? [
+          {
+            name: { uri: XML_NAMESPACE, local: "space", prefix: "xml" },
+            value: "preserve",
+            isNamespaceDecl: false,
+          },
+        ]
       : [],
     children: [{ kind: "text", value: text }],
     xmlSpace: preserve ? "preserve" : "default",
@@ -666,7 +677,14 @@ function emit(node: MathNode): XmlElement[] {
       pr.push(mVal("limLoc", INTEGRALS.includes(node.chr) ? "subSup" : "undOvr"));
       if (!node.sub) pr.push(mVal("subHide", "1"));
       if (!node.sup) pr.push(mVal("supHide", "1"));
-      return [mEl("nary", [mEl("naryPr", pr), arg("sub", node.sub), arg("sup", node.sup), arg("e", node.e)])];
+      return [
+        mEl("nary", [
+          mEl("naryPr", pr),
+          arg("sub", node.sub),
+          arg("sup", node.sup),
+          arg("e", node.e),
+        ]),
+      ];
     }
     case "delim": {
       // dPr children in schema order: begChr, sepChr, endChr.
@@ -674,20 +692,39 @@ function emit(node: MathNode): XmlElement[] {
       if (node.open !== "(") pr.push(mVal("begChr", node.open));
       if (node.items.length > 1) pr.push(mVal("sepChr", DELIM_SEPARATOR));
       if (node.close !== ")") pr.push(mVal("endChr", node.close));
-      return [mEl("d", [...(pr.length ? [mEl("dPr", pr)] : []), ...node.items.map((i) => arg("e", i))])];
+      return [
+        mEl("d", [...(pr.length ? [mEl("dPr", pr)] : []), ...node.items.map((i) => arg("e", i))]),
+      ];
     }
     case "func":
       return [mEl("func", [arg("fName", node.name), arg("e", node.e)])];
     case "acc":
       return [mEl("acc", [mEl("accPr", [mVal("chr", node.chr)]), arg("e", node.e)])];
     case "bar":
-      return [mEl("bar", [mEl("barPr", [mVal("pos", node.top ? "top" : "bot")]), arg("e", node.e)])];
+      return [
+        mEl("bar", [mEl("barPr", [mVal("pos", node.top ? "top" : "bot")]), arg("e", node.e)]),
+      ];
     case "lim":
       return [mEl(node.upper ? "limUpp" : "limLow", [arg("e", node.e), arg("lim", node.lim)])];
     case "matrix":
-      return [mEl("m", node.rows.map((row) => mEl("mr", row.map((cell) => arg("e", cell)))))];
+      return [
+        mEl(
+          "m",
+          node.rows.map((row) =>
+            mEl(
+              "mr",
+              row.map((cell) => arg("e", cell)),
+            ),
+          ),
+        ),
+      ];
     case "eqArr":
-      return [mEl("eqArr", node.rows.map((row) => arg("e", row)))];
+      return [
+        mEl(
+          "eqArr",
+          node.rows.map((row) => arg("e", row)),
+        ),
+      ];
     case "box":
       return [mEl("borderBox", [arg("e", node.e)])];
     default: {
@@ -701,7 +738,11 @@ function withMathNamespace(el: XmlElement): XmlElement {
   return {
     ...el,
     attrs: [
-      { name: { uri: XMLNS_URI, local: "m", prefix: "xmlns" }, value: OMML_NS, isNamespaceDecl: true },
+      {
+        name: { uri: XMLNS_URI, local: "m", prefix: "xmlns" },
+        value: OMML_NS,
+        isNamespaceDecl: true,
+      },
       ...el.attrs,
     ],
   };
@@ -757,8 +798,8 @@ function linearArg(el: XmlElement | undefined): string {
 }
 
 // After these, a space ends their operand (an n-ary body, a function
-// argument), so following content is not read back into it.
-const OPERAND_TAKING = new Set(["nary", "func"]);
+// argument, a denominator), so following content is not read back into it.
+const OPERAND_TAKING = new Set(["nary", "func", "f"]);
 
 function joinLinear(children: readonly XmlElement[]): string {
   let out = "";
@@ -786,6 +827,20 @@ function operand(el: XmlElement | undefined): string {
   return `(${s})`;
 }
 
+/**
+ * The base of a script or accent. The parser binds a script to the single
+ * atom before it and keeps a bracketed base as a delimiter (`(x+a)^n`), so
+ * a delimiter, a function name or one character is written as-is and
+ * anything longer is grouped with 〖…〗 (which adds no brackets).
+ */
+function baseOperand(el: XmlElement | undefined): string {
+  const s = linearArg(el);
+  if ([...s].length <= 1 || FUNCTION_NAMES.includes(s)) return s;
+  const only = el?.children.filter((c): c is XmlElement => c.kind === "element");
+  if (only?.length === 1 && only[0] && !isM(only[0], "r") && !isM(only[0], "f")) return s;
+  return `${GROUP_OPEN}${s}${GROUP_CLOSE}`;
+}
+
 function linearOf(el: XmlElement): string {
   if (el.name.uri !== OMML_NS) return "";
   switch (el.name.local) {
@@ -801,13 +856,13 @@ function linearOf(el: XmlElement): string {
       return `${operand(child(el, "num"))}${sep}${operand(child(el, "den"))}`;
     }
     case "sSup":
-      return `${operand(child(el, "e"))}^${operand(child(el, "sup"))}`;
+      return `${baseOperand(child(el, "e"))}^${operand(child(el, "sup"))}`;
     case "sSub":
-      return `${operand(child(el, "e"))}_${operand(child(el, "sub"))}`;
+      return `${baseOperand(child(el, "e"))}_${operand(child(el, "sub"))}`;
     case "sSubSup":
-      return `${operand(child(el, "e"))}_${operand(child(el, "sub"))}^${operand(child(el, "sup"))}`;
+      return `${baseOperand(child(el, "e"))}_${operand(child(el, "sub"))}^${operand(child(el, "sup"))}`;
     case "sPre":
-      return `〖_${operand(child(el, "sub"))}^${operand(child(el, "sup"))}〗${operand(child(el, "e"))}`;
+      return `〖_${operand(child(el, "sub"))}^${operand(child(el, "sup"))}〗${baseOperand(child(el, "e"))}`;
     case "rad": {
       const degHidden = propVal(el, "radPr", "degHide");
       const deg = linearArg(child(el, "deg"));
@@ -820,7 +875,8 @@ function linearOf(el: XmlElement): string {
       const sup = linearArg(child(el, "sup"));
       const subPart = sub ? `_${operand(child(el, "sub"))}` : "";
       const supPart = sup ? `^${operand(child(el, "sup"))}` : "";
-      return `${chr}${subPart}${supPart}▒${operand(child(el, "e"))}`;
+      // The parser keeps a bracketed body as a delimiter, like a script base.
+      return `${chr}${subPart}${supPart}▒${baseOperand(child(el, "e"))}`;
     }
     case "d": {
       const open = propVal(el, "dPr", "begChr") ?? "(";
@@ -836,7 +892,7 @@ function linearOf(el: XmlElement): string {
     }
     case "acc": {
       const chr = propVal(el, "accPr", "chr") ?? "̂";
-      return `${operand(child(el, "e"))}${chr}`;
+      return `${baseOperand(child(el, "e"))}${chr}`;
     }
     case "bar": {
       const pos = propVal(el, "barPr", "pos") ?? "bot";

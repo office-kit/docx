@@ -51,7 +51,6 @@ import {
 
 export * from "./insert-fields.js";
 export * from "./insert-content.js";
-export { mathToLinear as equationToLinear } from "../internal/math/linear.js";
 
 // --- symbols and special characters --------------------------------------------
 
@@ -81,7 +80,9 @@ export function insertSymbol(
     run = { kind: "run", pieces: [{ kind: symbol }], extras: [] };
   } else {
     if (!SYM_CHAR.test(symbol.char)) {
-      throw new RangeError(`w:sym char must be four hex digits, got ${JSON.stringify(symbol.char)}.`);
+      throw new RangeError(
+        `w:sym char must be four hex digits, got ${JSON.stringify(symbol.char)}.`,
+      );
     }
     if (symbol.font.trim() === "") throw new Error("A symbol needs its font.");
     run = {
@@ -192,7 +193,9 @@ function runElement(run: WmlRun): XmlElement {
   for (const p of run.pieces) {
     if (p.kind === "text") {
       children.push(
-        el(WML_NS, "w", "t", p.preserveSpace ? [preserveAttr()] : [], [{ kind: "text", value: p.value }]),
+        el(WML_NS, "w", "t", p.preserveSpace ? [preserveAttr()] : [], [
+          { kind: "text", value: p.value },
+        ]),
       );
     } else if (p.kind === "tab") children.push(wEl("tab"));
     else if (p.kind === "break") children.push(wEl("br"));
@@ -270,7 +273,13 @@ export function removeHyperlink(doc: Docx, paragraph: WmlParagraph, hyperlink: X
         ? { ...rPr, children: rPr.children.filter((x) => !isW(x, "rStyle")) }
         : undefined;
       const rest = c.children.filter((x) => !isW(x, "rPr"));
-      const node = el(WML_NS, "w", "r", c.attrs, keptRPr && keptRPr.children.length ? [keptRPr, ...rest] : rest);
+      const node = el(
+        WML_NS,
+        "w",
+        "r",
+        c.attrs,
+        keptRPr && keptRPr.children.length ? [keptRPr, ...rest] : rest,
+      );
       runs.push({ kind: "raw", node });
     } else {
       runs.push({ kind: "raw", node: c });
@@ -318,7 +327,12 @@ function nextBookmarkId(doc: Docx): number {
  * omitted). The two points may be in different paragraphs, start first.
  * Throws when the name is invalid or already used.
  */
-export function insertBookmark(doc: Docx, name: string, start: TextPoint, end: TextPoint = start): number {
+export function insertBookmark(
+  doc: Docx,
+  name: string,
+  start: TextPoint,
+  end: TextPoint = start,
+): number {
   if (!isValidBookmarkName(name)) {
     throw new Error(
       `Invalid bookmark name ${JSON.stringify(name)}: use letters, digits and underscores, start with a letter, at most 40 characters.`,
@@ -412,7 +426,9 @@ export function insertEquation(
 }
 
 function isMath(node: XmlElement): boolean {
-  return node.name.uri === OMML_NS && (node.name.local === "oMath" || node.name.local === "oMathPara");
+  return (
+    node.name.uri === OMML_NS && (node.name.local === "oMath" || node.name.local === "oMathPara")
+  );
 }
 
 /** The equations (`m:oMath` / `m:oMathPara`) directly in a paragraph, in order. */
@@ -421,7 +437,12 @@ export function paragraphEquations(paragraph: WmlParagraph): XmlElement[] {
 }
 
 /** Replace the `index`-th equation of a paragraph with one built from `linear`. */
-export function setEquation(doc: Docx, paragraph: WmlParagraph, index: number, linear: string): XmlElement {
+export function setEquation(
+  doc: Docx,
+  paragraph: WmlParagraph,
+  index: number,
+  linear: string,
+): XmlElement {
   const target = paragraphEquations(paragraph)[index];
   if (!target) throw new RangeError(`The paragraph has no equation ${index}.`);
   const display = target.name.local === "oMathPara";
@@ -433,7 +454,10 @@ export function setEquation(doc: Docx, paragraph: WmlParagraph, index: number, l
 }
 
 /** Build an equation element without placing it (for headers, notes, tests). */
-export function buildEquation(linear: string, options: { readonly display?: boolean } = {}): XmlElement {
+export function buildEquation(
+  linear: string,
+  options: { readonly display?: boolean } = {},
+): XmlElement {
   return buildMathFromLinear(linear, options.display ?? false);
 }
 
@@ -515,7 +539,9 @@ export function setDropCap(doc: Docx, paragraph: WmlParagraph, options: DropCapO
   }
   const lines = options.lines ?? DEFAULT_DROP_LINES;
   if (!Number.isInteger(lines) || lines < MIN_DROP_LINES || lines > MAX_DROP_LINES) {
-    throw new RangeError(`Lines to drop must be ${MIN_DROP_LINES}–${MAX_DROP_LINES}, got ${lines}.`);
+    throw new RangeError(
+      `Lines to drop must be ${MIN_DROP_LINES}–${MAX_DROP_LINES}, got ${lines}.`,
+    );
   }
   const distance = options.distanceTwips ?? 0;
   if (!Number.isFinite(distance) || distance < 0) throw new RangeError("Distance must be ≥ 0.");
@@ -529,7 +555,8 @@ export function setDropCap(doc: Docx, paragraph: WmlParagraph, options: DropCapO
   const letter = [...textPiece.value][0] ?? "";
   textPiece.value = textPiece.value.slice(letter.length);
   const sizeEl = firstRun.rPr ? wChild(firstRun.rPr, "sz") : undefined;
-  const baseHalfPoints = Number(sizeEl ? wAttrValue(sizeEl, "val") : undefined) || DEFAULT_FONT_HALF_POINTS;
+  const baseHalfPoints =
+    Number(sizeEl ? wAttrValue(sizeEl, "val") : undefined) || DEFAULT_FONT_HALF_POINTS;
   const sz = Math.round(lines * baseHalfPoints * DROP_CAP_SIZE_PER_LINE);
   const line = Math.round((sz / 2) * DROP_CAP_LINE_RATIO * TWIPS_PER_POINT);
   const position = -Math.round(sz * DROP_CAP_POSITION_RATIO);
@@ -555,13 +582,22 @@ export function setDropCap(doc: Docx, paragraph: WmlParagraph, options: DropCapO
   };
   if (distance > 0) frameAttrs.hSpace = String(Math.round(distance));
   setParagraphChild(frame, "framePr", wEl("framePr", frameAttrs));
-  setParagraphChild(frame, "spacing", wEl("spacing", { after: "0", line: String(line), lineRule: "exact" }));
+  setParagraphChild(
+    frame,
+    "spacing",
+    wEl("spacing", { after: "0", line: String(line), lineRule: "exact" }),
+  );
   setParagraphChild(frame, "textAlignment", wEl("textAlignment", { val: "baseline" }));
   here.insert(here.index, frame);
   doc.dirty = true;
 }
 
 // --- signature line (VML, ECMA-376 Part 4 §19.1.2.24 o:signatureline) ----------------
+
+// `o:signatureline`'s id / provid are unqualified attributes (Part 4 §19.2.2.1).
+function unqualifiedAttr(local: string, value: string): XmlElement["attrs"][number] {
+  return { name: { uri: "", local, prefix: "" }, value, isNamespaceDecl: false };
+}
 
 export interface SignatureLineOptions {
   /** PNG/JPEG of the line as Word draws it (the "X", rule and signer text). */
@@ -612,21 +648,20 @@ export function insertSignatureLine(
     type: WML_RELATIONSHIPS.image,
     target: partName.replace(/^\/word\//, ""),
   });
-  const v = (local: string, attrs: XmlElement["attrs"] = [], children: XmlElement[] = []): XmlElement =>
-    el(VML_NS, "v", local, attrs, children);
+  const v = (
+    local: string,
+    attrs: XmlElement["attrs"] = [],
+    children: XmlElement[] = [],
+  ): XmlElement => el(VML_NS, "v", local, attrs, children);
   const o = (local: string, attrs: XmlElement["attrs"] = []): XmlElement =>
     el(VML_OFFICE_NS, "o", local, attrs);
-  const plain = (local: string, value: string): XmlElement["attrs"][number] => ({
-    name: { uri: "", local, prefix: "" },
-    value,
-    isNamespaceDecl: false,
-  });
   const sigAttrs = [
     attr(VML_NS, "v", "ext", "edit"),
-    plain("id", `{${crypto.randomUUID().toUpperCase()}}`),
-    plain("provid", DEFAULT_SIGNATURE_PROVIDER),
+    unqualifiedAttr("id", `{${crypto.randomUUID().toUpperCase()}}`),
+    unqualifiedAttr("provid", DEFAULT_SIGNATURE_PROVIDER),
   ];
-  if (options.suggestedSigner) sigAttrs.push(attr(VML_OFFICE_NS, "o", "suggestedsigner", options.suggestedSigner));
+  if (options.suggestedSigner)
+    sigAttrs.push(attr(VML_OFFICE_NS, "o", "suggestedsigner", options.suggestedSigner));
   if (options.suggestedSignerTitle) {
     sigAttrs.push(attr(VML_OFFICE_NS, "o", "suggestedsigner2", options.suggestedSignerTitle));
   }
@@ -634,29 +669,32 @@ export function insertSignatureLine(
     sigAttrs.push(attr(VML_OFFICE_NS, "o", "suggestedsigneremail", options.suggestedSignerEmail));
   }
   if (options.instructions) {
-    sigAttrs.push(plain("signinginstructionsset", "t"), attr(VML_OFFICE_NS, "o", "signinginstructions", options.instructions));
+    sigAttrs.push(
+      unqualifiedAttr("signinginstructionsset", "t"),
+      attr(VML_OFFICE_NS, "o", "signinginstructions", options.instructions),
+    );
   }
-  if (options.allowComments) sigAttrs.push(plain("allowcomments", "t"));
-  if (options.showSignDate === false) sigAttrs.push(plain("showsigndate", "f"));
-  sigAttrs.push(plain("issignatureline", "t"));
+  if (options.allowComments) sigAttrs.push(unqualifiedAttr("allowcomments", "t"));
+  if (options.showSignDate === false) sigAttrs.push(unqualifiedAttr("showsigndate", "f"));
+  sigAttrs.push(unqualifiedAttr("issignatureline", "t"));
   const shape = v(
     "shape",
     [
-      plain("id", `_x0000_i${nextBookmarkId(doc) + 1025}`),
-      plain("type", `#_x0000_t${PICTURE_SHAPE_TYPE}`),
-      plain("alt", "Microsoft Office Signature Line..."),
-      plain("style", `width:${options.widthPt}pt;height:${options.heightPt}pt`),
+      unqualifiedAttr("id", `_x0000_i${nextBookmarkId(doc) + 1025}`),
+      unqualifiedAttr("type", `#_x0000_t${PICTURE_SHAPE_TYPE}`),
+      unqualifiedAttr("alt", "Microsoft Office Signature Line..."),
+      unqualifiedAttr("style", `width:${options.widthPt}pt;height:${options.heightPt}pt`),
     ],
     [
       v("imagedata", [attr(R_NS, "r", "id", rel.id), attr(VML_OFFICE_NS, "o", "title", "")]),
       o("lock", [
         attr(VML_NS, "v", "ext", "edit"),
-        plain("ungrouping", "t"),
-        plain("rotation", "t"),
-        plain("cropping", "t"),
-        plain("verticies", "t"),
-        plain("text", "t"),
-        plain("grouping", "t"),
+        unqualifiedAttr("ungrouping", "t"),
+        unqualifiedAttr("rotation", "t"),
+        unqualifiedAttr("cropping", "t"),
+        unqualifiedAttr("verticies", "t"),
+        unqualifiedAttr("text", "t"),
+        unqualifiedAttr("grouping", "t"),
       ]),
       o("signatureline", sigAttrs),
     ],
@@ -664,17 +702,26 @@ export function insertSignatureLine(
   const shapetype = v(
     "shapetype",
     [
-      plain("id", `_x0000_t${PICTURE_SHAPE_TYPE}`),
-      plain("coordsize", "21600,21600"),
+      unqualifiedAttr("id", `_x0000_t${PICTURE_SHAPE_TYPE}`),
+      unqualifiedAttr("coordsize", "21600,21600"),
       attr(VML_OFFICE_NS, "o", "spt", PICTURE_SHAPE_TYPE),
       attr(VML_OFFICE_NS, "o", "preferrelative", "t"),
-      plain("filled", "f"),
-      plain("stroked", "f"),
+      unqualifiedAttr("filled", "f"),
+      unqualifiedAttr("stroked", "f"),
     ],
-    [v("stroke", [plain("joinstyle", "miter")]), o("lock", [attr(VML_NS, "v", "ext", "edit"), plain("aspectratio", "t")])],
+    [
+      v("stroke", [unqualifiedAttr("joinstyle", "miter")]),
+      o("lock", [attr(VML_NS, "v", "ext", "edit"), unqualifiedAttr("aspectratio", "t")]),
+    ],
   );
   const pict: XmlElement = {
-    ...el(WML_NS, "w", "pict", [nsDecl("v", VML_NS), nsDecl("o", VML_OFFICE_NS), nsDecl("r", R_NS)], [shapetype, shape]),
+    ...el(
+      WML_NS,
+      "w",
+      "pict",
+      [nsDecl("v", VML_NS), nsDecl("o", VML_OFFICE_NS), nsDecl("r", R_NS)],
+      [shapetype, shape],
+    ),
   };
   const run: WmlRun = { kind: "run", pieces: [{ kind: "pict", node: pict }], extras: [] };
   spliceInlinesAt(paragraph, offset, [run]);

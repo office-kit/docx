@@ -58,7 +58,12 @@ export const insertHeaderPresetCommand: Command<PresetParams> = {
   group: "headerFooter",
   label: "Header",
   run(model, { preset, type = "default" }) {
-    setHeaderFooterParagraphs(model.doc, "header", type, headerFooterPreset(model.doc, "header", preset));
+    setHeaderFooterParagraphs(
+      model.doc,
+      "header",
+      type,
+      headerFooterPreset(model.doc, "header", preset),
+    );
   },
 };
 
@@ -67,7 +72,12 @@ export const insertFooterPresetCommand: Command<PresetParams> = {
   group: "headerFooter",
   label: "Footer",
   run(model, { preset, type = "default" }) {
-    setHeaderFooterParagraphs(model.doc, "footer", type, headerFooterPreset(model.doc, "footer", preset));
+    setHeaderFooterParagraphs(
+      model.doc,
+      "footer",
+      type,
+      headerFooterPreset(model.doc, "footer", preset),
+    );
   },
 };
 
@@ -76,7 +86,8 @@ export const removeHeaderCommand: Command<{ type?: HeaderFooterType }> = {
   group: "headerFooter",
   label: "Remove Header",
   run(model, { type = "default" }) {
-    if (!removeHeaderFooter(model.doc, "header", type)) throw new Error("There is no header to remove.");
+    if (!removeHeaderFooter(model.doc, "header", type))
+      throw new Error("There is no header to remove.");
   },
 };
 
@@ -85,7 +96,8 @@ export const removeFooterCommand: Command<{ type?: HeaderFooterType }> = {
   group: "headerFooter",
   label: "Remove Footer",
   run(model, { type = "default" }) {
-    if (!removeHeaderFooter(model.doc, "footer", type)) throw new Error("There is no footer to remove.");
+    if (!removeHeaderFooter(model.doc, "footer", type))
+      throw new Error("There is no footer to remove.");
   },
 };
 

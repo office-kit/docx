@@ -13,7 +13,11 @@ import type { XmlElement, XmlNode } from "@office-kit/docx";
 export const OMML_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math";
 
 function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function isM(node: XmlNode, local: string): boolean {
@@ -65,7 +69,8 @@ function run(el: XmlElement): string {
   const normal = !!child(rPr, "nor");
   const sty = child(rPr, "sty")?.attrs.find((a) => a.name.local === "val")?.value;
   // Multi-letter upright text (function names) is one identifier.
-  if (sty === "p" && /^\p{L}+$/u.test(text)) return `<mi mathvariant="normal">${escapeXml(text)}</mi>`;
+  if (sty === "p" && /^\p{L}+$/u.test(text))
+    return `<mi mathvariant="normal">${escapeXml(text)}</mi>`;
   return tokens(text, normal);
 }
 
@@ -118,7 +123,10 @@ function convert(el: XmlElement): string {
       const integral = /[∫∬∭∮∯∰]/.test(chr);
       const under = (prop(el, "naryPr", "limLoc") ?? (integral ? "subSup" : "undOvr")) === "undOvr";
       let base = op;
-      if (sub && sup) base = under ? `<munderover>${op}${sub}${sup}</munderover>` : `<msubsup>${op}${sub}${sup}</msubsup>`;
+      if (sub && sup)
+        base = under
+          ? `<munderover>${op}${sub}${sup}</munderover>`
+          : `<msubsup>${op}${sub}${sup}</msubsup>`;
       else if (sub) base = under ? `<munder>${op}${sub}</munder>` : `<msub>${op}${sub}</msub>`;
       else if (sup) base = under ? `<mover>${op}${sup}</mover>` : `<msup>${op}${sup}</msup>`;
       return `<mrow>${base}${arg(child(el, "e"))}</mrow>`;
@@ -148,7 +156,9 @@ function convert(el: XmlElement): string {
       const chr = prop(el, "groupChrPr", "chr") ?? "⏟";
       const top = prop(el, "groupChrPr", "pos") === "top";
       const mo = `<mo stretchy="true">${escapeXml(chr)}</mo>`;
-      return top ? `<mover>${arg(child(el, "e"))}${mo}</mover>` : `<munder>${arg(child(el, "e"))}${mo}</munder>`;
+      return top
+        ? `<mover>${arg(child(el, "e"))}${mo}</mover>`
+        : `<munder>${arg(child(el, "e"))}${mo}</munder>`;
     }
     case "limLow":
       return `<munder>${arg(child(el, "e"))}${arg(child(el, "lim"))}</munder>`;
@@ -156,7 +166,12 @@ function convert(el: XmlElement): string {
       return `<mover>${arg(child(el, "e"))}${arg(child(el, "lim"))}</mover>`;
     case "m":
       return `<mtable>${children(el, "mr")
-        .map((mr) => `<mtr>${children(mr, "e").map((e) => `<mtd>${arg(e)}</mtd>`).join("")}</mtr>`)
+        .map(
+          (mr) =>
+            `<mtr>${children(mr, "e")
+              .map((e) => `<mtd>${arg(e)}</mtd>`)
+              .join("")}</mtr>`,
+        )
         .join("")}</mtable>`;
     case "eqArr":
       return `<mtable columnalign="left">${children(el, "e")
@@ -165,7 +180,9 @@ function convert(el: XmlElement): string {
     case "borderBox":
       return `<menclose notation="box">${arg(child(el, "e"))}</menclose>`;
     case "phant":
-      return on(prop(el, "phantPr", "show")) ? arg(child(el, "e")) : `<mphantom>${arg(child(el, "e"))}</mphantom>`;
+      return on(prop(el, "phantPr", "show"))
+        ? arg(child(el, "e"))
+        : `<mphantom>${arg(child(el, "e"))}</mphantom>`;
     case "box":
     case "e":
     case "oMath":

@@ -262,7 +262,9 @@ function renderParagraph(
   let inner = para.children
     .map((child) => {
       if (child.kind !== "run") {
-        return isMathElement(child.node) ? renderMath(child.node, mathAnchor()) : renderRawInline(child);
+        return isMathElement(child.node)
+          ? renderMath(child.node, mathAnchor())
+          : renderRawInline(child);
       }
       const role = fieldRoles.get(child);
       const css = runCss(styles.run(para, child));

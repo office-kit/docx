@@ -47,14 +47,21 @@ export function fieldRunRoles(para: WmlParagraph): Map<WmlRun, FieldRunRole> {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
  * HTML for a field's structural run (begin / code / separate / end), or
  * undefined for runs the normal run renderer draws (results, plain text).
  */
-export function renderFieldStructureRun(run: WmlRun, role: FieldRunRole | undefined): string | undefined {
+export function renderFieldStructureRun(
+  run: WmlRun,
+  role: FieldRunRole | undefined,
+): string | undefined {
   switch (role) {
     case "begin":
       return `<span class="wk-fchar" contenteditable="false">{</span>`;
@@ -63,7 +70,9 @@ export function renderFieldStructureRun(run: WmlRun, role: FieldRunRole | undefi
     case "separate":
       return "";
     case "code": {
-      const code = run.pieces.map((p) => (p.kind === "instrText" || p.kind === "text" ? p.value : "")).join("");
+      const code = run.pieces
+        .map((p) => (p.kind === "instrText" || p.kind === "text" ? p.value : ""))
+        .join("");
       return `<span class="wk-fcode" contenteditable="false">${escapeHtml(code)}</span>`;
     }
     default:
@@ -78,6 +87,19 @@ const SYMBOL_FONT_FIRST = 0x41;
 const PRIVATE_USE_SYMBOL_BASE = 0xf000;
 
 /**
+ * The character a symbol-font code shows as in a browser: `char` is the
+ * `w:sym/@w:char` hex code (with or without the U+F000 private-use offset).
+ */
+export function symbolGlyph(font: string, char: string): string {
+  let code = Number.parseInt(char, 16);
+  if (!Number.isFinite(code)) return "";
+  if (code >= PRIVATE_USE_SYMBOL_BASE) code -= PRIVATE_USE_SYMBOL_BASE;
+  const greek =
+    font.toLowerCase() === "symbol" ? SYMBOL_FONT_GREEK[code - SYMBOL_FONT_FIRST] : undefined;
+  return greek ?? String.fromCodePoint(code);
+}
+
+/**
  * HTML for a run holding `<w:sym>` characters (Insert ▸ Symbol from a symbol
  * font), shown non-editable in that font; undefined for other runs.
  */
@@ -87,12 +109,9 @@ export function renderSymbolRun(run: WmlRun, css: string): string | undefined {
   const html = syms
     .map((p) => {
       if (p.kind !== "symbol") return "";
-      let code = Number.parseInt(p.char, 16);
-      if (!Number.isFinite(code)) return "";
-      if (code >= PRIVATE_USE_SYMBOL_BASE) code -= PRIVATE_USE_SYMBOL_BASE;
-      const greek = p.font.toLowerCase() === "symbol" ? SYMBOL_FONT_GREEK[code - SYMBOL_FONT_FIRST] : undefined;
+      const ch = symbolGlyph(p.font, p.char);
+      if (!ch) return "";
       const font = p.font.replace(/['"\\\n\r;]/g, "");
-      const ch = greek ?? String.fromCodePoint(code);
       return `<span style="font-family:'${escapeHtml(font)}'">${escapeHtml(ch)}</span>`;
     })
     .join("");

@@ -120,10 +120,7 @@ function parseSwitchesOnly(text: string, type: string): FieldSwitch[] {
   return [...collect(tokenize(text), type).switches];
 }
 
-function collect(
-  tokens: Token[],
-  type: string,
-): { args: string[]; switches: FieldSwitch[] } {
+function collect(tokens: Token[], type: string): { args: string[]; switches: FieldSwitch[] } {
   const args: string[] = [];
   const switches: FieldSwitch[] = [];
   const withArg = SWITCHES_WITH_ARG[type];
@@ -176,13 +173,43 @@ function pad(n: number, width: number): string {
   return String(n).padStart(width, "0");
 }
 
+/** Month and weekday names: English, or the `locale`'s (BCP 47) via `Intl`. */
+function dateNames(
+  date: Date,
+  locale: string | undefined,
+): {
+  month: string;
+  monthShort: string;
+  weekday: string;
+  weekdayShort: string;
+} {
+  if (!locale || /^en\b/i.test(locale)) {
+    const month = MONTHS[date.getMonth()] ?? "";
+    const weekday = WEEKDAYS[date.getDay()] ?? "";
+    return {
+      month,
+      monthShort: month.slice(0, ABBREVIATION_LENGTH),
+      weekday,
+      weekdayShort: weekday.slice(0, ABBREVIATION_LENGTH),
+    };
+  }
+  const name = (options: Intl.DateTimeFormatOptions): string =>
+    new Intl.DateTimeFormat(locale, options).format(date);
+  return {
+    month: name({ month: "long" }),
+    monthShort: name({ month: "short" }),
+    weekday: name({ weekday: "long" }),
+    weekdayShort: name({ weekday: "short" }),
+  };
+}
+
 /**
  * Format a date with a Word date-time picture such as `"dddd, MMMM d, yyyy"`
- * or `"h:mm am/pm"`. Text in single quotes is literal; month and day names
- * are English (Word uses the document language; the caller can pre-localize
- * by quoting literal names).
+ * or `"h:mm am/pm"`. Text in single quotes is literal. Month and day names
+ * are in `locale` (the field's `w:lang`, as Word uses), English by default.
  */
-export function formatDatePicture(date: Date, picture: string): string {
+export function formatDatePicture(date: Date, picture: string, locale?: string): string {
+  const names = dateNames(date, locale);
   let out = "";
   let i = 0;
   const p = picture;
@@ -212,14 +239,14 @@ export function formatDatePicture(date: Date, picture: string): string {
       case "D":
         if (len === 1) out += date.getDate();
         else if (len === 2) out += pad(date.getDate(), 2);
-        else if (len === 3) out += (WEEKDAYS[date.getDay()] ?? "").slice(0, ABBREVIATION_LENGTH);
-        else out += WEEKDAYS[date.getDay()] ?? "";
+        else if (len === 3) out += names.weekdayShort;
+        else out += names.weekday;
         break;
       case "M":
         if (len === 1) out += date.getMonth() + 1;
         else if (len === 2) out += pad(date.getMonth() + 1, 2);
-        else if (len === 3) out += (MONTHS[date.getMonth()] ?? "").slice(0, ABBREVIATION_LENGTH);
-        else out += MONTHS[date.getMonth()] ?? "";
+        else if (len === 3) out += names.monthShort;
+        else out += names.month;
         break;
       case "y":
       case "Y":
@@ -448,10 +475,7 @@ export function formatNumericPicture(value: number, picture: string): string {
 }
 
 /** Apply every general formatting switch of a parsed instruction to a result. */
-export function applyGeneralSwitches(
-  value: string,
-  switches: readonly FieldSwitch[],
-): string {
+export function applyGeneralSwitches(value: string, switches: readonly FieldSwitch[]): string {
   let out = value;
   for (const sw of switches) {
     if (sw.arg === undefined) continue;
@@ -679,7 +703,10 @@ export function evaluateComparison(left: string, op: string, right: string): boo
   }
   if ((op === "=" || op === "<>") && /[?*]/.test(right)) {
     const re = new RegExp(
-      `^${right.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\?/g, ".").replace(/\*/g, ".*")}$`,
+      `^${right
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\?/g, ".")
+        .replace(/\*/g, ".*")}$`,
     );
     return op === "=" ? re.test(left) : !re.test(left);
   }

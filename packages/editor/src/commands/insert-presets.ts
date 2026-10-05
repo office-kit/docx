@@ -34,14 +34,12 @@ const LIGHT_FILL = "DCEAF7";
 const WHITE = "FFFFFF";
 
 function run(text: string, format: RunFormatting = {}): WmlRun {
-  const r: WmlRun = {
-    kind: "run",
-    pieces: text.split("\t").flatMap((part, i) => [
-      ...(i > 0 ? [{ kind: "tab" } as const] : []),
-      ...(part ? [{ kind: "text", value: part, preserveSpace: /^\s|\s$/.test(part) } as const] : []),
-    ]),
-    extras: [],
-  };
+  const pieces: WmlRun["pieces"] = [];
+  for (const [i, part] of text.split("\t").entries()) {
+    if (i > 0) pieces.push({ kind: "tab" });
+    if (part) pieces.push({ kind: "text", value: part, preserveSpace: /^\s|\s$/.test(part) });
+  }
+  const r: WmlRun = { kind: "run", pieces, extras: [] };
   if (Object.keys(format).length) setRunFormat(r, format);
   return r;
 }
@@ -108,7 +106,10 @@ export function headerFooterPreset(
     case "austin": {
       const p =
         kind === "header"
-          ? paragraph(propertyField(doc, "TITLE", "[Document title]", { color: ACCENT_BLUE }), style)
+          ? paragraph(
+              propertyField(doc, "TITLE", "[Document title]", { color: ACCENT_BLUE }),
+              style,
+            )
           : paragraph(pageField({ color: ACCENT_BLUE }), style);
       setParagraphBorders(p, {
         style: "single",
@@ -123,7 +124,10 @@ export function headerFooterPreset(
     case "banded": {
       const p =
         kind === "header"
-          ? paragraph(propertyField(doc, "TITLE", "[Document title]", { color: WHITE, bold: true }), style)
+          ? paragraph(
+              propertyField(doc, "TITLE", "[Document title]", { color: WHITE, bold: true }),
+              style,
+            )
           : paragraph(pageField({ color: WHITE, bold: true }), style);
       setParagraphShading(p, { fill: ACCENT_BLUE });
       setParagraphAlignment(p, "center");
@@ -131,7 +135,10 @@ export function headerFooterPreset(
     }
     case "facet": {
       if (kind === "header") {
-        const p = paragraph(propertyField(doc, "TITLE", "[Document title]", { color: TEXT_NAVY }), style);
+        const p = paragraph(
+          propertyField(doc, "TITLE", "[Document title]", { color: TEXT_NAVY }),
+          style,
+        );
         setParagraphAlignment(p, "right");
         return [p];
       }
@@ -152,13 +159,22 @@ export function headerFooterPreset(
         kind === "header"
           ? paragraph(
               [
-                ...propertyField(doc, "TITLE", "[Document title]", { color: ACCENT_BLUE, bold: true }),
+                ...propertyField(doc, "TITLE", "[Document title]", {
+                  color: ACCENT_BLUE,
+                  bold: true,
+                }),
                 run("\t\t"),
                 ...propertyField(doc, "AUTHOR", "[Author name]", { color: ACCENT_BLUE }),
               ],
               style,
             )
-          : paragraph([run("\t\t"), ...pageField({ color: ACCENT_BLUE, bold: true, fontSizeHalfPoints: 28 })], style);
+          : paragraph(
+              [
+                run("\t\t"),
+                ...pageField({ color: ACCENT_BLUE, bold: true, fontSizeHalfPoints: 28 }),
+              ],
+              style,
+            );
       return [p];
     }
     case "retrospect": {
@@ -198,7 +214,14 @@ export function headerFooterPreset(
 
 // --- cover pages ---------------------------------------------------------------------
 
-export const COVER_PAGE_PRESETS = ["austin", "banded", "facet", "ion", "retrospect", "sideline"] as const;
+export const COVER_PAGE_PRESETS = [
+  "austin",
+  "banded",
+  "facet",
+  "ion",
+  "retrospect",
+  "sideline",
+] as const;
 export type CoverPagePresetId = (typeof COVER_PAGE_PRESETS)[number];
 
 const TITLE_SIZE = 72;
@@ -238,7 +261,10 @@ export function coverPagePreset(doc: Docx, preset: CoverPagePresetId): WmlParagr
   const title = (format: RunFormatting): WmlRun[] =>
     propertyField(doc, "TITLE", "[Document title]", { fontSizeHalfPoints: TITLE_SIZE, ...format });
   const subtitle = (format: RunFormatting): WmlRun[] =>
-    propertyField(doc, "SUBJECT", "[Document subtitle]", { fontSizeHalfPoints: SUBTITLE_SIZE, ...format });
+    propertyField(doc, "SUBJECT", "[Document subtitle]", {
+      fontSizeHalfPoints: SUBTITLE_SIZE,
+      ...format,
+    });
   const author = (format: RunFormatting): WmlRun[] =>
     propertyField(doc, "AUTHOR", "[Author name]", { fontSizeHalfPoints: DETAIL_SIZE, ...format });
   const date = (format: RunFormatting): WmlRun[] =>
@@ -250,7 +276,9 @@ export function coverPagePreset(doc: Docx, preset: CoverPagePresetId): WmlParagr
           before: COVER_TOP_SPACE,
           border: { color: ACCENT_BLUE, side: "left", size: 48 },
         }),
-        coverParagraph(subtitle({ color: TEXT_NAVY }), { border: { color: ACCENT_BLUE, side: "left", size: 48 } }),
+        coverParagraph(subtitle({ color: TEXT_NAVY }), {
+          border: { color: ACCENT_BLUE, side: "left", size: 48 },
+        }),
         coverParagraph(author({ color: TEXT_NAVY }), { before: COVER_TOP_SPACE }),
       ];
     case "banded":
@@ -261,10 +289,13 @@ export function coverPagePreset(doc: Docx, preset: CoverPagePresetId): WmlParagr
           fill: ACCENT_BLUE,
         }),
         coverParagraph(subtitle({ color: TEXT_NAVY }), { align: "center" }),
-        coverParagraph([...author({ color: TEXT_NAVY }), run("  |  "), ...date({ color: TEXT_NAVY })], {
-          before: COVER_TOP_SPACE,
-          align: "center",
-        }),
+        coverParagraph(
+          [...author({ color: TEXT_NAVY }), run("  |  "), ...date({ color: TEXT_NAVY })],
+          {
+            before: COVER_TOP_SPACE,
+            align: "center",
+          },
+        ),
       ];
     case "facet":
       return [
@@ -294,7 +325,10 @@ export function coverPagePreset(doc: Docx, preset: CoverPagePresetId): WmlParagr
           border: { color: ACCENT_ORANGE, side: "bottom", size: 24 },
         }),
         coverParagraph(subtitle({ color: TEXT_NAVY }), { align: "center" }),
-        coverParagraph(date({ color: ACCENT_ORANGE }), { before: COVER_TOP_SPACE, align: "center" }),
+        coverParagraph(date({ color: ACCENT_ORANGE }), {
+          before: COVER_TOP_SPACE,
+          align: "center",
+        }),
         coverParagraph(author({ color: TEXT_NAVY }), { align: "center" }),
       ];
     case "sideline":

@@ -31,7 +31,7 @@ import {
   type WmlRun,
   writeWmlDocument,
 } from "../internal/wordprocessingml/index.js";
-import { parseXml, type XmlAttr, type XmlElement, type XmlNode } from "../internal/xml/index.js";
+import { type XmlAttr, type XmlElement, type XmlNode } from "../internal/xml/index.js";
 import {
   addFooter,
   addHeader,
@@ -165,7 +165,10 @@ export function insertCoverPage(doc: Docx, paragraphs: readonly WmlParagraph[]):
     children: [{ kind: "run", pieces: [{ kind: "break", breakType: "page" }], extras: [] }],
     extras: [],
   };
-  content[0]?.children.unshift({ kind: "raw", node: wEl("bookmarkStart", { id, name: COVER_PAGE_BOOKMARK }) });
+  content[0]?.children.unshift({
+    kind: "raw",
+    node: wEl("bookmarkStart", { id, name: COVER_PAGE_BOOKMARK }),
+  });
   breakPara.children.push({ kind: "raw", node: wEl("bookmarkEnd", { id }) });
   doc.document.body.blocks.unshift(...content, breakPara);
   setDifferentFirstPage(doc, true);
@@ -180,10 +183,15 @@ function referenceLocal(kind: HeaderFooterKind): string {
   return kind === "header" ? "headerReference" : "footerReference";
 }
 
-function referenceOf(doc: Docx, kind: HeaderFooterKind, type: HeaderFooterType): XmlElement | undefined {
+function referenceOf(
+  doc: Docx,
+  kind: HeaderFooterKind,
+  type: HeaderFooterType,
+): XmlElement | undefined {
   const sectPr = doc.document.body.sectPr;
   return sectPr?.children.find(
-    (c): c is XmlElement => isW(c, referenceLocal(kind)) && (wAttrValue(c, "type") ?? "default") === type,
+    (c): c is XmlElement =>
+      isW(c, referenceLocal(kind)) && (wAttrValue(c, "type") ?? "default") === type,
   );
 }
 
@@ -191,7 +199,11 @@ function relIdOf(ref: XmlElement): string | undefined {
   return ref.attrs.find((a) => a.name.uri === R_NS && a.name.local === "id")?.value;
 }
 
-function partNameFor(doc: Docx, kind: HeaderFooterKind, type: HeaderFooterType): string | undefined {
+function partNameFor(
+  doc: Docx,
+  kind: HeaderFooterKind,
+  type: HeaderFooterType,
+): string | undefined {
   const ref = referenceOf(doc, kind, type);
   const relId = ref ? relIdOf(ref) : undefined;
   if (!relId) return undefined;
@@ -261,7 +273,11 @@ function emptyParagraph(): WmlParagraph {
  * Remove the last section's header or footer of `type`: its reference, and
  * the part itself when nothing else refers to it.
  */
-export function removeHeaderFooter(doc: Docx, kind: HeaderFooterKind, type: HeaderFooterType = "default"): boolean {
+export function removeHeaderFooter(
+  doc: Docx,
+  kind: HeaderFooterKind,
+  type: HeaderFooterType = "default",
+): boolean {
   const ref = referenceOf(doc, kind, type);
   if (!ref) return false;
   const relId = relIdOf(ref);
@@ -280,7 +296,9 @@ export function removeHeaderFooter(doc: Docx, kind: HeaderFooterKind, type: Head
 
 function relIdStillUsed(doc: Docx, relId: string): boolean {
   const uses = (sectPr: XmlElement | undefined): boolean =>
-    !!sectPr?.children.some((c) => c.kind === "element" && c.attrs.some((a) => a.name.uri === R_NS && a.value === relId));
+    !!sectPr?.children.some(
+      (c) => c.kind === "element" && c.attrs.some((a) => a.name.uri === R_NS && a.value === relId),
+    );
   if (uses(doc.document.body.sectPr)) return true;
   return doc.document.body.blocks.some(
     (b) => b.kind === "paragraph" && uses(b.pPr ? wChild(b.pPr, "sectPr") : undefined),
@@ -317,7 +335,13 @@ export function ensureHeaderFooterStyle(doc: Docx, kind: HeaderFooterKind): stri
   const { id, name } = HEADER_STYLE_IDS[kind];
   const existing = stylesPart(doc);
   if (existing && findStyle(existing, id)) return id;
-  addStyle(doc, { type: "paragraph", styleId: id, name, basedOn: "Normal", uiPriority: HEADER_STYLE_PRIORITY });
+  addStyle(doc, {
+    type: "paragraph",
+    styleId: id,
+    name,
+    basedOn: "Normal",
+    uiPriority: HEADER_STYLE_PRIORITY,
+  });
   const part = stylesPart(doc);
   const style = part ? findStyle(part, id) : undefined;
   if (!part || !style) return id;
@@ -368,10 +392,19 @@ export function insertPageNumbers(doc: Docx, options: PageNumberOptions): void {
       }),
     );
   } else {
-    setParagraphChild(para, "jc", wEl("jc", { val: options.align === "left" ? "left" : options.align }));
+    setParagraphChild(
+      para,
+      "jc",
+      wEl("jc", { val: options.align === "left" ? "left" : options.align }),
+    );
   }
   if (options.style === "pageXofY") {
-    para.children.push(textRun("Page "), ...buildComplexField("PAGE", "1"), textRun(" of "), ...buildComplexField("NUMPAGES", "1"));
+    para.children.push(
+      textRun("Page "),
+      ...buildComplexField("PAGE", "1"),
+      textRun(" of "),
+      ...buildComplexField("NUMPAGES", "1"),
+    );
   } else {
     para.children.push(...buildComplexField("PAGE", "1"));
   }
@@ -449,19 +482,30 @@ function runPlainText(run: WmlRun): string {
 }
 
 /** ST_NumberFormat values Word's Format Page Numbers dialog offers (§17.18.59). */
-export type PageNumberFormat =
-  | "decimal"
-  | "upperRoman"
-  | "lowerRoman"
-  | "upperLetter"
-  | "lowerLetter"
-  | "numberInDash"
-  | "decimalFullWidth"
-  | "japaneseCounting"
-  | "aiueoFullWidth"
-  | "iroha"
-  | "chineseCounting"
-  | "ideographTraditional";
+export const PAGE_NUMBER_FORMATS = [
+  "decimal",
+  "upperRoman",
+  "lowerRoman",
+  "upperLetter",
+  "lowerLetter",
+  "numberInDash",
+  "decimalFullWidth",
+  "japaneseCounting",
+  "aiueoFullWidth",
+  "iroha",
+  "chineseCounting",
+  "ideographTraditional",
+] as const;
+export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number];
+
+/** ST_ChapterSep (§17.18.6). */
+export const CHAPTER_SEPARATORS = ["hyphen", "period", "colon", "emDash", "enDash"] as const;
+export type ChapterSeparator = (typeof CHAPTER_SEPARATORS)[number];
+
+const isPageNumberFormat = (v: string): v is PageNumberFormat =>
+  PAGE_NUMBER_FORMATS.some((f) => f === v);
+const isChapterSeparator = (v: string): v is ChapterSeparator =>
+  CHAPTER_SEPARATORS.some((f) => f === v);
 
 export interface PageNumberFormatOptions {
   readonly format?: PageNumberFormat;
@@ -469,7 +513,7 @@ export interface PageNumberFormatOptions {
   readonly start?: number;
   /** Include chapter number: the heading level (1–9) whose number prefixes the page number. */
   readonly chapterStyle?: number;
-  readonly chapterSeparator?: "hyphen" | "period" | "colon" | "emDash" | "enDash";
+  readonly chapterSeparator?: ChapterSeparator;
 }
 
 /** Set the last section's page numbering (`w:pgNumType`, §17.6.12). */
@@ -497,11 +541,12 @@ export function getPageNumberFormat(doc: Docx): PageNumberFormatOptions {
   const start = wAttrValue(el, "start");
   const chap = wAttrValue(el, "chapStyle");
   const sep = wAttrValue(el, "chapSep");
+  // A format this dialog does not offer (e.g. "chicago") reads as decimal.
   return {
-    format: (fmt ?? "decimal") as PageNumberFormat,
+    format: fmt !== undefined && isPageNumberFormat(fmt) ? fmt : "decimal",
     ...(start !== undefined ? { start: Number(start) } : {}),
     ...(chap !== undefined ? { chapterStyle: Number(chap) } : {}),
-    ...(sep !== undefined ? { chapterSeparator: sep as NonNullable<PageNumberFormatOptions["chapterSeparator"]> } : {}),
+    ...(sep !== undefined && isChapterSeparator(sep) ? { chapterSeparator: sep } : {}),
   };
 }
 
@@ -529,7 +574,10 @@ function ensureNumbering(doc: Docx): NonNullable<ReturnType<typeof numberingPart
   return part;
 }
 
-function ensureNotes(doc: Docx, kind: "footnote" | "endnote"): NonNullable<ReturnType<typeof footnotesPart>> {
+function ensureNotes(
+  doc: Docx,
+  kind: "footnote" | "endnote",
+): NonNullable<ReturnType<typeof footnotesPart>> {
   const existing = kind === "footnote" ? footnotesPart(doc) : endnotesPart(doc);
   if (existing) return existing;
   addPart(doc.opc, {
@@ -563,12 +611,17 @@ function maxNumericAttr(els: readonly XmlElement[], local: string): number {
 function setWAttr(el: XmlElement, local: string, value: string): XmlElement {
   return {
     ...el,
-    attrs: el.attrs.map((a) => (a.name.uri === WML_NS && a.name.local === local ? { ...a, value } : a)),
+    attrs: el.attrs.map((a) =>
+      a.name.uri === WML_NS && a.name.local === local ? { ...a, value } : a,
+    ),
   };
 }
 
 /** Map every element of a tree (children first). */
-function mapTree(node: XmlElement, fn: (el: XmlElement) => XmlElement | undefined): XmlElement | undefined {
+function mapTree(
+  node: XmlElement,
+  fn: (el: XmlElement) => XmlElement | undefined,
+): XmlElement | undefined {
   const children: XmlNode[] = [];
   for (const c of node.children) {
     if (c.kind !== "element") {
@@ -625,7 +678,9 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
   const written = writeWmlDocument(source.document).root;
   const sourceBody = written.children.find((c): c is XmlElement => isW(c, "body"));
   if (!sourceBody) return 0;
-  let content = sourceBody.children.filter((c): c is XmlElement => c.kind === "element" && !isW(c, "sectPr"));
+  let content = sourceBody.children.filter(
+    (c): c is XmlElement => c.kind === "element" && !isW(c, "sectPr"),
+  );
 
   // Styles the target lacks.
   const sourceStyles = stylesPart(source);
@@ -697,7 +752,11 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
     const rel = sourceRels.relationships.find((r) => r.id === oldId);
     if (!rel) continue;
     if (rel.targetMode === "External") {
-      relMap.set(oldId, addRelationship(targetRels, { type: rel.type, target: rel.target, targetMode: "External" }).id);
+      relMap.set(
+        oldId,
+        addRelationship(targetRels, { type: rel.type, target: rel.target, targetMode: "External" })
+          .id,
+      );
       continue;
     }
     const sourcePartName = resolveTarget(rel.target);
@@ -705,7 +764,10 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
     if (!part) continue;
     const newPartName = uniquePartName(doc, sourcePartName);
     addPart(doc.opc, { name: newPartName, contentType: part.contentType, data: part.data });
-    const newRel = addRelationship(targetRels, { type: rel.type, target: newPartName.replace(/^\/word\//, "") });
+    const newRel = addRelationship(targetRels, {
+      type: rel.type,
+      target: newPartName.replace(/^\/word\//, ""),
+    });
     relMap.set(oldId, newRel.id);
   }
 
@@ -714,12 +776,13 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
   for (const kind of ["footnote", "endnote"] as const) {
     const refLocal = `${kind}Reference`;
     const ids = new Set<string>();
-    for (const c of content) forEachElement(c, (e) => {
-      if (isW(e, refLocal)) {
-        const id = idOf(e, "id");
-        if (id) ids.add(id);
-      }
-    });
+    for (const c of content)
+      forEachElement(c, (e) => {
+        if (isW(e, refLocal)) {
+          const id = idOf(e, "id");
+          if (id) ids.add(id);
+        }
+      });
     if (!ids.size) continue;
     const sourcePart = kind === "footnote" ? footnotesPart(source) : endnotesPart(source);
     if (!sourcePart) continue;
@@ -741,7 +804,8 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
   const targetBookmarkNames = new Set<string>();
   let nextBookmark = 0;
   for (const b of doc.document.body.blocks) {
-    const node = b.kind === "paragraph" ? paragraphToElement(b) : b.kind === "raw" ? b.node : undefined;
+    const node =
+      b.kind === "paragraph" ? paragraphToElement(b) : b.kind === "raw" ? b.node : undefined;
     if (!node) continue;
     forEachElement(node, (e) => {
       if (isW(e, "bookmarkStart")) {
@@ -767,7 +831,11 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
 
   let nextDocPr = 1 + maxDocPrId(doc);
   const remapAttrs = (attrs: readonly XmlAttr[]): XmlAttr[] =>
-    attrs.map((a) => (a.name.uri === R_NS && !a.isNamespaceDecl && relMap.has(a.value) ? { ...a, value: relMap.get(a.value) ?? a.value } : a));
+    attrs.map((a) =>
+      a.name.uri === R_NS && !a.isNamespaceDecl && relMap.has(a.value)
+        ? { ...a, value: relMap.get(a.value) ?? a.value }
+        : a,
+    );
   const transform = (e: XmlElement): XmlElement | undefined => {
     if (e.name.uri === WML_NS && STRIPPED_INLINES.has(e.name.local)) return undefined;
     if (isW(e, "sectPr")) return undefined;
@@ -789,7 +857,12 @@ export function insertDocumentContent(doc: Docx, source: Docx, blockIndex: numbe
       if (mapped) out = setWAttr(out, "id", mapped);
     }
     if (out.name.local === "docPr" && out.attrs.some((a) => a.name.local === "id")) {
-      out = { ...out, attrs: out.attrs.map((a) => (a.name.local === "id" ? { ...a, value: String(nextDocPr++) } : a)) };
+      out = {
+        ...out,
+        attrs: out.attrs.map((a) =>
+          a.name.local === "id" ? { ...a, value: String(nextDocPr++) } : a,
+        ),
+      };
     }
     return out;
   };

@@ -73,7 +73,11 @@ export function insertionPoint(model: EditorModel): InsertionPoint {
  * at the start of the next run, adding an empty run when the inline is last,
  * so typing continues after — not inside — a field or link.
  */
-function caretAfter(model: EditorModel, point: InsertionPoint, inline: WmlInline | undefined): void {
+function caretAfter(
+  model: EditorModel,
+  point: InsertionPoint,
+  inline: WmlInline | undefined,
+): void {
   const children = point.paragraph.children;
   const at = inline ? children.indexOf(inline) : -1;
   let next = children.slice(at + 1).find((c): c is WmlRun => c.kind === "run");
@@ -121,7 +125,11 @@ export const insertBlankPageCommand: Command<void> = {
     const at = caretBlockIndex(model.doc, model.selection?.focus.block);
     appendPageBreak(model.doc);
     moveLastBlockAfter(model.doc, at);
-    model.doc.document.body.blocks.splice(at + 2, 0, { kind: "paragraph", children: [], extras: [] });
+    model.doc.document.body.blocks.splice(at + 2, 0, {
+      kind: "paragraph",
+      children: [],
+      extras: [],
+    });
     appendPageBreak(model.doc);
     moveLastBlockAfter(model.doc, at + 2);
     model.setSelection(caretAt({ block: at + 2, inline: 0, offset: 0 }));
@@ -130,14 +138,30 @@ export const insertBlankPageCommand: Command<void> = {
 
 // --- Links -------------------------------------------------------------------------
 
+/**
+ * Link parameters. `heading` links to a heading paragraph ("This Document ▸
+ * Headings"): a hidden `_Ref` bookmark is added around it and becomes the
+ * target's anchor.
+ */
+export interface LinkParams {
+  readonly text: string;
+  readonly target: HyperlinkTarget;
+  readonly heading?: WmlParagraph;
+}
+
+function resolveLinkTarget(model: EditorModel, { target, heading }: LinkParams): HyperlinkTarget {
+  return heading ? { ...target, bookmark: ensureReferenceBookmark(model.doc, heading) } : target;
+}
+
 /** Insert a link showing `text` at the caret (replacing the selection). */
-export const insertLinkCommand: Command<{ text: string; target: HyperlinkTarget }> = {
+export const insertLinkCommand: Command<LinkParams> = {
   id: "insert.link",
   group: "insert",
   label: "Link",
-  run(model, { text, target }) {
+  run(model, params) {
+    const target = resolveLinkTarget(model, params);
     const point = insertionPoint(model);
-    const link = insertHyperlink(model.doc, point.paragraph, point.offset, text, target);
+    const link = insertHyperlink(model.doc, point.paragraph, point.offset, params.text, target);
     const inline = point.paragraph.children.find((c) => c.kind === "raw" && c.node === link);
     caretAfter(model, point, inline);
   },
@@ -145,15 +169,15 @@ export const insertLinkCommand: Command<{ text: string; target: HyperlinkTarget 
 };
 
 /** The `index`-th hyperlink of the caret paragraph (Edit Link / Remove Link). */
-export const editLinkCommand: Command<{ index: number; text?: string; target: HyperlinkTarget }> = {
+export const editLinkCommand: Command<LinkParams & { index: number }> = {
   id: "insert.editLink",
   group: "insert",
   label: "Edit Link",
-  run(model, { index, text, target }) {
+  run(model, params) {
     const para = caretParagraph(model);
-    const link = para ? paragraphHyperlinks(model.doc, para)[index] : undefined;
+    const link = para ? paragraphHyperlinks(model.doc, para)[params.index] : undefined;
     if (!para || !link) throw new Error("There is no link here.");
-    editHyperlink(model.doc, para, link.element, target, text);
+    editHyperlink(model.doc, para, link.element, resolveLinkTarget(model, params), params.text);
   },
   isEnabled: hasCaretParagraph,
 };
@@ -252,11 +276,17 @@ export const insertCrossReferenceCommand: Command<CrossReferenceOptions> = {
     const end = runs[runs.length - 1];
     if (options.aboveBelow && end) {
       // Word writes "<ref> <ref \p>": a space, then the same reference with \p.
-      const space: WmlRun = { kind: "run", pieces: [{ kind: "text", value: " ", preserveSpace: true }], extras: [] };
+      const space: WmlRun = {
+        kind: "run",
+        pieces: [{ kind: "text", value: " ", preserveSpace: true }],
+        extras: [],
+      };
       point.paragraph.children.splice(point.paragraph.children.indexOf(end) + 1, 0, space);
       const at = offsetAfter(point.paragraph, space);
       const flags = options.hyperlink ? " \\p \\h" : " \\p";
-      runs = insertField(model.doc, point.paragraph, at, `${options.field} ${name}${flags}`, { context });
+      runs = insertField(model.doc, point.paragraph, at, `${options.field} ${name}${flags}`, {
+        context,
+      });
     }
     caretAfter(model, point, runs[runs.length - 1]);
   },
@@ -272,14 +302,20 @@ function offsetAfter(para: WmlParagraph, run: WmlRun): number {
 
 // --- Fields, date & time, symbols ------------------------------------------------------
 
-export const insertFieldAtCaretCommand: Command<{ instruction: string; result?: string; context?: FieldContext }> = {
+export const insertFieldAtCaretCommand: Command<{
+  instruction: string;
+  result?: string;
+  lang?: string;
+  context?: FieldContext;
+}> = {
   id: "insert.field",
   group: "insert",
   label: "Field",
-  run(model, { instruction, result, context }) {
+  run(model, { instruction, result, lang, context }) {
     const point = insertionPoint(model);
     const runs = insertField(model.doc, point.paragraph, point.offset, instruction, {
       ...(result !== undefined ? { result } : {}),
+      ...(lang ? { lang } : {}),
       ...(context ? { context } : {}),
     });
     caretAfter(model, point, runs[runs.length - 1]);

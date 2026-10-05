@@ -5,11 +5,7 @@
  * @internal
  */
 
-import {
-  isolateParagraphRunRange,
-  type Docx,
-  runTextLength,
-} from "./docx.js";
+import { isolateParagraphRunRange, type Docx, runTextLength } from "./docx.js";
 import {
   parseParagraph,
   WML_NS,
@@ -18,7 +14,12 @@ import {
   type WmlRun,
   type WmlRunPiece,
 } from "../internal/wordprocessingml/index.js";
-import { XML_NAMESPACE, type XmlAttr, type XmlElement, type XmlNode } from "../internal/xml/index.js";
+import {
+  XML_NAMESPACE,
+  type XmlAttr,
+  type XmlElement,
+  type XmlNode,
+} from "../internal/xml/index.js";
 
 export const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 export const VML_NS = "urn:schemas-microsoft-com:vml";
@@ -30,7 +31,11 @@ export function wAttr(local: string, value: string): XmlAttr {
 }
 
 export function nsDecl(prefix: string, uri: string): XmlAttr {
-  return { name: { uri: XMLNS_URI, local: prefix, prefix: "xmlns" }, value: uri, isNamespaceDecl: true };
+  return {
+    name: { uri: XMLNS_URI, local: prefix, prefix: "xmlns" },
+    value: uri,
+    isNamespaceDecl: true,
+  };
 }
 
 /** `<w:local w:k="v" …>children</w:local>`. */
@@ -96,7 +101,8 @@ export function textPieces(text: string): WmlRunPiece[] {
   for (const part of text.split(/(\t|\n)/)) {
     if (part === "\t") pieces.push({ kind: "tab" });
     else if (part === "\n") pieces.push({ kind: "break" });
-    else if (part) pieces.push({ kind: "text", value: part, preserveSpace: /^\s|\s$|\s\s/.test(part) });
+    else if (part)
+      pieces.push({ kind: "text", value: part, preserveSpace: /^\s|\s$|\s\s/.test(part) });
   }
   return pieces;
 }
@@ -257,7 +263,11 @@ export function emptyProps(local: string): XmlElement {
 }
 
 /** Set a child of a paragraph's `<w:pPr>` (created when missing). */
-export function setParagraphChild(para: WmlParagraph, local: string, child: XmlElement | undefined): void {
+export function setParagraphChild(
+  para: WmlParagraph,
+  local: string,
+  child: XmlElement | undefined,
+): void {
   const pPr = para.pPr ?? emptyProps("pPr");
   para.pPr = setOrderedChild(pPr, local, child, PPR_ORDER);
 }
@@ -336,13 +346,19 @@ export function assertOffset(para: WmlParagraph, offset: number): void {
 }
 
 export function xmlSpaceAttr(): XmlAttr {
-  return { name: { uri: XML_NAMESPACE, local: "space", prefix: "xml" }, value: "preserve", isNamespaceDecl: false };
+  return {
+    name: { uri: XML_NAMESPACE, local: "space", prefix: "xml" },
+    value: "preserve",
+    isNamespaceDecl: false,
+  };
 }
 
 /** Visible text inside an XML subtree (`w:t` only; field codes excluded). */
 export function xmlVisibleText(node: XmlElement): string {
   if (isW(node, "t")) {
-    return node.children.map((c) => (c.kind === "text" || c.kind === "cdata" ? c.value : "")).join("");
+    return node.children
+      .map((c) => (c.kind === "text" || c.kind === "cdata" ? c.value : ""))
+      .join("");
   }
   if (isW(node, "tab")) return "\t";
   let out = "";

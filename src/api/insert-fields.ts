@@ -35,7 +35,9 @@ import {
   bodyParagraphs,
   isW,
   normalizeRawRuns,
+  RPR_ORDER,
   runVisibleText,
+  setOrderedChild,
   spliceInlinesAt,
   textPieces,
   wAttrValue,
@@ -44,7 +46,7 @@ import {
   xmlVisibleText,
 } from "./insert-xml.js";
 
-export { formatDatePicture } from "../internal/wordprocessingml/field-code.js";
+export { formatDatePicture, quoteFieldArgument } from "../internal/wordprocessingml/field-code.js";
 
 /** Values a field result depends on that are not stored in the document. */
 export interface FieldContext {
@@ -79,6 +81,11 @@ export interface InsertFieldOptions {
   readonly result?: string;
   /** Formatting (`<w:rPr>`) for the field's runs. */
   readonly rPr?: XmlElement;
+  /**
+   * Language of the field's runs (BCP 47, written as `<w:lang>`). Date
+   * results use its month and day names, now and on every update.
+   */
+  readonly lang?: string;
   readonly context?: FieldContext;
 }
 
@@ -118,7 +125,11 @@ const NOT_UPDATED: ReadonlySet<string> = new Set([
 ]);
 
 function fldChar(type: "begin" | "separate" | "end", children: XmlElement[] = []): WmlRunPiece {
-  return { kind: "fieldChar", charType: type, raw: wEl("fldChar", { fldCharType: type }, children) };
+  return {
+    kind: "fieldChar",
+    charType: type,
+    raw: wEl("fldChar", { fldCharType: type }, children),
+  };
 }
 
 function runOf(pieces: WmlRunPiece[], rPr: XmlElement | undefined): WmlRun {
@@ -161,7 +172,15 @@ export function insertField(
 ): WmlRun[] {
   assertOffset(paragraph, offset);
   if (instruction.trim() === "") throw new Error("A field needs an instruction.");
-  const runs = buildComplexField(instruction, options.result ?? "", options.rPr);
+  const rPr = options.lang
+    ? setOrderedChild(
+        options.rPr ? structuredClone(options.rPr) : wEl("rPr"),
+        "lang",
+        wEl("lang", { val: options.lang }),
+        RPR_ORDER,
+      )
+    : options.rPr;
+  const runs = buildComplexField(instruction, options.result ?? "", rPr);
   spliceInlinesAt(paragraph, offset, runs);
   if (options.result === undefined) {
     updateFieldsWhere(doc, options.context ?? {}, (f) => f.begin === runs[0]);
@@ -352,7 +371,14 @@ function walkFields(doc: Docx, visit: (f: WalkedField) => string | undefined): n
         const top = stack[stack.length - 1];
         if (piece.kind === "fieldChar") {
           if (piece.charType === "begin") {
-            stack.push({ paragraph: para, begin: child, separate: undefined, instruction: "", result: "", local: true });
+            stack.push({
+              paragraph: para,
+              begin: child,
+              separate: undefined,
+              instruction: "",
+              result: "",
+              local: true,
+            });
           } else if (piece.charType === "separate" && top) {
             top.separate = child;
             if (top.paragraph !== para) top.local = false;
@@ -476,7 +502,8 @@ function updateFieldsWhere(
     paragraphOrder.set(p, i);
     const level = headingLevel(doc, p);
     if (level !== undefined) {
-      for (let l = level; l <= MAX_HEADING_LEVEL; l++) headingEpochs[l] = (headingEpochs[l] ?? 0) + 1;
+      for (let l = level; l <= MAX_HEADING_LEVEL; l++)
+        headingEpochs[l] = (headingEpochs[l] ?? 0) + 1;
     }
     paragraphHeadingEpochs.set(p, [...headingEpochs]);
   }
@@ -505,6 +532,12 @@ function dateFromIso(value: string | undefined): Date | undefined {
   if (!value) return undefined;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+/** The begin run's `w:lang` (Latin text language), if any. */
+function fieldLanguage(f: WalkedField): string | undefined {
+  const lang = wChild(f.begin.rPr, "lang");
+  return lang ? wAttrValue(lang, "val") : undefined;
 }
 
 function datePicture(parsed: ParsedFieldInstruction, fallback: string): string {
@@ -574,7 +607,12 @@ function evaluate(f: WalkedField, state: EvalState): string | undefined {
   if (raw === undefined) return undefined;
   const picture = f.parsed.switches.some((s) => s.name === "@");
   // Date fields already applied their \@ picture; \* and \# apply to all.
-  return picture ? applyGeneralSwitches(raw, f.parsed.switches.filter((s) => s.name !== "@")) : applyGeneralSwitches(raw, f.parsed.switches);
+  return picture
+    ? applyGeneralSwitches(
+        raw,
+        f.parsed.switches.filter((s) => s.name !== "@"),
+      )
+    : applyGeneralSwitches(raw, f.parsed.switches);
 }
 
 function evaluateRaw(f: WalkedField, state: EvalState): string | undefined {
@@ -583,14 +621,24 @@ function evaluateRaw(f: WalkedField, state: EvalState): string | undefined {
   const arg0 = parsed.args[0];
   switch (parsed.type) {
     case "DATE":
-      return formatDatePicture(ctx.now ?? new Date(), datePicture(parsed, DEFAULT_DATE_PICTURE));
+      return formatDatePicture(
+        ctx.now ?? new Date(),
+        datePicture(parsed, DEFAULT_DATE_PICTURE),
+        fieldLanguage(f),
+      );
     case "TIME":
-      return formatDatePicture(ctx.now ?? new Date(), datePicture(parsed, DEFAULT_TIME_PICTURE));
+      return formatDatePicture(
+        ctx.now ?? new Date(),
+        datePicture(parsed, DEFAULT_TIME_PICTURE),
+        fieldLanguage(f),
+      );
     case "CREATEDATE":
     case "SAVEDATE": {
       const core = coreProperties(doc);
       const d = dateFromIso(parsed.type === "CREATEDATE" ? core.created : core.modified);
-      return d ? formatDatePicture(d, datePicture(parsed, DEFAULT_DATETIME_PICTURE)) : undefined;
+      return d
+        ? formatDatePicture(d, datePicture(parsed, DEFAULT_DATETIME_PICTURE), fieldLanguage(f))
+        : undefined;
     }
     case "AUTHOR":
       return arg0 ?? coreProperties(doc).creator ?? "";
@@ -646,7 +694,9 @@ function evaluateRaw(f: WalkedField, state: EvalState): string | undefined {
       return ifText(parsed);
     case "COMPARE":
       return parsed.args.length >= 3
-        ? evaluateComparison(parsed.args[0] ?? "", parsed.args[1] ?? "", parsed.args[2] ?? "") ? "1" : "0"
+        ? evaluateComparison(parsed.args[0] ?? "", parsed.args[1] ?? "", parsed.args[2] ?? "")
+          ? "1"
+          : "0"
         : "0";
     case "SEQ":
       return seqText(f, state);
@@ -708,7 +758,8 @@ function formulaText(parsed: ParsedFieldInstruction, state: EvalState): string {
     return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
   } catch (err) {
     // Word shows the error message as the field's result.
-    return (err as Error).message.startsWith("!") ? `${(err as Error).message}` : "!Syntax Error";
+    if (err instanceof Error && err.message.startsWith("!")) return err.message;
+    return "!Syntax Error";
   }
 }
 
@@ -827,12 +878,15 @@ function refText(f: WalkedField, state: EvalState, name: string | undefined): st
   return bm.text.replace(/\s+$/, "");
 }
 
-function pageRefText(f: WalkedField, state: EvalState, name: string | undefined): string | undefined {
+function pageRefText(
+  f: WalkedField,
+  state: EvalState,
+  name: string | undefined,
+): string | undefined {
   if (!name) return undefined;
   const bm = bookmarkIndex(state).get(name);
   if (!bm) return "Error! Bookmark not defined.";
-  const page =
-    state.ctx.pageOf?.(bm.paragraph) ?? (state.ctx.pageCount === 1 ? 1 : undefined);
+  const page = state.ctx.pageOf?.(bm.paragraph) ?? (state.ctx.pageCount === 1 ? 1 : undefined);
   if (hasSwitch(f.parsed, "p")) {
     const here = state.ctx.pageOf?.(f.paragraph);
     if (page !== undefined && here !== undefined && page === here) return aboveBelow(f, state, bm);
