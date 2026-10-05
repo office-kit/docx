@@ -25,6 +25,9 @@
   const { children }: Props = $props();
 
   const m = $derived(localized(core));
+  // The editor is a full-window app with its own title bar, like Word; the
+  // site's header and footer would only take room from the page.
+  const chrome = $derived(page.route.id !== '/editor');
   const at = (path: string): string => localizePath(path, locale());
 
   const links: NavLink[] = $derived([
@@ -56,28 +59,36 @@
 
 <KitSeo product="docx" title={m.seo.title} description={m.seo.description} />
 
-<a class="skip" href="#main">{m.skip}</a>
+{#if chrome}
+  <a class="skip" href="#main">{m.skip}</a>
 
-<KitHeader product="docx" {links}>
-  <!-- The shell's only slot for site controls; the language switch sits
-       beside search there. -->
-  {#snippet search()}
-    <Search />
-    <LanguageSwitcher />
-  {/snippet}
-</KitHeader>
+  <KitHeader product="docx" {links}>
+    <!-- The shell's only slot for site controls; the language switch sits
+         beside search there. -->
+    {#snippet search()}
+      <Search />
+      <LanguageSwitcher />
+    {/snippet}
+  </KitHeader>
+{/if}
 
-<main id="main">
+<main id="main" class:app={!chrome}>
   {@render children?.()}
 </main>
 
 <CodeCopyEnhancer />
 
-<KitFooter product="docx" {links} />
+{#if chrome}
+  <KitFooter product="docx" {links} />
+{/if}
 
 <style>
   main {
     min-height: calc(100vh - var(--header-h));
+  }
+
+  main.app {
+    min-height: 100vh;
   }
 
   .skip {

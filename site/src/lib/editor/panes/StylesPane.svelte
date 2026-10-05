@@ -17,15 +17,16 @@
   let list = $state<'recommended' | 'inUse'>('recommended');
   let menuFor = $state<string | null>(null);
 
-  const model = $derived(session.tick >= 0 ? session.model : null);
+  // A fresh wrapper per edit: the model object never changes identity.
+  const live = $derived(session.tick >= 0 && session.model ? { model: session.model } : null);
   const styles = $derived(session.version >= 0 && session.model ? commands.listStyles(session.model) : []);
   const shown = $derived(list === 'inUse' ? styles.filter((s) => s.inDocument) : styles);
   const previews = $derived(session.version >= 0 && session.model ? stylePreviews(session.model) : undefined);
   const current = $derived.by(() => {
-    if (!model) return undefined;
-    const ids = selectionFormats(model).paragraphStyles;
+    if (!live) return undefined;
+    const ids = selectionFormats(live.model).paragraphStyles;
     if (ids.length === 0) return undefined;
-    return common(ids) ?? (ids.every((x) => x === undefined) ? commands.defaultParagraphStyleId(model) : undefined);
+    return common(ids) ?? (ids.every((x) => x === undefined) ? commands.defaultParagraphStyleId(live.model) : undefined);
   });
   const currentName = $derived(styles.find((s) => s.styleId === current)?.name ?? '');
 
@@ -61,7 +62,7 @@
       {#if menuFor === s.styleId}
         <div class="style-menu" role="menu">
           <button class="mi" role="menuitem" onclick={() => modify(s.styleId)}>{t('home.styles.modify')}</button>
-          {#if s.inDocument && model && commands.isDeletableStyle(model, s.styleId)}
+          {#if s.inDocument && live && commands.isDeletableStyle(live.model, s.styleId)}
             <button class="mi" role="menuitem" onclick={() => remove(s.styleId)}>{t('home.styles.delete').replace('{name}', s.name)}</button>
           {/if}
         </div>
