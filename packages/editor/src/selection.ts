@@ -45,7 +45,8 @@ export interface OrderedSelection {
   readonly collapsed: boolean;
 }
 
-function comparePositions(a: DocPosition, b: DocPosition): number {
+/** Document order of two positions (negative when `a` comes first). */
+export function comparePositions(a: DocPosition, b: DocPosition): number {
   if (a.block !== b.block) return a.block - b.block;
   const ar = a.cell?.row ?? -1;
   const br = b.cell?.row ?? -1;

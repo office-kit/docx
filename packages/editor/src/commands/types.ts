@@ -23,6 +23,7 @@ export type FeatureGroup =
   | "section"
   | "headerFooter"
   | "references"
+  | "mailings"
   | "review"
   | "advanced";
 
