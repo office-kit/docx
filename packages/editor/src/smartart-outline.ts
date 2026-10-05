@@ -28,10 +28,6 @@ export function outlineRows(
  * is attached one level down, as Word's Text Pane does.
  */
 export function outlineToNodes(rows: readonly OutlineRow[]): SmartArtNode[] {
-  interface Draft {
-    text: string;
-    children: Draft[];
-  }
   const root: Draft[] = [];
   const stack: Draft[][] = [root];
   for (const row of rows) {
@@ -41,11 +37,18 @@ export function outlineToNodes(rows: readonly OutlineRow[]): SmartArtNode[] {
     stack[level]?.push(draft);
     stack.push(draft.children);
   }
-  const finish = (list: readonly Draft[]): SmartArtNode[] =>
-    list.map((d) =>
-      d.children.length ? { text: d.text, children: finish(d.children) } : { text: d.text },
-    );
-  return finish(root);
+  return finishDrafts(root);
+}
+
+interface Draft {
+  text: string;
+  children: Draft[];
+}
+
+function finishDrafts(list: readonly Draft[]): SmartArtNode[] {
+  return list.map((d) =>
+    d.children.length ? { text: d.text, children: finishDrafts(d.children) } : { text: d.text },
+  );
 }
 
 /** The row and its descendants (the rows below it at a deeper level). */

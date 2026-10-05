@@ -563,9 +563,8 @@
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       e.stopPropagation();
-      const targets = shapeTools.multi.length ? [...shapeTools.multi] : [sel.at];
       // Delete from the last run backwards so earlier positions stay valid.
-      targets.sort((a, b) => b.block - a.block || (b.inline ?? 0) - (a.inline ?? 0));
+      const targets = (shapeTools.multi.length ? shapeTools.multi : [sel.at]).toSorted((a, b) => b.block - a.block || (b.inline ?? 0) - (a.inline ?? 0));
       for (const at of targets) {
         if (sel.kind === 'smartArt') session.apply(commands.deleteSmartArtCommand, { at });
         else session.apply(commands.deleteShapeCommand, { at });
@@ -609,7 +608,9 @@
     const run = el?.closest<HTMLElement>('[data-wk-txbx-run]');
     if (run) {
       const [para = 0, r = 0] = (run.dataset.wkTxbxRun ?? '0,0').split(',').map(Number);
-      return { para, run: r, offset: node === run ? (sel.anchorOffset > 0 ? (run.textContent ?? '').length : 0) : sel.anchorOffset };
+      const before = node === run ? (sel.anchorOffset > 0 ? (run.textContent ?? '') : '') : (node.textContent ?? '').slice(0, sel.anchorOffset);
+      // The placeholder zero-width space of an empty run is not document text.
+      return { para, run: r, offset: before.replace(/​/g, '').length };
     }
     const p = el?.closest<HTMLElement>('[data-wk-txbx-para]');
     return p ? { para: Number(p.dataset.wkTxbxPara ?? 0), run: 0, offset: 0 } : undefined;
@@ -662,6 +663,11 @@
     }
   }
 
+  /** Text typed into a text box element, without the empty-run placeholder. */
+  function typedText(el: Element): string {
+    return (el.textContent ?? '').replace(/\u200b/g, '');
+  }
+
   function onInput(e: Event): void {
     const found = boxOf(e.target as Element);
     if (!found) return;
@@ -670,8 +676,7 @@
     if (!model) return;
     const paragraphs = [...found.box.querySelectorAll<HTMLElement>('[data-wk-txbx-para]')].map((p) => {
       const runs = [...p.querySelectorAll<HTMLElement>('[data-wk-txbx-run]')];
-      const text = (el: Element): string => (el.textContent ?? '').replace(/​/g, '');
-      return runs.length ? runs.map(text) : [text(p)];
+      return runs.length ? runs.map(typedText) : [typedText(p)];
     });
     // One undo step per typing burst, as on the body.
     if (!typingOpen) {

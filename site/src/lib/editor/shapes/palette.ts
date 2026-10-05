@@ -121,16 +121,16 @@ export const ARROW_STYLES: ReadonlyArray<readonly [ShapeArrow, ShapeArrow]> = [
 
 /** Shape Effects ▸ Shadow: Outer presets VML can express (offset shadows). */
 export const SHADOW_PRESETS = [
-    { id: "offsetBottomRight", shadow: { color: "000000", offsetX: 3, offsetY: 3, opacity: 0.4 } },
-    { id: "offsetBottom", shadow: { color: "000000", offsetX: 0, offsetY: 3, opacity: 0.4 } },
-    { id: "offsetBottomLeft", shadow: { color: "000000", offsetX: -3, offsetY: 3, opacity: 0.4 } },
-    { id: "offsetRight", shadow: { color: "000000", offsetX: 3, offsetY: 0, opacity: 0.4 } },
-    { id: "offsetCenter", shadow: { color: "000000", offsetX: 0, offsetY: 0, opacity: 0.4 } },
-    { id: "offsetLeft", shadow: { color: "000000", offsetX: -3, offsetY: 0, opacity: 0.4 } },
-    { id: "offsetTopRight", shadow: { color: "000000", offsetX: 3, offsetY: -3, opacity: 0.4 } },
-    { id: "offsetTop", shadow: { color: "000000", offsetX: 0, offsetY: -3, opacity: 0.4 } },
-    { id: "offsetTopLeft", shadow: { color: "000000", offsetX: -3, offsetY: -3, opacity: 0.4 } },
-  ] as const satisfies ReadonlyArray<{ readonly id: string; readonly shadow: ShapeShadow }>;
+  { id: "offsetBottomRight", shadow: { color: "000000", offsetX: 3, offsetY: 3, opacity: 0.4 } },
+  { id: "offsetBottom", shadow: { color: "000000", offsetX: 0, offsetY: 3, opacity: 0.4 } },
+  { id: "offsetBottomLeft", shadow: { color: "000000", offsetX: -3, offsetY: 3, opacity: 0.4 } },
+  { id: "offsetRight", shadow: { color: "000000", offsetX: 3, offsetY: 0, opacity: 0.4 } },
+  { id: "offsetCenter", shadow: { color: "000000", offsetX: 0, offsetY: 0, opacity: 0.4 } },
+  { id: "offsetLeft", shadow: { color: "000000", offsetX: -3, offsetY: 0, opacity: 0.4 } },
+  { id: "offsetTopRight", shadow: { color: "000000", offsetX: 3, offsetY: -3, opacity: 0.4 } },
+  { id: "offsetTop", shadow: { color: "000000", offsetX: 0, offsetY: -3, opacity: 0.4 } },
+  { id: "offsetTopLeft", shadow: { color: "000000", offsetX: -3, offsetY: -3, opacity: 0.4 } },
+] as const satisfies ReadonlyArray<{ readonly id: string; readonly shadow: ShapeShadow }>;
 
 /** Gradient ▸ Light / Dark Variations, as (from, to, angle) over the current colour. */
 export function gradientVariations(color: string): ShapeFill[] {
@@ -209,6 +209,8 @@ export function shapeStyles(theme: Readonly<Record<string, string>>): ShapeStyle
   ];
 }
 
+const solid = (color: string): ShapeFill => ({ type: "solid", color });
+
 /** WordArt Styles: fill, outline and shadow over the theme's text and accent colours. */
 export function wordArtStyles(theme: Readonly<Record<string, string>>): ShapeStylePreset[] {
   const dark = theme.dk1 ?? "000000";
@@ -217,7 +219,6 @@ export function wordArtStyles(theme: Readonly<Record<string, string>>): ShapeSty
   const a2 = theme.accent2 ?? "ED7D31";
   const a4 = theme.accent4 ?? "FFC000";
   const shadow: ShapeShadow = { color: "000000", offsetX: 2, offsetY: 2, opacity: 0.35 };
-  const solid = (color: string): ShapeFill => ({ type: "solid", color });
   return [
     { fill: solid(dark), stroke: null, shadow: null, text: dark },
     { fill: solid(a1), stroke: null, shadow, text: a1 },

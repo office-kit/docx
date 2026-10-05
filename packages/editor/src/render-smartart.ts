@@ -137,11 +137,14 @@ function textHtml(
   size: number,
   align = "center",
 ): string {
-  const body = lines.map((l) => `<div>${escapeHtml(l) || "​"}</div>`).join("");
+  // Spans only: the diagram renders inside a body <p>.
+  const body = lines
+    .map((l) => `<span style="display:block">${escapeHtml(l) || "​"}</span>`)
+    .join("");
   return (
-    `<div class="wk-smartart-text" style="position:absolute;left:${n2(box.x)}pt;top:${n2(box.y)}pt;width:${n2(box.w)}pt;` +
+    `<span class="wk-smartart-text" style="position:absolute;left:${n2(box.x)}pt;top:${n2(box.y)}pt;width:${n2(box.w)}pt;` +
     `height:${n2(box.h)}pt;display:flex;flex-direction:column;justify-content:center;text-align:${align};` +
-    `font-size:${n2(size)}pt;line-height:1.15;color:${color};overflow:hidden;padding:0 4pt;box-sizing:border-box">${body}</div>`
+    `font-size:${n2(size)}pt;line-height:1.15;color:${color};overflow:hidden;padding:0 4pt;box-sizing:border-box">${body}</span>`
   );
 }
 

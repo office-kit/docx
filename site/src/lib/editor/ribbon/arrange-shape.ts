@@ -88,7 +88,7 @@ function align(s: EditorSession, op: AlignOp, relativeTo: "page" | "margin"): vo
   const bottom = Math.max(...items.map((i) => i.layout.top + i.layout.height));
   if (op === "distributeH" || op === "distributeV") {
     const horizontal = op === "distributeH";
-    const sorted = [...items].sort((a, b) =>
+    const sorted = items.toSorted((a, b) =>
       horizontal ? a.layout.left - b.layout.left : a.layout.top - b.layout.top,
     );
     const total = sorted.reduce(

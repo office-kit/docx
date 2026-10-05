@@ -457,13 +457,18 @@ function textBoxHtml(paragraphs: readonly WmlParagraph[], styles: StyleResolver)
       const runs = para.children
         .map((inline) => {
           if (inline.kind !== "run") return "";
-          const html = `<span class="wk-txbx-run" data-wk-txbx-run="${p},${r}" style="${escapeHtml(runCss(styles.run(para, inline)))}">${escapeHtml(runText(inline))}</span>`;
+          const html = `<span class="wk-txbx-run" data-wk-txbx-run="${p},${r}" style="${escapeHtml(runCss(styles.run(para, inline)))}">${
+            // An empty span has no line box, so the caret could not be placed in it.
+            escapeHtml(runText(inline)) || "​"
+          }</span>`;
           r++;
           return html;
         })
         .join("");
       const css = paragraphCss(styles.paragraph(para), styles.run(para));
-      return `<p class="wk-txbx-p" data-wk-txbx-para="${p}" style="${escapeHtml(css)}">${runs || "\u200b"}</p>`;
+      // Spans, not <p>/<div>: the text box sits inside a body <p>, where the
+      // HTML parser would close the outer paragraph at a block element.
+      return `<span class="wk-txbx-p" data-wk-txbx-para="${p}" style="display:block;${escapeHtml(css)}">${runs || "\u200b"}</span>`;
     })
     .join("");
 }
@@ -637,14 +642,18 @@ function shapeBody(
     const layout = getTextBoxLayout(shape);
     const [l, t, r, b] = layout.inset;
     const css = [
+      "position:absolute",
+      "display:flex",
+      "flex-direction:column",
+      "overflow:hidden",
       `inset:${pt(t)} ${pt(r)} ${pt(b)} ${pt(l)}`,
       `justify-content:${layout.anchor === "middle" ? "center" : layout.anchor === "bottom" ? "flex-end" : "flex-start"}`,
     ];
     if (layout.direction !== "horizontal") css.push("writing-mode:vertical-rl");
     if (layout.direction === "vertical270") css.push("transform:rotate(180deg)");
     html +=
-      `<div class="wk-txbx"${editable ? ` contenteditable="true" spellcheck="false"` : ""} style="${css.join(";")}">` +
-      `${textBoxHtml(paragraphs, styles())}</div>`;
+      `<span class="wk-txbx"${editable ? ` contenteditable="true" spellcheck="false"` : ""} style="${css.join(";")}">` +
+      `${textBoxHtml(paragraphs, styles())}</span>`;
   }
   return { html };
 }

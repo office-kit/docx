@@ -13,7 +13,8 @@ export default defineMessages({
     "draw.simpleTextBox": "Simple Text Box",
     "draw.quoteTextBox": "Quote",
     "draw.sidebarTextBox": "Sidebar",
-    "draw.textBoxPlaceholder": "[Grab your reader's attention with a great quote from the document or use this space to emphasize a key point.]",
+    "draw.textBoxPlaceholder":
+      "[Grab your reader's attention with a great quote from the document or use this space to emphasize a key point.]",
     "draw.quotePlaceholder": "[Quote from the document]",
     "draw.sidebarPlaceholder": "[Sidebar title]\nUse a sidebar to add related information.",
     "draw.wordArtPlaceholder": "Your text here",
@@ -315,7 +316,8 @@ export default defineMessages({
     "draw.simpleTextBox": "シンプル - テキスト ボックス",
     "draw.quoteTextBox": "引用",
     "draw.sidebarTextBox": "サイドバー",
-    "draw.textBoxPlaceholder": "[文書から引用した魅力的な文で読者の注意を引いたり、このスペースを利用して重要なポイントを強調したりします。]",
+    "draw.textBoxPlaceholder":
+      "[文書から引用した魅力的な文で読者の注意を引いたり、このスペースを利用して重要なポイントを強調したりします。]",
     "draw.quotePlaceholder": "[文書からの引用]",
     "draw.sidebarPlaceholder": "[サイドバーのタイトル]\nサイドバーを使って関連情報を追加します。",
     "draw.wordArtPlaceholder": "ここに文字を入力",
@@ -617,9 +619,11 @@ export default defineMessages({
     "draw.simpleTextBox": "Cuadro de texto simple",
     "draw.quoteTextBox": "Cita",
     "draw.sidebarTextBox": "Barra lateral",
-    "draw.textBoxPlaceholder": "[Capte la atención de los lectores mediante una cita importante extraída del documento o utilice este espacio para resaltar un punto clave.]",
+    "draw.textBoxPlaceholder":
+      "[Capte la atención de los lectores mediante una cita importante extraída del documento o utilice este espacio para resaltar un punto clave.]",
     "draw.quotePlaceholder": "[Cita del documento]",
-    "draw.sidebarPlaceholder": "[Título de la barra lateral]\nUse una barra lateral para agregar información relacionada.",
+    "draw.sidebarPlaceholder":
+      "[Título de la barra lateral]\nUse una barra lateral para agregar información relacionada.",
     "draw.wordArtPlaceholder": "Escriba aquí el texto",
     "draw.drawTextBox": "Dibujar cuadro de texto",
     "draw.drawVerticalTextBox": "Dibujar cuadro de texto vertical",
@@ -919,9 +923,11 @@ export default defineMessages({
     "draw.simpleTextBox": "Zone de texte simple",
     "draw.quoteTextBox": "Citation",
     "draw.sidebarTextBox": "Barre latérale",
-    "draw.textBoxPlaceholder": "[Attirez l'attention de votre lecteur avec une citation du document ou utilisez cet espace pour mettre en valeur un point clé.]",
+    "draw.textBoxPlaceholder":
+      "[Attirez l'attention de votre lecteur avec une citation du document ou utilisez cet espace pour mettre en valeur un point clé.]",
     "draw.quotePlaceholder": "[Citation du document]",
-    "draw.sidebarPlaceholder": "[Titre de la barre latérale]\nUtilisez une barre latérale pour ajouter des informations connexes.",
+    "draw.sidebarPlaceholder":
+      "[Titre de la barre latérale]\nUtilisez une barre latérale pour ajouter des informations connexes.",
     "draw.wordArtPlaceholder": "Votre texte ici",
     "draw.drawTextBox": "Dessiner une zone de texte",
     "draw.drawVerticalTextBox": "Dessiner une zone de texte verticale",
@@ -1221,9 +1227,11 @@ export default defineMessages({
     "draw.simpleTextBox": "Einfaches Textfeld",
     "draw.quoteTextBox": "Zitat",
     "draw.sidebarTextBox": "Randleiste",
-    "draw.textBoxPlaceholder": "[Fesseln Sie Ihre Leser mit einem passenden Zitat aus dem Dokument, oder verwenden Sie diesen Platz, um eine Kernaussage hervorzuheben.]",
+    "draw.textBoxPlaceholder":
+      "[Fesseln Sie Ihre Leser mit einem passenden Zitat aus dem Dokument, oder verwenden Sie diesen Platz, um eine Kernaussage hervorzuheben.]",
     "draw.quotePlaceholder": "[Zitat aus dem Dokument]",
-    "draw.sidebarPlaceholder": "[Titel der Randleiste]\nVerwenden Sie eine Randleiste für zusätzliche Informationen.",
+    "draw.sidebarPlaceholder":
+      "[Titel der Randleiste]\nVerwenden Sie eine Randleiste für zusätzliche Informationen.",
     "draw.wordArtPlaceholder": "Hier steht Ihr Text",
     "draw.drawTextBox": "Textfeld zeichnen",
     "draw.drawVerticalTextBox": "Vertikales Textfeld zeichnen",
@@ -1348,7 +1356,8 @@ export default defineMessages({
     "draw.smartArt.placeholder": "[Text]",
     "draw.smartArt.textPane": "Textbereich",
     "draw.smartArt.typeHere": "Geben Sie hier Ihren Text ein",
-    "draw.smartArt.selectFirst": "Wählen Sie eine SmartArt-Grafik aus, um ihren Text zu bearbeiten.",
+    "draw.smartArt.selectFirst":
+      "Wählen Sie eine SmartArt-Grafik aus, um ihren Text zu bearbeiten.",
     "draw.smartArt.createGraphic": "Grafik erstellen",
     "draw.smartArt.addShape": "Form hinzufügen",
     "draw.smartArt.addAfter": "Form danach hinzufügen",

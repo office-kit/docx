@@ -118,6 +118,8 @@ describe("shape commands and rendering", () => {
     expect(html).toContain('data-wk-object="textBox"');
     expect(html).toContain('contenteditable="true"');
     expect(html).toContain('data-wk-txbx-run="0,0"');
+    // Block elements inside the body <p> would be hoisted out by the HTML parser.
+    expect(html).not.toMatch(/<(div|p)\b[^>]*wk-txbx/);
     runCommand(m, shapeTextEditCommand, { at, paragraphs: [["New"]] });
     runCommand(m, shapeSplitTextCommand, { at, para: 0, run: 0, offset: 1 });
     {
