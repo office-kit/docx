@@ -141,7 +141,7 @@ export {
   parseCoreProperties,
   writeCoreProperties,
 } from "./core-properties.js";
-export { parseParagraph, parseWmlDocument } from "./parser.js";
+export { parseBody, parseParagraph, parseWmlDocument } from "./parser.js";
 export {
   addSectPrFooterRef,
   addSectPrHeaderRef,
@@ -202,4 +202,4 @@ export type {
   WmlTableCell,
   WmlTableRow,
 } from "./types.js";
-export { paragraphToElement, writeWmlDocument } from "./writer.js";
+export { paragraphToElement, writeBodyChildren, writeWmlDocument } from "./writer.js";

@@ -42,13 +42,18 @@ export function writeWmlDocument(wml: WmlDocumentType): XmlDocument {
   };
 }
 
-function writeBody(body: WmlBody): XmlElement {
+/** The child nodes of a block container written from its parsed content. */
+export function writeBodyChildren(body: WmlBody): XmlNode[] {
   const recognized: XmlNode[] = [];
   for (const block of body.blocks) {
     recognized.push(blockToElement(block));
   }
   if (body.sectPr) recognized.push(body.sectPr);
-  const children = spliceWithExtras(recognized, body.extras);
+  return spliceWithExtras(recognized, body.extras);
+}
+
+function writeBody(body: WmlBody): XmlElement {
+  const children = writeBodyChildren(body);
   return {
     kind: "element",
     name: { uri: WML_NS, local: "body", prefix: "w" },
