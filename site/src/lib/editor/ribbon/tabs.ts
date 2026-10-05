@@ -5,6 +5,7 @@
  */
 
 import type { Component } from "svelte";
+import { tableSelection } from "@office-kit/docx-editor";
 import type { MessageKey } from "../i18n/index.svelte";
 import type { EditorSession } from "../session.svelte";
 import DesignTab from "./tabs/DesignTab.svelte";
@@ -31,6 +32,9 @@ export interface RibbonTab {
 }
 
 const never = (): boolean => false;
+// `tick` is read so the tab appears and disappears as the caret moves.
+const inTable = (s: EditorSession): boolean =>
+  s.tick >= 0 && !!s.model && !!tableSelection(s.model);
 
 export const TABS: readonly RibbonTab[] = [
   { id: "home", label: "tab.home", component: HomeTab },
@@ -44,8 +48,8 @@ export const TABS: readonly RibbonTab[] = [
   { id: "view", label: "tab.view", component: ViewTab },
   { id: "shapeFormat", label: "tab.shapeFormat", component: ShapeFormatTab, when: never },
   { id: "pictureFormat", label: "tab.pictureFormat", component: PictureFormatTab, when: never },
-  { id: "tableDesign", label: "tab.tableDesign", component: TableDesignTab, when: never },
-  { id: "tableLayout", label: "tab.tableLayout", component: TableLayoutTab, when: never },
+  { id: "tableDesign", label: "tab.tableDesign", component: TableDesignTab, when: inTable },
+  { id: "tableLayout", label: "tab.tableLayout", component: TableLayoutTab, when: inTable },
   {
     id: "headerFooter",
     label: "tab.headerFooter",

@@ -42,7 +42,7 @@ import {
   renderDocumentHtml,
   runCommand,
 } from "./index.js";
-import { compatibilityMode, resolveTable } from "./resolve.js";
+import { compatibilityMode, resolveTable } from "./table-format.js";
 
 function runsOf(para: WmlParagraph): WmlRun[] {
   return para.children.filter((c): c is WmlRun => c.kind === "run");
@@ -408,7 +408,7 @@ describe("tables on the canvas", () => {
       cellMargins: { left: 108, right: 108 },
     });
     const html = renderDocumentHtml(doc);
-    expect(html).toContain("border-top:none");
+    expect(html).toContain("border-top:var(--wk-gridline,none)");
     expect(html).not.toMatch(/border-\w+:[0-9.]+pt/);
   });
 

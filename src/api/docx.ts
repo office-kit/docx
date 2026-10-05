@@ -122,6 +122,11 @@ import {
   setOrderedOnOff,
   setOrderedVal,
 } from "../internal/wordprocessingml/schema-order.js";
+import {
+  joinRowCells,
+  separatorChar,
+  type TableTextSeparator,
+} from "../internal/wordprocessingml/table-grid.js";
 import { type ValidationIssue, validatePackage } from "./validator.js";
 
 const DOCUMENT_PART_FALLBACK = "/word/document.xml";
@@ -1767,10 +1772,19 @@ export function removeAllTables(doc: Docx): number {
  * uses a table only for visual layout and you want to flatten it back to
  * plain prose.
  *
+ * With `separator` set to `"tab"`, `"comma"` or `{ other: "…" }` (Word's
+ * Convert Table to Text), each row becomes one paragraph instead, its cells
+ * separated by that character.
+ *
  * Returns the paragraphs that ended up in the body, or `undefined` if no
  * table exists at the given index.
  */
-export function unwrapTable(doc: Docx, index: number): WmlParagraph[] | undefined {
+export function unwrapTable(
+  doc: Docx,
+  index: number,
+  options: { readonly separator?: TableTextSeparator } = {},
+): WmlParagraph[] | undefined {
+  const separator = separatorChar(options.separator ?? "paragraph");
   let count = 0;
   for (let i = 0; i < doc.document.body.blocks.length; i++) {
     const b = doc.document.body.blocks[i];
@@ -1781,6 +1795,10 @@ export function unwrapTable(doc: Docx, index: number): WmlParagraph[] | undefine
     }
     const paragraphs: WmlParagraph[] = [];
     for (const row of b.rows) {
+      if (separator !== undefined) {
+        paragraphs.push(...joinRowCells(row, separator));
+        continue;
+      }
       for (const cell of row.cells) {
         for (const p of cell.paragraphs) paragraphs.push(p);
       }

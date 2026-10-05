@@ -808,3 +808,18 @@
   font-size: 11px;
   color: var(--muted);
 }
+/* Tables on the canvas: Word shades a multi-cell selection cell by cell
+   instead of highlighting the text, and each table tool has its cursor. */
+.wk-app .wk-canvas.wk-multicell ::selection {
+  background: transparent;
+}
+.wk-app .wk-canvas td.wk-cell-sel {
+  box-shadow: inset 0 0 0 100vmax rgba(31, 98, 191, 0.2);
+}
+.wk-app [data-table-tool="draw"] .wk-canvas {
+  cursor: crosshair;
+}
+.wk-app [data-table-tool="eraser"] .wk-canvas td,
+.wk-app [data-table-tool="painter"] .wk-canvas td {
+  cursor: cell;
+}

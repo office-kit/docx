@@ -21,6 +21,7 @@
   import { getSession } from './session.svelte';
   import { t } from './i18n/index.svelte';
   import { PageLayout } from './canvas/page-layout';
+  import { decorateTableSelection, handleTableKey, tableCanvasStyle, tablePointerDown, tablePointerUp, tableToolAttr } from './table-canvas';
   import { copiesOf, domPoint, focusPage, focusParagraph, mirrorParagraph, paragraphSelector } from './canvas/caret';
 
   interface Props {
@@ -181,6 +182,7 @@
       else layout.buildFlow(model.document);
       reportLayout();
       restoreCaret();
+      decorateTableSelection(canvas, model);
     });
   });
 
@@ -298,6 +300,7 @@
       // keep the end that moved.
       model.setSelection(sameStory(sel.anchor, sel.focus) ? sel : caretAt(sel.focus));
       if (sel.focus.story && editingHeaderFooter) headerFooterPage = focusPage();
+      if (canvas) decorateTableSelection(canvas, model);
     }
     updateCurrentPage();
     session.tick++;
@@ -341,6 +344,11 @@
     // A key after a range composition must act on the applied result.
     flushImeFinalize();
     if (CARET_KEYS.has(e.key)) endTyping();
+    if (handleTableKey(e, model, exec)) {
+      rerender();
+      session.tick++;
+      return;
+    }
     const mod = e.ctrlKey || e.metaKey;
 
     if (e.key === 'Escape' && editingHeaderFooter) {
@@ -545,7 +553,8 @@
   class="wk-page"
   class:side={session.pageMovement === 'sideToSide'}
   data-view={session.viewMode}
-  style="zoom: {session.zoom}"
+  data-table-tool={tableToolAttr()}
+  style="zoom: {session.zoom}; {tableCanvasStyle()}"
 >
   <div
     bind:this={canvas}
@@ -561,6 +570,8 @@
     oninput={onInput}
     onkeydown={onKeydown}
     onmousedown={endTyping}
+    onpointerdown={(e) => tablePointerDown(e, model, exec)}
+    onpointerup={(e) => tablePointerUp(e, model, exec)}
     onblur={endTyping}
     onpaste={onPaste}
     onbeforeinput={onBeforeInput}

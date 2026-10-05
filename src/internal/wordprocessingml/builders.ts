@@ -1,5 +1,7 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { normalizeVerticalMerges } from "./table-grid.js";
+import { TBL_PR_ORDER, TC_PR_ORDER, TR_PR_ORDER, upsertWChild } from "./table-xml.js";
 import type {
   WmlParagraph,
   WmlRun,
@@ -242,11 +244,7 @@ export function setTableBorders(table: WmlTable, options: TableBordersOptions = 
     xmlSpace: "default",
     selfClosing: false,
   };
-  // tblBorders must appear after tblW per the spec; we insert as the first
-  // child after tblW if it's present, else just push to the end.
-  const tblWIdx = children.findIndex((c) => c.kind === "element" && c.name.local === "tblW");
-  if (tblWIdx >= 0) children.splice(tblWIdx + 1, 0, bordersEl);
-  else children.unshift(bordersEl);
+  upsertWChild(tblPr, bordersEl, TBL_PR_ORDER);
 
   if (!table.tblPr) table.tblPr = tblPr;
 }
@@ -305,8 +303,10 @@ export function setTableCellShading(cell: WmlTableCell, options: TableCellShadin
       children.splice(i, 1);
     }
   }
-  children.push(
+  upsertWChild(
+    tcPr,
     wmlEmpty("shd", [wmlAttr("val", pattern), wmlAttr("color", color), wmlAttr("fill", fill)]),
+    TC_PR_ORDER,
   );
   if (!cell.tcPr) cell.tcPr = tcPr;
 }
@@ -333,7 +333,7 @@ export function setTableCellVerticalAlign(cell: WmlTableCell, align: TableCellVe
       children.splice(i, 1);
     }
   }
-  children.push(wmlEmpty("vAlign", [wmlAttr("val", align)]));
+  upsertWChild(tcPr, wmlEmpty("vAlign", [wmlAttr("val", align)]), TC_PR_ORDER);
   if (!cell.tcPr) cell.tcPr = tcPr;
 }
 
@@ -365,8 +365,10 @@ export function setTableRowHeight(
       children.splice(i, 1);
     }
   }
-  children.push(
+  upsertWChild(
+    trPr,
     wmlEmpty("trHeight", [wmlAttr("val", String(heightTwips)), wmlAttr("hRule", rule)]),
+    TR_PR_ORDER,
   );
   if (!row.trPr) row.trPr = trPr;
 }
@@ -394,7 +396,7 @@ export function setTableRowAsHeader(row: WmlTableRow, isHeader = true): void {
       children.splice(i, 1);
     }
   }
-  if (isHeader) children.push(wmlEmpty("tblHeader", []));
+  if (isHeader) upsertWChild(trPr, wmlEmpty("tblHeader", []), TR_PR_ORDER);
   if (!row.trPr) row.trPr = trPr;
 }
 
@@ -690,18 +692,31 @@ function removePropChild(container: XmlElement, local: string): void {
   }
 }
 
+// Table property containers are xsd:sequences; a child appended at the end
+// can land out of schema order, which Word may reject as corrupt.
+const ORDERED_CONTAINERS: Readonly<Record<string, readonly string[]>> = {
+  tblPr: TBL_PR_ORDER,
+  trPr: TR_PR_ORDER,
+  tcPr: TC_PR_ORDER,
+};
+
+function putPropChild(container: XmlElement, child: XmlElement): void {
+  const order =
+    container.name.uri === WML_NS ? ORDERED_CONTAINERS[container.name.local] : undefined;
+  if (order) upsertWChild(container, child, order);
+  else (container.children as XmlElement[]).push(child);
+}
+
 /** Add or remove an on-off property element (`<w:b/>`, `<w:caps/>`, …). */
 function setOnOffChild(container: XmlElement, local: string, on: boolean): void {
   removePropChild(container, local);
-  if (on) (container.children as XmlElement[]).push(wmlEmpty(local, []));
+  if (on) putPropChild(container, wmlEmpty(local, []));
 }
 
 /** Set a single-value property element (`<w:x w:val="…"/>`); undefined removes it. */
 function setValChild(container: XmlElement, local: string, val: string | undefined): void {
   removePropChild(container, local);
-  if (val !== undefined) {
-    (container.children as XmlElement[]).push(wmlEmpty(local, [wmlAttr("val", val)]));
-  }
+  if (val !== undefined) putPropChild(container, wmlEmpty(local, [wmlAttr("val", val)]));
 }
 
 /** Read whether a property element is present and its `w:val`, if any. */
@@ -1386,6 +1401,8 @@ export function appendTableRow(table: WmlTable, texts: readonly string[]): WmlTa
 export function removeTableRow(table: WmlTable, index: number): boolean {
   if (index < 0 || index >= table.rows.length) return false;
   table.rows.splice(index, 1);
+  // A vertical merge that started in the removed row must restart below it.
+  normalizeVerticalMerges(table);
   return true;
 }
 
