@@ -182,19 +182,19 @@
       <button class="mi" role="menuitem" onclick={() => session.openDialog('layout.columns')}>{t('lay.cols.more')}</button>
     {/snippet}
   </SplitButton>
+  <SplitButton id="layout.breaks" size="large" icon="breaks" tip={t('lay.breaks')} disabled={!canFormat}>
+    {#snippet menu()}
+      <div class="menu-head">{t('lay.br.pageBreaks')}</div>
+      {#each PAGE_BREAKS as b (b.kind)}
+        <button class="mi described" role="menuitem" onclick={() => session.apply(commands.insertBreakCommand, { kind: b.kind })}><b>{t(b.key)}</b><small>{t(b.desc)}</small></button>
+      {/each}
+      <div class="menu-head">{t('lay.br.sectionBreaks')}</div>
+      {#each SECTION_BREAKS as b (b.type)}
+        <button class="mi described" role="menuitem" onclick={() => session.apply(commands.insertSectionBreakCommand, { type: b.type })}><b>{t(b.key)}</b><small>{t(b.desc)}</small></button>
+      {/each}
+    {/snippet}
+  </SplitButton>
   <div class="col">
-    <SplitButton id="layout.breaks" size="mid" icon="breaks" tip={t('lay.breaks')} disabled={!canFormat}>
-      {#snippet menu()}
-        <div class="menu-head">{t('lay.br.pageBreaks')}</div>
-        {#each PAGE_BREAKS as b (b.kind)}
-          <button class="mi described" role="menuitem" onclick={() => session.apply(commands.insertBreakCommand, { kind: b.kind })}><b>{t(b.key)}</b><small>{t(b.desc)}</small></button>
-        {/each}
-        <div class="menu-head">{t('lay.br.sectionBreaks')}</div>
-        {#each SECTION_BREAKS as b (b.type)}
-          <button class="mi described" role="menuitem" onclick={() => session.apply(commands.insertSectionBreakCommand, { type: b.type })}><b>{t(b.key)}</b><small>{t(b.desc)}</small></button>
-        {/each}
-      {/snippet}
-    </SplitButton>
     <SplitButton id="layout.lineNumbers" size="mid" icon="lineNumbers" tip={t('lay.lineNumbers')} disabled={!section}>
       {#snippet menu()}
         <button class="mi check" class:checked={!section?.lineNumbering} role="menuitemradio" aria-checked={!section?.lineNumbering} onclick={() => session.apply(commands.lineNumbersCommand, { lineNumbering: null })}>{t('lay.none')}</button>

@@ -760,30 +760,16 @@
     user-select: none;
     pointer-events: none;
   }
-  .wk-canvas :global(.wk-watermark) {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font: bold 96px Calibri, Carlito, sans-serif;
-    color: silver;
-    opacity: 0.5;
-    transform: rotate(-45deg);
-    pointer-events: none;
-    user-select: none;
-    white-space: nowrap;
-  }
 
   /* Header & footer editing: the body dims and a labelled boundary appears. */
-  .wk-canvas :global(.wk-hf) {
-    position: relative;
-  }
   .hf-editing :global(.wk-body) {
     opacity: 0.45;
   }
   .hide-body :global(.wk-body) {
     visibility: hidden;
+  }
+  .hf-editing {
+    --hf-label-h: 18px;
   }
   .hf-editing :global(.wk-header) {
     border-bottom: 1px dashed #5b8fd6;
@@ -791,10 +777,16 @@
   .hf-editing :global(.wk-footer) {
     border-top: 1px dashed #5b8fd6;
   }
-  .hf-editing :global(.wk-hf::after) {
+  /* The labels stay in flow, cancelled out by a negative margin, so they hang
+     past the zone's edge without making the zone a containing block: anchored
+     header shapes (watermarks) are positioned against the page. */
+  .hf-editing :global(.wk-header::after),
+  .hf-editing :global(.wk-footer::before) {
     content: attr(data-label);
-    position: absolute;
-    left: 0;
+    display: block;
+    box-sizing: border-box;
+    width: max-content;
+    height: var(--hf-label-h);
     padding: 1px 6px;
     background: #dfe8f6;
     border: 1px solid #5b8fd6;
@@ -804,10 +796,10 @@
     pointer-events: none;
   }
   .hf-editing :global(.wk-header::after) {
-    top: 100%;
+    margin-bottom: calc(-1 * var(--hf-label-h));
   }
-  .hf-editing :global(.wk-footer::after) {
-    bottom: 100%;
+  .hf-editing :global(.wk-footer::before) {
+    margin-top: calc(-1 * var(--hf-label-h));
   }
 
   /* --- Other views: one continuous flow ------------------------------- */

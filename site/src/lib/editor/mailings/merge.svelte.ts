@@ -29,6 +29,16 @@ class MergeState {
   highlight = $state(false);
   /** Answers to ASK / FILLIN prompts, by prompt. */
   answers = $state<Record<string, string>>({});
+  /** Merge Range (the ribbon group and the Finish & Merge dialog share it). */
+  range = $state<"all" | "current" | "fromTo">("all");
+  from = $state(1);
+  to = $state(1);
+
+  /** The 1-based record bounds Merge Range selects (none: every record). */
+  bounds(): { from?: number; to?: number } {
+    if (this.range === "current") return { from: this.index + 1, to: this.index + 1 };
+    return this.range === "fromTo" ? { from: this.from, to: this.to } : {};
+  }
 
   /** Select Recipients: attach the list to the document and remember it. */
   attach(session: EditorSession, path: string, list: RecipientList): void {

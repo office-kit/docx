@@ -12,6 +12,9 @@
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { arrangeOpsFor, type AlignOp, type ArrangeOrder, type ArrangeWrap, type PositionPreset, type RotateOp } from './arrange';
 
+  // Picture / Shape Format stack Group and Rotate as small icons; Layout has room for them full size.
+  type Props = { compact?: boolean };
+  const { compact = false }: Props = $props();
   const session = getSession();
   const ops = $derived(session.tick >= 0 ? arrangeOpsFor(session) : undefined);
   const wrap = $derived(ops?.wrap(session));
@@ -105,21 +108,18 @@
       <button class="mi" role="menuitem" disabled={!ops?.layoutOptions} onclick={() => run((o) => o.layoutOptions?.(session))}>{t('arr.moreLayout')}</button>
     {/snippet}
   </SplitButton>
-  <div class="col">
-    <SplitButton id="arr.forward" size="mid" icon="arrBringForward" tip={t('arr.bringForward')} disabled={!ops} onclick={() => run((o) => o.order(session, 'bringForward'))}>
+  <SplitButton id="arr.forward" size="large" icon="arrBringForward" tip={t('arr.bringForward')} disabled={!ops} onclick={() => run((o) => o.order(session, 'bringForward'))}>
       {#snippet menu()}
         {#each FORWARD as [op, key] (op)}<button class="mi" role="menuitem" onclick={() => run((o) => o.order(session, op))}>{t(key)}</button>{/each}
       {/snippet}
     </SplitButton>
-    <SplitButton id="arr.backward" size="mid" icon="arrSendBackward" tip={t('arr.sendBackward')} disabled={!ops} onclick={() => run((o) => o.order(session, 'sendBackward'))}>
+    <SplitButton id="arr.backward" size="large" icon="arrSendBackward" tip={t('arr.sendBackward')} disabled={!ops} onclick={() => run((o) => o.order(session, 'sendBackward'))}>
       {#snippet menu()}
         {#each BACKWARD as [op, key] (op)}<button class="mi" role="menuitem" onclick={() => run((o) => o.order(session, op))}>{t(key)}</button>{/each}
       {/snippet}
     </SplitButton>
-    <Button size="mid" icon="arrSelectionPane" tip={t('arr.selectionPane')} on={session.pane.right === 'selection'} onclick={() => session.togglePane('right', 'selection')} />
-  </div>
-  <div class="col">
-    <SplitButton id="arr.align" size="mid" icon="arrAlign" tip={t('arr.align')} disabled={!ops}>
+    <Button size="large" icon="arrSelectionPane" tip={t('arr.selectionPane')} on={session.pane.right === 'selection'} onclick={() => session.togglePane('right', 'selection')} />
+    <SplitButton id="arr.align" size="large" icon="arrAlign" tip={t('arr.align')} disabled={!ops}>
       {#snippet menu()}
         {#each ALIGNS as [op, key] (op)}
           <button class="mi" role="menuitem" onclick={() => run((o) => o.align(session, op, alignTo))}>{t(key)}</button>
@@ -130,13 +130,14 @@
         <button class="mi check" class:checked={alignTo === 'margin'} role="menuitemradio" aria-checked={alignTo === 'margin'} onclick={() => (alignTo = 'margin')}>{t('arr.alignToMargin')}</button>
       {/snippet}
     </SplitButton>
-    <SplitButton id="arr.group" size="mid" icon="arrGroup" tip={t('arr.groupObjects')} disabled={!ops?.group && !ops?.ungroup}>
+  <div class={compact ? 'col' : 'contents'}>
+    <SplitButton id="arr.group" size={compact ? 'small' : 'large'} icon="arrGroup" tip={t('arr.groupObjects')} disabled={!ops?.group && !ops?.ungroup}>
       {#snippet menu()}
         <button class="mi" role="menuitem" disabled={!ops?.group} onclick={() => run((o) => o.group?.(session))}>{t('arr.groupObjects')}</button>
         <button class="mi" role="menuitem" disabled={!ops?.ungroup} onclick={() => run((o) => o.ungroup?.(session))}>{t('arr.ungroup')}</button>
       {/snippet}
     </SplitButton>
-    <SplitButton id="arr.rotate" size="mid" icon="arrRotate" tip={t('arr.rotate')} disabled={!ops}>
+    <SplitButton id="arr.rotate" size={compact ? 'small' : 'large'} icon="arrRotate" tip={t('arr.rotate')} disabled={!ops}>
       {#snippet menu()}
         {#each ROTATES as [op, key] (op)}<button class="mi" role="menuitem" onclick={() => run((o) => o.rotate(session, op))}>{t(key)}</button>{/each}
         <hr />
@@ -148,6 +149,9 @@
 <LayoutOptionsDialog />
 
 <style>
+  .contents {
+    display: contents;
+  }
   .arr-presets {
     grid-template-columns: repeat(3, 36px);
   }

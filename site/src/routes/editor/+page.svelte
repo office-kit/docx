@@ -43,6 +43,20 @@
   $effect(() => {
     if (session.headerFooter) tab = 'headerFooter';
   });
+  // Selecting a picture, chart, SmartArt or shape brings up its format tab, as in Word.
+  const OBJECT_TAB: Readonly<Record<string, string>> = {
+    picture: 'pictureFormat',
+    chart: 'chartDesign',
+    smartArt: 'smartArtDesign',
+    shape: 'shapeFormat',
+    textBox: 'shapeFormat',
+    ink: 'shapeFormat',
+  };
+  $effect(() => {
+    const kind = session.selectedObject?.kind;
+    const objectTab = kind && OBJECT_TAB[kind];
+    if (objectTab) tab = objectTab;
+  });
   // Switching to the Outline view brings up its Outlining tab, as in Word.
   $effect(() => {
     if (session.viewMode === 'outline') tab = 'outlining';

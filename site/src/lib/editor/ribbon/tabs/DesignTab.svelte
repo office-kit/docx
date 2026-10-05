@@ -148,6 +148,11 @@
           </button>
         {/each}
       </div>
+      <!-- Word for Mac has no Effects button on the ribbon; the theme's effect schemes live with the themes. -->
+      <div class="menu-head">{t('dsn.effects')}</div>
+      {#each THEME_EFFECT_SCHEMES as scheme (scheme.name)}
+        <button class="mi check" class:checked={theme?.effects === scheme.name} role="menuitemradio" aria-checked={theme?.effects === scheme.name} onclick={() => session.apply(commands.themeEffectsCommand, { effects: scheme })}>{scheme.name}</button>
+      {/each}
       <hr />
       <button class="mi" role="menuitem" onclick={() => session.apply(commands.resetThemeCommand, undefined)}>{t('dsn.themes.reset')}</button>
     {/snippet}
@@ -219,13 +224,6 @@
         {/each}
         <hr />
         <button class="mi" role="menuitem" onclick={() => session.openDialog('design.spacing')}>{t('dsn.spacing.custom')}</button>
-      {/snippet}
-    </SplitButton>
-    <SplitButton id="design.effects" size="mid" icon="themeEffects" tip={t('dsn.effects')} disabled={!theme}>
-      {#snippet menu()}
-        {#each THEME_EFFECT_SCHEMES as scheme (scheme.name)}
-          <button class="mi check" class:checked={theme?.effects === scheme.name} role="menuitemradio" aria-checked={theme?.effects === scheme.name} onclick={() => session.apply(commands.themeEffectsCommand, { effects: scheme })}>{scheme.name}</button>
-        {/each}
       {/snippet}
     </SplitButton>
     <Button size="mid" icon="setDefault" tip={t('dsn.setDefault.tip')} label={t('dsn.setDefault')} onclick={() => undefined} disabled />

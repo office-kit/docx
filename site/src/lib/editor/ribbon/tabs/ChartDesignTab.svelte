@@ -98,7 +98,7 @@
 <Group label={t('chart.type')}>
   <Button size="large" icon="changeChartType" tip={t('chart.changeType')} disabled={!chart} onclick={() => session.openDialog('chart.changeType')} />
 </Group>
-<ArrangeGroup />
+<ArrangeGroup compact />
 <Group label={t('pic.size')}>
   <div class="rows chart-size">
     <label class="field">{t('pic.height')} <input type="number" min="0.01" step="0.1" value={info ? cm(info.heightEmu) : ''} disabled={!info} onchange={(e) => setSize('h', e.currentTarget.valueAsNumber)} /> cm</label>

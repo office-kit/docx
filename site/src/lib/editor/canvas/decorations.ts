@@ -15,7 +15,6 @@ import {
   type SectionModel,
   STORY_ATTR,
 } from "@office-kit/docx-editor";
-import { type Docx, storyBody, type XmlElement } from "@office-kit/docx";
 import type { PageGeometry } from "./page-layout";
 import { eighthPtToPx, ptToPx, twipsToPx } from "./units";
 import { textRects, zoomOf } from "./measure";
@@ -135,62 +134,17 @@ function gridlines(box: HTMLElement, section: SectionModel, g: PageGeometry): vo
   box.appendChild(grid);
 }
 
-function findTextpath(el: XmlElement): { text: string; color?: string } | undefined {
-  if (el.name.local === "textpath") {
-    const text = el.attrs.find((a) => a.name.local === "string")?.value;
-    return text ? { text } : undefined;
-  }
-  for (const c of el.children) {
-    if (c.kind !== "element") continue;
-    const found = findTextpath(c);
-    if (found) {
-      const fill = el.attrs.find((a) => a.name.local === "fillcolor")?.value;
-      return found.color || !fill ? found : { ...found, color: fill };
-    }
-  }
-  return undefined;
-}
-
-/**
- * A VML text watermark (`v:shape` with `v:textpath`, Part 4 §19.1.2.22) in
- * the page's header, drawn diagonally across the page behind the text. A
- * stand-in until the VML renderer draws header pictures itself.
- */
-function watermark(box: HTMLElement, doc: Docx | undefined, partName: string | undefined): void {
-  if (!doc || !partName) return;
-  const body = storyBody(doc, { kind: "header", partName });
-  for (const block of body?.blocks ?? []) {
-    if (block.kind !== "paragraph") continue;
-    for (const child of block.children) {
-      if (child.kind !== "run") continue;
-      for (const piece of child.pieces) {
-        if (piece.kind !== "pict") continue;
-        const found = findTextpath(piece.node);
-        if (!found) continue;
-        const mark = div("wk-watermark");
-        mark.textContent = found.text;
-        const color = found.color?.replace("#", "");
-        if (color && HEX.test(color)) mark.style.color = `#${color}`;
-        box.appendChild(mark);
-        return;
-      }
-    }
-  }
-}
-
 export interface DecorationContext {
   readonly page: LaidOutPage;
   readonly section: SectionModel;
   readonly geometry: PageGeometry;
   readonly showGridlines: boolean;
-  readonly doc: Docx | undefined;
 }
 
 export function decoratePage(box: HTMLElement, ctx: DecorationContext): void {
   cropMarks(box, ctx.geometry);
   pageBorders(box, ctx.page, ctx.section, ctx.geometry);
   if (ctx.showGridlines) gridlines(box, ctx.section, ctx.geometry);
-  watermark(box, ctx.doc, ctx.section.headers[ctx.page.kind]);
 }
 
 export interface FieldContext {

@@ -199,13 +199,11 @@
         {#each LINE_WEIGHTS as w (w.size)}<option value={w.size}>{w.label}</option>{/each}
       </select>
     </div>
-    <div class="row">
-      <SplitButton id="tbl-pen-color" size="mid" tip={t('tbl.penColor')} label={t('tbl.penColor')}>
-        {#snippet face()}<span class="tbl-face small"><RibbonIcon name="tblPen" size={16} /><i style="background:{penSwatch}"></i></span>{/snippet}
-        {#snippet menu()}<ColorMenu autoLabel="tbl.color.automatic" onpick={(color) => setPen({ color })} />{/snippet}
-      </SplitButton>
-    </div>
   </div>
+  <SplitButton id="tbl-pen-color" size="large" tip={t('tbl.penColor')} label={t('tbl.penColor')}>
+    {#snippet face()}<span class="tbl-face"><RibbonIcon name="tblPen" size={32} /><i style="background:{penSwatch}"></i></span>{/snippet}
+    {#snippet menu()}<ColorMenu autoLabel="tbl.color.automatic" onpick={(color) => setPen({ color })} />{/snippet}
+  </SplitButton>
   <SplitButton id="tbl-borders" size="large" tip={t('tbl.borders')} icon={lastBorder?.icon ?? 'tblBorders'} onclick={() => applyBorders(tableTool.borders)}>
     {#snippet menu()}
       {#each BORDER_ITEMS as b (b.edges)}
@@ -254,11 +252,6 @@
     height: 4px;
     margin-top: -3px;
     border: 0.5px solid rgba(0, 0, 0, 0.15);
-  }
-  .tbl-face.small i {
-    width: 14px;
-    height: 3px;
-    margin-top: -2px;
   }
   .tbl-pen {
     width: 120px;

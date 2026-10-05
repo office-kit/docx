@@ -588,7 +588,6 @@ export class PageLayout {
       section,
       geometry: g,
       showGridlines: this.options.showGridlines,
-      doc: this.doc,
     });
     fillPageFields(box, {
       page,

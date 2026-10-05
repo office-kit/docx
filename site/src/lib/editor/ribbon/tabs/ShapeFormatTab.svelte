@@ -198,10 +198,10 @@
       <div class="wk-style-menu wk-wordart-menu">{#each artStyles as p, i (i)}{@render artTile(p)}{/each}</div>
     {/snippet}
   </SplitButton>
+  <SplitButton id="sf.textFill" size="large" icon="textFill" tip={t('draw.textFill')} disabled={!isWordArt}>
+    {#snippet menu()}<ColorMenu onpick={(color) => setFill({ type: 'solid', color })} noneLabel={t('draw.noFill')} onnone={() => setFill({ type: 'none' })} />{/snippet}
+  </SplitButton>
   <div class="rows">
-    <SplitButton id="sf.textFill" icon="textFill" tip={t('draw.textFill')} disabled={!isWordArt}>
-      {#snippet menu()}<ColorMenu onpick={(color) => setFill({ type: 'solid', color })} noneLabel={t('draw.noFill')} onnone={() => setFill({ type: 'none' })} />{/snippet}
-    </SplitButton>
     <SplitButton id="sf.textOutline" icon="textOutline" tip={t('draw.textOutline')} disabled={!isWordArt}>
       {#snippet menu()}<ColorMenu onpick={(color) => patchStroke({ color })} noneLabel={t('draw.noOutline')} onnone={() => setStroke(null)} />{/snippet}
     </SplitButton>
@@ -242,7 +242,7 @@
   <Button size="large" icon="altText" tip={t('draw.altText')} onclick={() => (session.pane.right = 'formatShape')} disabled={!current} />
 </Group>
 
-<ArrangeGroup />
+<ArrangeGroup compact />
 
 <Group label={t('draw.size')}>
   <div class="rows">

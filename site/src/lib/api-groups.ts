@@ -555,6 +555,10 @@ export const apiGroups: ApiGroup[] = [
       "Headers, footers, footnotes, endnotes and comments as typed block content, and which header/footer each section shows.",
     entries: [
       { name: "storyBody", sig: "(doc, ref: StoryRef) => WmlBody | undefined" },
+      {
+        name: "contentControlBlocks",
+        sig: "(block: WmlBlock) => readonly WmlBlock[] | undefined",
+      },
       { name: "storyView", sig: "(doc, ref: StoryRef) => Docx | undefined" },
       { name: "storyKey", sig: "(ref: StoryRef) => string" },
       { name: "parseStoryKey", sig: "(key: string) => StoryRef | undefined" },

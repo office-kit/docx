@@ -11,11 +11,13 @@ import {
   openDocx,
   paragraphText,
   setPageSize,
+  setWatermark,
   splitParagraphAt,
   toUint8Array,
   validatePackage,
 } from "./index.js";
 import {
+  contentControlBlocks,
   ensureHeaderFooter,
   isHeaderFooterLinked,
   parseStoryKey,
@@ -204,5 +206,30 @@ describe("section headers and footers", () => {
 
   it("refuses to link the first section", () => {
     expect(() => setHeaderFooterLinked(twoSections(), 0, "footer", "default", true)).toThrow();
+  });
+});
+
+describe("contentControlBlocks", () => {
+  it("reads the blocks inside a block-level content control", () => {
+    const doc = createDocx();
+    appendParagraph(doc, "Body");
+    setWatermark(doc, {
+      kind: "text",
+      text: "DRAFT",
+      font: "Calibri",
+      size: "auto",
+      color: "C0C0C0",
+      semitransparent: true,
+      layout: "diagonal",
+    });
+    const blocks = storyBody(doc, { kind: "header", partName: "/word/header1.xml" })?.blocks ?? [];
+    const [sdt, after] = blocks;
+    expect(sdt?.kind).toBe("raw");
+    const inner = sdt ? contentControlBlocks(sdt) : undefined;
+    expect(inner).toHaveLength(1);
+    const watermark = inner?.[0];
+    expect(watermark?.kind === "paragraph" && watermark.children[0]?.kind === "run").toBe(true);
+    // Other blocks are not content controls.
+    expect(after && contentControlBlocks(after)).toBeUndefined();
   });
 });

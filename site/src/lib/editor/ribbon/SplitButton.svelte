@@ -5,6 +5,7 @@
    * button, like Layout ▸ Margins). Only one menu is open at a time; the
    * session tracks which.
    */
+  import { largeLabelLines } from './label';
   import type { Snippet } from 'svelte';
   import RibbonIcon, { type IconName } from '../RibbonIcon.svelte';
   import { getSession } from '../session.svelte';
@@ -34,8 +35,12 @@
 <span class="split" class:open>
   {#if size === 'large'}
     <button class="big" class:on {disabled} onclick={onclick ?? toggle} title={tip} aria-haspopup={onclick ? undefined : 'menu'} aria-expanded={onclick ? undefined : open}>
-      {#if face}{@render face()}{:else if icon}<RibbonIcon name={icon} size={32} />{/if}
-      <span class="caret">{label ?? tip}{#if !onclick}<RibbonIcon name="chevronDown" size={10} />{/if}</span>
+      <!-- Word for Mac puts the drop-down chevron beside the icon, not the label. -->
+      <span class="icon-row">
+        {#if face}{@render face()}{:else if icon}<RibbonIcon name={icon} size={32} />{/if}
+        {#if !onclick}<RibbonIcon name="chevronDown" size={10} />{/if}
+      </span>
+      <span class="label">{#each largeLabelLines(label ?? tip) as line, i (i)}{#if i > 0}<br />{/if}{line}{/each}</span>
     </button>
     {#if onclick}<button class="arrow" onclick={toggle} {disabled} aria-label={tip} aria-expanded={open}><RibbonIcon name="chevronDown" size={10} /></button>{/if}
   {:else}

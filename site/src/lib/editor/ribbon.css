@@ -275,10 +275,11 @@
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-width: 56px;
-  height: 64px;
+  /* Top-aligned: one-line labels sit level with the first line of two-line ones. */
+  justify-content: flex-start;
+  gap: 3px;
+  min-width: 48px;
+  height: 66px;
   padding: 2px 6px;
   border: none;
   border-radius: 4px;
@@ -379,10 +380,14 @@
 .wk-app .mid.on {
   background: var(--pressed);
 }
-.wk-app .big .caret {
+.wk-app .big .icon-row {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+.wk-app .big .label {
+  line-height: 14px;
+  text-align: center;
 }
 .wk-app .menu .mi:disabled {
   opacity: 0.4;

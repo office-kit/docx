@@ -11,6 +11,7 @@
  */
 
 import {
+  contentControlBlocks,
   type Docx,
   paragraphText,
   type WmlBlock,
@@ -347,10 +348,18 @@ function renderBlock(
         paragraph: (para, anchor, text) =>
           renderParagraph(para, doc, styles, review, block, anchor, text),
       });
-    default:
+    default: {
+      // A block content control (cover page, watermark, TOC) shows its content,
+      // read-only: the blocks are a parsed copy, so edits there could not be saved.
+      const inner = contentControlBlocks(blockNode);
+      if (inner) {
+        const html = inner.map((b) => renderBlock(b, doc, styles, review, block)).join("");
+        return `<div class="wk-sdt" data-wk-block="${block}" contenteditable="false">${html}</div>`;
+      }
       // Raw / unmodelled block: show a non-editable marker; the library still
       // round-trips the underlying XML.
       return `<div class="wk-raw" data-wk-block="${block}" contenteditable="false">⟨preserved content⟩</div>`;
+    }
   }
 }
 

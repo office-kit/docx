@@ -104,10 +104,8 @@
       <label class="mi">{t('mail.useExistingList')}<input type="file" accept=".csv,.txt,.tsv,text/csv,text/plain" onchange={useExistingList} hidden /></label>
     {/snippet}
   </SplitButton>
-  <div class="col">
-    <Button size="mid" icon="editRecipients" tip={t('mail.editRecipients')} onclick={() => session.openDialog('mailings.recipients')} disabled={!merge.list} />
-    <Button size="mid" icon="filterRecipients" tip={t('mail.filterRecipients')} onclick={() => session.openDialog('mailings.recipients')} disabled={!merge.list} />
-  </div>
+  <Button size="large" icon="editRecipients" tip={t('mail.editRecipients')} onclick={() => session.openDialog('mailings.recipients')} disabled={!merge.list} />
+  <Button size="large" icon="filterRecipients" tip={t('mail.filterRecipients')} onclick={() => session.openDialog('mailings.recipients')} disabled={!merge.list} />
 </Group>
 
 <Group label={t('group.fields')}>
@@ -119,20 +117,20 @@
       {#each fieldNames as name (name)}
         <button class="mi" onclick={() => session.apply(commands.insertMergeFieldCommand, { name })}>{name}</button>
       {/each}
+      <!-- Word for Mac keeps these with the field commands rather than on the ribbon. -->
+      <hr />
+      <button class="mi" onclick={() => session.openDialog('mailings.matchFields')} disabled={!merge.list}>{t('mail.matchFields')}</button>
+      <button class="mi check" class:checked={merge.highlight} onclick={() => merge.setHighlight(!merge.highlight)}>{t('mail.highlight')}</button>
     {/snippet}
   </SplitButton>
-  <div class="col">
-    <SplitButton id="mail-rules" size="mid" icon="rules" tip={t('mail.rules')} disabled={!hasCaret}>
+  <SplitButton id="mail-rules" size="large" icon="rules" tip={t('mail.rules')} disabled={!hasCaret}>
       {#snippet menu()}
         {#each RULES as kind (kind)}
           <button class="mi" onclick={() => rule(kind)}>{t(`mail.rule.${kind}`)}</button>
         {/each}
       {/snippet}
-    </SplitButton>
-    <Button size="mid" icon="matchFields" tip={t('mail.matchFields')} onclick={() => session.openDialog('mailings.matchFields')} disabled={!merge.list} />
-    <Button size="mid" icon="updateLabels" tip={t('mail.updateLabels')} onclick={() => session.apply(commands.updateLabelsCommand, undefined)} disabled={settings?.type !== 'mailingLabels'} />
-  </div>
-  <Button size="mid" icon="highlightFields" tip={t('mail.highlight')} on={merge.highlight} onclick={() => merge.setHighlight(!merge.highlight)} />
+  </SplitButton>
+  <Button size="large" icon="updateLabels" tip={t('mail.updateLabels')} onclick={() => session.apply(commands.updateLabelsCommand, undefined)} disabled={settings?.type !== 'mailingLabels'} />
 </Group>
 
 <Group label={t('group.preview')}>
@@ -147,7 +145,26 @@
     </div>
     <div class="row">
       <Button size="mid" icon="findRecipient" tip={t('mail.findRecipient')} onclick={() => session.openDialog('mailings.find')} disabled={count === 0} />
-      <Button size="mid" icon="checkErrors" tip={t('mail.checkErrors')} onclick={() => session.openDialog('mailings.errors')} disabled={!merge.list} />
+    </div>
+  </div>
+</Group>
+
+<Group label={t('group.mergeRange')}>
+  <div class="rows">
+    <div class="row">
+      <span class="range-label">{t('mail.mergeRange')}</span>
+      <label class="field">
+        <select bind:value={merge.range} aria-label={t('mail.mergeRange')} disabled={!merge.list} style="width: 112px">
+          <option value="all">{t('mail.all')}</option>
+          <option value="current">{t('mail.currentRecord')}</option>
+          <option value="fromTo">{t('mail.custom')}</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="field"><input type="number" min="1" bind:value={merge.from} disabled={merge.range !== 'fromTo'} aria-label={t('mail.from')} style="width: 64px" /></label>
+      <span class="range-label">{t('mail.to')}</span>
+      <label class="field"><input type="number" min="1" bind:value={merge.to} disabled={merge.range !== 'fromTo'} aria-label={t('mail.to')} style="width: 64px" /></label>
     </div>
   </div>
 </Group>
@@ -156,6 +173,7 @@
   <SplitButton id="mail-finish" size="large" icon="finishMerge" tip={t('mail.finish')} disabled={!merge.list}>
     {#snippet menu()}
       <button class="mi" onclick={() => session.openDialog('mailings.merge')}>{t('mail.editIndividual')}</button>
+      <button class="mi" onclick={() => session.openDialog('mailings.errors')}>{t('mail.checkErrors')}</button>
     {/snippet}
   </SplitButton>
 </Group>
@@ -164,7 +182,10 @@
 
 <style>
   /* Keep icons whole when the ribbon is narrower than the tab. */
-  .col :global(svg),
+  .range-label {
+    padding: 0 4px;
+    font-size: 12px;
+  }
   .rows :global(svg) {
     flex-shrink: 0;
   }

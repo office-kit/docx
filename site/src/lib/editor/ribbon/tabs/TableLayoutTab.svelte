@@ -117,18 +117,14 @@
   </SplitButton>
   <Button size="large" icon="tblInsertAbove" tip={t('tbl.insertAbove')} disabled={!enabled} onclick={() => session.apply(commands.insertRowsCommand, { where: 'above' })} />
   <Button size="large" icon="tblInsertBelow" tip={t('tbl.insertBelow')} disabled={!enabled} onclick={() => session.apply(commands.insertRowsCommand, { where: 'below' })} />
-  <div class="col">
-    <Button size="mid" icon="tblInsertLeft" tip={t('tbl.insertLeft')} disabled={!enabled} onclick={() => session.apply(commands.insertColumnsCommand, { where: 'left' })} />
-    <Button size="mid" icon="tblInsertRight" tip={t('tbl.insertRight')} disabled={!enabled} onclick={() => session.apply(commands.insertColumnsCommand, { where: 'right' })} />
-  </div>
+  <Button size="large" icon="tblInsertLeft" tip={t('tbl.insertLeft')} disabled={!enabled} onclick={() => session.apply(commands.insertColumnsCommand, { where: 'left' })} />
+  <Button size="large" icon="tblInsertRight" tip={t('tbl.insertRight')} disabled={!enabled} onclick={() => session.apply(commands.insertColumnsCommand, { where: 'right' })} />
 </Group>
 
 <Group label={t('tbl.group.merge')}>
-  <div class="col">
-    <Button size="mid" icon="tblMerge" tip={t('tbl.mergeCells')} disabled={!ts?.multiCell} onclick={() => session.apply(commands.mergeCellsCommand, {})} />
-    <Button size="mid" icon="tblSplit" tip={t('tbl.splitCells')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.splitCells)} />
-    <Button size="mid" icon="tblSplitTable" tip={t('tbl.splitTable')} disabled={!enabled} onclick={() => session.apply(commands.splitTableCommand, undefined)} />
-  </div>
+  <Button size="large" icon="tblMerge" tip={t('tbl.mergeCells')} disabled={!ts?.multiCell} onclick={() => session.apply(commands.mergeCellsCommand, {})} />
+  <Button size="large" icon="tblSplit" tip={t('tbl.splitCells')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.splitCells)} />
+  <Button size="large" icon="tblSplitTable" tip={t('tbl.splitTable')} disabled={!enabled} onclick={() => session.apply(commands.splitTableCommand, undefined)} />
 </Group>
 
 <Group label={t('tbl.group.cellSize')}>
@@ -173,21 +169,15 @@
       <Button icon={a.icon} tip={t(a.label)} disabled={!enabled} onclick={() => session.apply(commands.cellAlignmentCommand, { horizontal: a.h, vertical: a.v })} />
     {/each}
   </div>
-  <div class="col">
-    <Button size="mid" icon="tblTextDirection" tip={t('tbl.textDirection')} disabled={!enabled} onclick={cycleDirection} />
-    <Button size="mid" icon="tblCellMargins" tip={t('tbl.cellMargins')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.cellMargins)} />
-  </div>
+  <Button size="large" icon="tblTextDirection" tip={t('tbl.textDirection')} disabled={!enabled} onclick={cycleDirection} />
+  <Button size="large" icon="tblCellMargins" tip={t('tbl.cellMargins')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.cellMargins)} />
 </Group>
 
 <Group label={t('tbl.group.data')}>
-  <div class="col">
-    <Button size="mid" icon="tblSort" tip={t('tbl.sort')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.sort)} />
-    <Button size="mid" icon="tblRepeatHeader" tip={t('tbl.repeatHeader')} disabled={!enabled} on={session.active(commands.repeatHeaderRowsCommand)} onclick={() => session.apply(commands.repeatHeaderRowsCommand, undefined)} />
-  </div>
-  <div class="col">
-    <Button size="mid" icon="tblConvertToText" tip={t('tbl.convertToText')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.convertToText)} />
-    <Button size="mid" icon="tblFormula" tip={t('tbl.formula')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.formula)} />
-  </div>
+  <Button size="large" icon="tblSort" tip={t('tbl.sort')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.sort)} />
+  <Button size="large" icon="tblRepeatHeader" tip={t('tbl.repeatHeader')} disabled={!enabled} on={session.active(commands.repeatHeaderRowsCommand)} onclick={() => session.apply(commands.repeatHeaderRowsCommand, undefined)} />
+  <Button size="large" icon="tblConvertToText" tip={t('tbl.convertToText')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.convertToText)} />
+  <Button size="large" icon="tblFormula" tip={t('tbl.formula')} disabled={!enabled} onclick={() => session.openDialog(DIALOGS.formula)} />
 </Group>
 
 <TablePropertiesDialog />

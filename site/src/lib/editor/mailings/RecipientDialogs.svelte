@@ -160,14 +160,11 @@
 
   // --- Check for Errors / Merge -----------------------------------------------------------
   const errors = $derived(session.dialog === 'mailings.errors' && session.model && list ? mergeFieldErrors(session.model.doc, list) : []);
-  let range = $state<'all' | 'current' | 'fromTo'>('all');
-  let from = $state(1);
-  let to = $state(1);
 
   function mergeToNew(): boolean {
     const model = session.model;
     if (!model || !list) return false;
-    const bounds = range === 'current' ? { from: merge.index + 1, to: merge.index + 1 } : range === 'fromTo' ? { from, to } : {};
+    const bounds = merge.bounds();
     try {
       const merged = mergeToNewDocument(model.doc, list, { ...bounds, included: merge.included, answers: merge.answers });
       save('Letters1.docx', toUint8Array(merged).slice().buffer, DOCX_TYPE);
@@ -274,12 +271,12 @@
 </Dialog>
 
 <Dialog id="mailings.merge" title={t('mail.mergeToNew')} onok={mergeToNew}>
-  <label><input type="radio" bind:group={range} value="all" /> {t('mail.all')}</label>
-  <label><input type="radio" bind:group={range} value="current" /> {t('mail.currentRecord')}</label>
+  <label><input type="radio" bind:group={merge.range} value="all" /> {t('mail.all')}</label>
+  <label><input type="radio" bind:group={merge.range} value="current" /> {t('mail.currentRecord')}</label>
   <div class="row">
-    <label><input type="radio" bind:group={range} value="fromTo" /> {t('mail.from')}</label>
-    <input type="number" min="1" bind:value={from} disabled={range !== 'fromTo'} aria-label={t('mail.from')} style="width: 56px" />
-    <label class="field">{t('mail.to')} <input type="number" min="1" bind:value={to} disabled={range !== 'fromTo'} style="width: 56px" /></label>
+    <label><input type="radio" bind:group={merge.range} value="fromTo" /> {t('mail.from')}</label>
+    <input type="number" min="1" bind:value={merge.from} disabled={merge.range !== 'fromTo'} aria-label={t('mail.from')} style="width: 56px" />
+    <label class="field">{t('mail.to')} <input type="number" min="1" bind:value={merge.to} disabled={merge.range !== 'fromTo'} style="width: 56px" /></label>
   </div>
 </Dialog>
 

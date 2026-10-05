@@ -129,10 +129,12 @@
         <button class="mi" onclick={() => goToNote('footnote', 'previous')}>{t('ref.previousFootnote')}</button>
         <button class="mi" onclick={() => goToNote('endnote', 'next')}>{t('ref.nextEndnote')}</button>
         <button class="mi" onclick={() => goToNote('endnote', 'previous')}>{t('ref.previousEndnote')}</button>
+        <!-- Word for Mac has no ribbon button for the dialog; it sits with the note commands. -->
+        <hr />
+        <button class="mi" onclick={() => { session.openMenu = null; session.openDialog('references.notes'); }}>{t('ref.noteDialog')}</button>
       {/snippet}
     </SplitButton>
     <Button size="mid" icon="showNotes" tip={t('ref.showNotes')} on={session.pane.right === 'notes'} onclick={() => session.togglePane('right', 'notes')} />
-    <Button size="mid" icon="noteOptions" tip={t('ref.noteDialog')} onclick={() => session.openDialog('references.notes')} />
   </div>
 </Group>
 
@@ -145,6 +147,8 @@
       {#if sources.length > 0}<hr />{/if}
       <button class="mi" onclick={() => newSource(true)}>{t('ref.addNewSource')}</button>
       <button class="mi" onclick={() => session.openDialog('references.placeholder')}>{t('ref.addPlaceholder')}</button>
+      <hr />
+      <button class="mi" onclick={() => session.openDialog('references.sources')}>{t('ref.manageSources')}</button>
     {/snippet}
   </SplitButton>
   <Button size="large" icon="citations" tip={t('ref.citations')} on={session.pane.right === 'citations'} onclick={() => session.togglePane('right', 'citations')} />
@@ -164,14 +168,13 @@
         <button class="mi" onclick={() => session.apply(commands.insertBibliographyCommand, {})}>{t('ref.insertBibliography')}</button>
       {/snippet}
     </SplitButton>
-    <Button size="mid" icon="manageSources" tip={t('ref.manageSources')} onclick={() => session.openDialog('references.sources')} />
   </div>
 </Group>
 
 <Group label={t('group.captions')}>
   <Button size="large" icon="caption" tip={t('ref.insertCaption')} onclick={() => session.openDialog('references.caption')} disabled={!hasCaret} />
+  <Button size="large" icon="tableOfFigures" tip={t('ref.tableOfFigures')} onclick={() => session.openDialog('references.tof')} />
   <div class="col">
-    <Button size="mid" icon="tableOfFigures" tip={t('ref.tableOfFigures')} onclick={() => session.openDialog('references.tof')} />
     <Button size="mid" icon="updateTable" tip={t('ref.updateTable')} onclick={() => update(['TOC'])} />
     <Button size="mid" icon="crossReference" tip={t('ref.crossReference')} onclick={() => session.openDialog('insert.crossReference')} disabled={!hasCaret} />
   </div>

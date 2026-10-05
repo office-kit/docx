@@ -7,6 +7,7 @@
    * `on` draws the pressed state of a toggle.
    */
   import RibbonIcon, { type IconName } from '../RibbonIcon.svelte';
+  import { largeLabelLines } from './label';
 
   type Props = {
     tip: string;
@@ -34,6 +35,8 @@
   >
 {:else}
   <button class="big" class:on {disabled} {onclick} title={tip} aria-pressed={on}
-    >{#if icon}<RibbonIcon name={icon} size={32} />{/if}<span>{label ?? tip}</span></button
+    >{#if icon}<RibbonIcon name={icon} size={32} />{/if}<span class="label"
+      >{#each largeLabelLines(label ?? tip) as line, i (i)}{#if i > 0}<br />{/if}{line}{/each}</span
+    ></button
   >
 {/if}

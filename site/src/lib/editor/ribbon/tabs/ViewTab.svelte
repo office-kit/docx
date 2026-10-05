@@ -31,9 +31,15 @@
 </script>
 
 <Group label={t('group.views')}>
-  {#each VIEWS as [mode, icon, key] (mode)}
+  <!-- Word for Mac: Print and Web Layout large, Outline and Draft stacked beside them. -->
+  {#each VIEWS.slice(0, 2) as [mode, icon, key] (mode)}
     <Button size="large" {icon} tip={t(key)} on={session.viewMode === mode} onclick={() => session.setView(mode)} />
   {/each}
+  <div class="rows">
+    {#each VIEWS.slice(2) as [mode, icon, key] (mode)}
+      <Button size="mid" {icon} tip={t(key)} on={session.viewMode === mode} onclick={() => session.setView(mode)} />
+    {/each}
+  </div>
 </Group>
 <Group label={t('group.immersive')}>
   <Button size="large" icon="viewFocus" tip={t('view.focus')} on={session.prefs.focus} onclick={() => (session.prefs.focus = true)} />
@@ -42,7 +48,6 @@
   <label class="check-item"><input type="checkbox" bind:checked={session.showRuler} />{t('view.ruler')}</label>
   <label class="check-item"><input type="checkbox" bind:checked={session.showGridlines} disabled={session.viewMode !== 'print'} />{t('view.gridlines')}</label>
   <label class="check-item"><input type="checkbox" checked={session.pane.left === 'navigation'} onchange={() => session.togglePane('left', 'navigation')} />{t('view.navigation')}</label>
-  <label class="check-item"><input type="checkbox" checked={session.pane.right === 'xml'} onchange={() => session.togglePane('right', 'xml')} />{t('view.xml')}</label>
 </Group>
 <Group label={t('group.zoom')}>
   <Button size="large" icon="viewZoom" tip={t('view.zoom')} onclick={() => session.openDialog('zoom')} />
@@ -55,6 +60,8 @@
 </Group>
 <Group label={t('group.properties')}>
   <Button size="large" icon="viewProperties" tip={t('view.properties')} onclick={() => session.openDialog('properties')} />
+  <!-- Not in Word: the package's raw XML, for inspecting what the editor writes. -->
+  <Button size="large" icon="xml" tip={t('view.xml')} on={session.pane.right === 'xml'} onclick={() => session.togglePane('right', 'xml')} />
 </Group>
 <Group label={t('group.language')}>
   <label class="big lang" title={t('language')}>

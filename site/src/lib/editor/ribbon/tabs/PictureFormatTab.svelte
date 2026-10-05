@@ -126,8 +126,7 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.correctionsOptions')}</button>
     {/snippet}
   </SplitButton>
-  <div class="col">
-  <SplitButton id="pic.color" size="mid" icon="pictureColor" tip={t('pic.color')} disabled={!picture}>
+  <SplitButton id="pic.color" size="large" icon="pictureColor" tip={t('pic.color')} disabled={!picture}>
     {#snippet menu()}
       <div class="menu-head">{t('pic.saturation')}</div>
       <div class="pic-row">
@@ -150,8 +149,8 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.colorOptions')}</button>
     {/snippet}
   </SplitButton>
-  <Button size="mid" icon="artisticEffects" tip={t('pic.artisticEffects')} onclick={() => {}} disabled />
-  <SplitButton id="pic.transparency" size="mid" icon="transparency" tip={t('pic.transparency')} disabled={!picture}>
+  <Button size="large" icon="artisticEffects" tip={t('pic.artisticEffects')} onclick={() => {}} disabled />
+  <SplitButton id="pic.transparency" size="large" icon="transparency" tip={t('pic.transparency')} disabled={!picture}>
     {#snippet menu()}
       <div class="pic-row">
         {#each TRANSPARENCIES as tr (tr)}
@@ -164,7 +163,6 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.transparencyOptions')}</button>
     {/snippet}
   </SplitButton>
-  </div>
   <div class="col">
     <Button icon="compress" tip={t('pic.compress')} onclick={() => session.openDialog('picture.compress')} disabled={!picture} />
     <SplitButton id="pic.change" icon="changePicture" tip={t('pic.change')} disabled={!picture}>
@@ -306,7 +304,7 @@
   <Button size="large" icon="altText" tip={t('pic.altText')} on={session.pane.right === 'altText'} onclick={() => session.togglePane('right', 'altText')} disabled={!info} />
 </Group>
 
-<ArrangeGroup />
+<ArrangeGroup compact />
 
 <Group label={t('pic.size')}>
   <SplitButton id="pic.crop" size="large" icon="picCrop" tip={t('pic.crop')} on={pictureModes.cropping} disabled={!picture} onclick={() => (pictureModes.cropping = !pictureModes.cropping)}>
@@ -348,9 +346,12 @@
     <div class="row">
       <Button icon="lockAspect" tip={t('pic.lockAspect')} on={info?.lockAspect ?? false} disabled={!info} onclick={() => applyToSelected(session, commands.drawingAspectLockCommand, { locked: !info?.lockAspect })} />
       <Button icon="arrPosition" tip={t('pic.sizeDialog')} disabled={!info} onclick={() => session.openDialog('picture.size')} />
-      <Button icon="formatPane" tip={t('pic.formatPane')} on={session.pane.right === 'formatPicture'} disabled={!info} onclick={() => session.togglePane('right', 'formatPicture')} />
     </div>
   </div>
+</Group>
+
+<Group label={t('pic.formatPane')}>
+  <Button size="large" icon="formatPane" tip={t('pic.formatPane')} on={session.pane.right === 'formatPicture'} disabled={!info} onclick={() => session.togglePane('right', 'formatPicture')} />
 </Group>
 
 <CompressDialog />

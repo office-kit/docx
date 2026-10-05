@@ -342,14 +342,19 @@
 
 /* ---- Design ▸ Document Formatting (style sets) ---- */
 .wk-app .set-gallery {
-  max-width: 420px;
+  /* Word shows a strip of whole tiles and scrolls the rest with the arrow. */
+  max-width: 560px;
+  gap: 4px;
   overflow: hidden;
+}
+.wk-app .set-gallery .set-tile {
+  flex: none;
 }
 .wk-app .set-tile {
   align-items: stretch;
   justify-content: flex-start;
   gap: 1px;
-  width: 64px;
+  width: 76px;
   height: 58px;
   padding: 4px;
   background: #fff;
@@ -373,7 +378,7 @@
 }
 .wk-app .set-grid {
   display: grid;
-  grid-template-columns: repeat(5, 64px);
+  grid-template-columns: repeat(5, 76px);
   gap: 8px;
   padding: 4px;
 }

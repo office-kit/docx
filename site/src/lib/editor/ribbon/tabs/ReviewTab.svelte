@@ -66,8 +66,10 @@
 </script>
 
 <Group label={t('group.proofing')}>
-  <Button size="large" icon="reviewSpelling" tip={t('review.spelling')} on={session.spellcheck} onclick={toggleSpelling} />
-  <Button size="large" icon="reviewWordCount" tip={t('review.wordCount')} onclick={() => session.openDialog('wordCount')} />
+  <div class="rows">
+    <Button size="mid" icon="reviewSpelling" tip={t('review.spelling')} on={session.spellcheck} onclick={toggleSpelling} />
+    <Button size="mid" icon="reviewWordCount" tip={t('review.wordCount')} onclick={() => session.openDialog('wordCount')} />
+  </div>
 </Group>
 <Group label={t('group.accessibility')}>
   <Button size="large" icon="reviewAccessibility" tip={t('review.checkAccessibility')} on={session.pane.right === 'accessibility'} onclick={() => session.togglePane('right', 'accessibility')} />
@@ -81,17 +83,19 @@
 </Group>
 <Group label={t('group.comments')}>
   <Button size="large" icon="reviewNewComment" tip={t('review.newComment')} onclick={() => newComment(session)} disabled={!hasSelection} />
-  <SplitButton id="review-delete-comment" size="large" icon="reviewDeleteComment" tip={t('review.deleteComment')} onclick={deleteComment}>
+  <div class="rows">
+  <SplitButton id="review-delete-comment" size="mid" icon="reviewDeleteComment" tip={t('review.deleteComment')} onclick={deleteComment}>
     {#snippet menu()}
       <button class="mi" onclick={deleteComment}>{t('review.deleteComment')}</button>
       <button class="mi" onclick={() => session.apply(commands.deleteAllCommentsCommand, undefined)}>{t('review.deleteAllComments')}</button>
     {/snippet}
   </SplitButton>
-  <div class="rows">
-    <Button size="mid" icon="reviewPrevComment" tip={t('review.previousComment')} onclick={() => goToAdjacent(session, 'comment', -1)} />
-    <Button size="mid" icon="reviewNextComment" tip={t('review.nextComment')} onclick={() => goToAdjacent(session, 'comment', 1)} />
+    <Button size="mid" icon="reviewPrevComment" tip={t('review.previousComment')} label={t('review.previous')} onclick={() => goToAdjacent(session, 'comment', -1)} />
   </div>
-  <Button size="large" icon="reviewShowComments" tip={t('review.showComments')} on={session.pane.right === 'comments'} onclick={() => session.togglePane('right', 'comments')} />
+  <div class="rows">
+    <Button size="mid" icon="reviewNextComment" tip={t('review.nextComment')} label={t('review.next')} onclick={() => goToAdjacent(session, 'comment', 1)} />
+    <Button size="mid" icon="reviewShowComments" tip={t('review.showComments')} on={session.pane.right === 'comments'} onclick={() => session.togglePane('right', 'comments')} />
+  </div>
 </Group>
 <Group label={t('group.tracking')}>
   <Button
@@ -118,8 +122,10 @@
         <button class="mi" onclick={() => session.openDialog('trackChangesOptions')}>{t('review.trackOptions')}</button>
       {/snippet}
     </SplitButton>
-    <Button size="mid" icon="reviewReviewingPane" tip={t('review.reviewingPane')} on={session.pane.left === 'reviewing'} onclick={() => session.togglePane('left', 'reviewing')} />
   </div>
+</Group>
+<Group label={t('group.reviewingPane')}>
+  <Button size="large" icon="reviewReviewingPane" tip={t('review.reviewingPane')} label={t('review.reviewing')} on={session.pane.left === 'reviewing'} onclick={() => session.togglePane('left', 'reviewing')} />
 </Group>
 <Group label={t('group.changes')}>
   <SplitButton id="review-accept" size="large" icon="reviewAccept" tip={t('review.accept')} onclick={() => decideFace(true)} disabled={!hasRevisions}>
@@ -141,8 +147,8 @@
     {/snippet}
   </SplitButton>
   <div class="rows">
-    <Button size="mid" icon="reviewPrevChange" tip={t('review.previousChange')} onclick={() => goToAdjacent(session, 'revision', -1)} disabled={!hasRevisions} />
-    <Button size="mid" icon="reviewNextChange" tip={t('review.nextChange')} onclick={() => goToAdjacent(session, 'revision', 1)} disabled={!hasRevisions} />
+    <Button icon="reviewPrevChange" tip={t('review.previousChange')} onclick={() => goToAdjacent(session, 'revision', -1)} disabled={!hasRevisions} />
+    <Button icon="reviewNextChange" tip={t('review.nextChange')} onclick={() => goToAdjacent(session, 'revision', 1)} disabled={!hasRevisions} />
   </div>
 </Group>
 <Group label={t('group.compare')}>
@@ -153,6 +159,6 @@
   </SplitButton>
 </Group>
 <Group label={t('group.protect')}>
-  <Button size="large" icon="reviewProtect" tip={t('review.restrictEditing')} on={session.pane.right === 'restrictEditing' || protectedDoc} onclick={() => session.togglePane('right', 'restrictEditing')} />
+  <Button size="large" icon="reviewProtect" tip={t('review.restrictEditing')} label={t('review.protectDocument')} on={session.pane.right === 'restrictEditing' || protectedDoc} onclick={() => session.togglePane('right', 'restrictEditing')} />
   <Button size="large" icon="reviewReadOnly" tip={t('review.alwaysReadOnly')} on={readOnlyRecommended} onclick={toggleReadOnly} />
 </Group>

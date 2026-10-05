@@ -34,6 +34,7 @@ import {
   WML_CONTENT_TYPES,
   WML_NS,
   WML_RELATIONSHIPS,
+  type WmlBlock,
   type WmlBody,
   type WmlDocument,
   writeBodyChildren,
@@ -421,4 +422,22 @@ function removeUnreferencedPart(doc: Docx, relId: string): void {
     doc.rawParts.delete(partName);
     doc.rawPartsDirty.delete(partName);
   }
+}
+
+/**
+ * The blocks inside a block-level content control (`<w:sdt>`, §17.5.2) —
+ * the wrapper Word puts around cover pages, watermarks and tables of
+ * contents — or `undefined` when `block` is not one. The blocks are a
+ * read-only view: they are parsed from the control's XML on each call, and
+ * changes to them are not saved.
+ */
+export function contentControlBlocks(block: WmlBlock): readonly WmlBlock[] | undefined {
+  if (block.kind !== "raw") return undefined;
+  const { node } = block;
+  if (node.name.uri !== WML_NS || node.name.local !== "sdt") return undefined;
+  const content = node.children.find(
+    (c) => c.kind === "element" && c.name.uri === WML_NS && c.name.local === "sdtContent",
+  );
+  // sdtContent at block level holds the same children as w:body (§17.5.2.38).
+  return content?.kind === "element" ? parseBody(content).blocks : [];
 }
