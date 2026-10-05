@@ -119,3 +119,80 @@ export function focusPage(): number | undefined {
   const page = el?.closest<HTMLElement>(".wk-pagebox")?.dataset.page;
   return page === undefined ? undefined : Number(page);
 }
+
+/**
+ * The paragraphs a caret can move through from `from`, in reading order: the
+ * header / footer / note it is in (as shown on that page), or else the body
+ * without the second window a split paragraph shows.
+ */
+function storyParagraphs(root: HTMLElement, from: HTMLElement): HTMLElement[] {
+  const story = from.closest<HTMLElement>(STORY_SELECTOR);
+  if (story) return [...story.querySelectorAll<HTMLElement>(".wk-p")];
+  return [...root.querySelectorAll<HTMLElement>(".wk-p")].filter(
+    (p) => !p.closest("[data-wk-clone]") && !p.closest(STORY_SELECTOR),
+  );
+}
+
+/** The first or last caret point inside a paragraph's own text. */
+export function edgePoint(p: HTMLElement, end: boolean): DomPoint {
+  const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, {
+    // List labels and other generated text are not editable.
+    acceptNode: (n) =>
+      n.parentElement?.closest('[contenteditable="false"]')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT,
+  });
+  let first: Text | null = null;
+  let last: Text | null = null;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!(n instanceof Text)) continue;
+    first ??= n;
+    last = n;
+  }
+  const node = end ? last : first;
+  if (!node) return { node: p, offset: end ? p.childNodes.length : 0 };
+  return { node, offset: end ? node.length : 0 };
+}
+
+const STORY_SELECTOR = ".wk-hf, .wk-note, .wk-endnotes";
+
+export type ParagraphJump = "previous" | "next" | "first" | "last";
+
+/** Select All (⌘A): the whole story `from` belongs to, first paragraph to last. */
+export function storyRange(
+  root: HTMLElement,
+  from: HTMLElement,
+): { start: DomPoint; end: DomPoint } | null {
+  const paragraphs = storyParagraphs(root, from);
+  const first = paragraphs[0];
+  const last = paragraphs.at(-1);
+  return first && last ? { start: edgePoint(first, false), end: edgePoint(last, true) } : null;
+}
+
+/**
+ * Word's paragraph and document jumps (⌘↑ / ⌘↓, ⌘Home / ⌘End): the caret
+ * point to move to from the paragraph `from` holding `at`. ⌘↑ inside a
+ * paragraph goes to its own start first, as in Word.
+ */
+export function paragraphJumpPoint(
+  root: HTMLElement,
+  from: HTMLElement,
+  at: DomPoint,
+  jump: ParagraphJump,
+): DomPoint | null {
+  const paragraphs = storyParagraphs(root, from);
+  const index = paragraphs.indexOf(from);
+  if (jump === "first") return paragraphs[0] ? edgePoint(paragraphs[0], false) : null;
+  if (jump === "last") {
+    const last = paragraphs.at(-1);
+    return last ? edgePoint(last, true) : null;
+  }
+  if (jump === "previous") {
+    const start = edgePoint(from, false);
+    const atStart = start.node === at.node && start.offset === at.offset;
+    const target = atStart ? paragraphs[index - 1] : from;
+    return target ? edgePoint(target, false) : null;
+  }
+  const next = paragraphs[index + 1];
+  return next ? edgePoint(next, false) : edgePoint(from, true);
+}

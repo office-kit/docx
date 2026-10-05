@@ -39,6 +39,13 @@ function editorWith(texts: string[]): EditorModel {
   return model;
 }
 
+function selectAllOf(model: EditorModel, block: number, text: string): void {
+  model.setSelection({
+    anchor: { block, inline: 0, offset: 0 },
+    focus: { block, inline: 0, offset: text.length },
+  });
+}
+
 /** Serialize → reopen and return the fresh Docx (proves the edit persisted). */
 function roundTrip(model: EditorModel) {
   const bytes = toUint8Array(model.doc);
@@ -57,6 +64,7 @@ function firstRun(model: EditorModel): WmlRun {
 describe("text commands", () => {
   it("toggles bold and it survives round-trip", () => {
     const model = editorWith(["Hello world"]);
+    selectAllOf(model, 0, "Hello world");
     runCommand(model, toggleBoldCommand, undefined);
     expect(getRunFormat(firstRun(model)).bold).toBe(true);
     const reopened = openDocx(toUint8Array(model.doc));
@@ -148,6 +156,7 @@ describe("review commands", () => {
 describe("history", () => {
   it("undo/redo restores document state", () => {
     const model = editorWith(["Hello"]);
+    selectAllOf(model, 0, "Hello");
     runCommand(model, toggleBoldCommand, undefined);
     expect(getRunFormat(firstRun(model)).bold).toBe(true);
     model.undo();

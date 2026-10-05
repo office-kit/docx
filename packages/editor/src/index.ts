@@ -84,7 +84,7 @@ export {
 } from "./table-format.js";
 export { type TablePreviewCell, tableStylePreviews } from "./table-preview.js";
 export { type TablePropertiesSnapshot, tablePropertiesSnapshot } from "./table-properties.js";
-export { runAtPath, setSimpleRunText } from "./text-edit.js";
+export { isEmptyParagraph, runAtPath, setSimpleRunText } from "./text-edit.js";
 export {
   isTrackingRevisions,
   type Reviewer,

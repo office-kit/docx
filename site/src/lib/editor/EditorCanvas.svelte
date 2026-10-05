@@ -11,6 +11,7 @@
     paragraphAt,
     positionFromDom,
     readDomSelection,
+    isEmptyParagraph,
     runAtPath,
     setSimpleRunText,
     runCommand,
@@ -25,7 +26,7 @@
   import { t } from './i18n/index.svelte';
   import { PageLayout } from './canvas/page-layout';
   import { decorateTableSelection, handleTableKey, tableCanvasStyle, tablePointerDown, tablePointerUp, tableToolAttr } from './table-canvas';
-  import { copiesOf, domPoint, focusPage, focusParagraph, mirrorParagraph, paragraphSelector } from './canvas/caret';
+  import { copiesOf, domPoint, edgePoint, focusPage, focusParagraph, mirrorParagraph, paragraphJumpPoint, paragraphSelector, storyRange, type ParagraphJump } from './canvas/caret';
   import ObjectSelection from './picture/ObjectSelection.svelte';
 
   interface Props {
@@ -88,8 +89,9 @@
     composing = true;
     // A new composition right after the previous one: apply that one first.
     flushImeFinalize();
-    // While tracking, a composition at a caret must also become one tracked insert.
-    if (!hasRangeSelection() && !isTrackingRevisions(model)) return;
+    // While tracking, a composition at a caret must also become one tracked
+    // insert; so must one where native typing could not be synced.
+    if (!hasRangeSelection() && !isTrackingRevisions(model) && caretInModelRun()) return;
     endTyping();
     imeRange = model.selection;
   }
@@ -300,6 +302,10 @@
   function onSelChange(): void {
     if (imeRange) return;
     const sel = readDomSelection(document);
+    // A caret the browser left between paragraphs (on a page box, between
+    // pages) has no document position, and typing there would be lost: put
+    // it back where the model has it.
+    if (!sel && caretOutsideParagraphs()) restoreCaret();
     if (sel) {
       // A selection never spans two stories (body and a footnote, say):
       // keep the end that moved.
@@ -309,6 +315,28 @@
     }
     updateCurrentPage();
     session.tick++;
+  }
+
+  function caretOutsideParagraphs(): boolean {
+    const domSel = window.getSelection();
+    const node = domSel?.focusNode;
+    if (!domSel?.isCollapsed || !node || !canvas?.contains(node)) return false;
+    const el = node instanceof HTMLElement ? node : node.parentElement;
+    return !el?.closest('.wk-p');
+  }
+
+  /**
+   * Enter in an empty list item steps out of the list as in Word: a nested
+   * item moves up a level, a top-level one stops being a list item.
+   */
+  function leaveEmptyListItem(): boolean {
+    const sel = model.selection;
+    const para = sel && orderSelection(sel).collapsed ? paragraphAt(model.doc, sel.focus) : undefined;
+    const list = para && getParagraphNumbering(para);
+    if (!para || !list || !isEmptyParagraph(para)) return false;
+    if (list.ilvl > 0) exec(commands.setListLevelCommand, { ilvl: list.ilvl - 1 });
+    else exec(commands.removeListCommand, undefined);
+    return true;
   }
 
   /** Whether the caret is a collapsed cursor at the very start of its paragraph. */
@@ -348,7 +376,11 @@
     if (e.isComposing || e.keyCode === 229) return;
     // A key after a range composition must act on the applied result.
     flushImeFinalize();
+    // selectionchange fires asynchronously: a key pressed right after a click
+    // or an arrow key would otherwise act on the previous caret.
+    onSelChange();
     if (CARET_KEYS.has(e.key)) endTyping();
+    if (jumpCaret(e)) return;
     if (handleTableKey(e, model, exec)) {
       rerender();
       session.tick++;
@@ -365,21 +397,12 @@
     // Undo / redo.
     if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
-      // Typed text is already in the AST (onInput syncs every keystroke), so
-      // undo/redo can act on the model directly.
-      endTyping();
-      if (e.shiftKey) model.redo();
-      else model.undo();
-      rerender();
-      session.edited();
+      history(e.shiftKey ? 'redo' : 'undo');
       return;
     }
     if (mod && e.key.toLowerCase() === 'y') {
       e.preventDefault();
-      endTyping();
-      model.redo();
-      rerender();
-      session.edited();
+      history('redo');
       return;
     }
 
@@ -388,8 +411,6 @@
     // item down a level (Shift+Tab up), as in Word.
     if (e.key === 'Tab' && !mod && !e.altKey) {
       e.preventDefault();
-      // selectionchange may not have run since the last keystroke.
-      onSelChange();
       const focus = model.selection?.focus;
       const para = focus && paragraphAt(model.doc, focus);
       if (para && getParagraphNumbering(para) && caretAtParagraphStart()) {
@@ -403,18 +424,18 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       if (e.shiftKey) exec(commands.insertLineBreakCommand, { kind: 'line' });
-      else exec(commands.splitParagraphCommand, undefined);
+      else if (!leaveEmptyListItem()) exec(commands.splitParagraphCommand, undefined);
       return;
     }
 
-    // Backspace at paragraph start merges into the previous paragraph.
-    if (
-      e.key === 'Backspace' &&
-      caretAtParagraphStart() &&
-      (commands.mergeBackCommand.isEnabled?.(model) ?? false)
-    ) {
+    // Backspace at paragraph start: a list item first loses its number (as in
+    // Word), anything else merges into the previous paragraph. Never native:
+    // the browser would join DOM nodes (across cells, into a table) on its own.
+    if (e.key === 'Backspace' && caretAtParagraphStart()) {
       e.preventDefault();
-      exec(commands.mergeBackCommand, undefined);
+      const para = model.selection && paragraphAt(model.doc, model.selection.focus);
+      if (para && getParagraphNumbering(para)) exec(commands.removeListCommand, undefined);
+      else if (commands.mergeBackCommand.isEnabled?.(model) ?? false) exec(commands.mergeBackCommand, undefined);
       return;
     }
 
@@ -444,6 +465,9 @@
           return;
         }
       }
+      // Before a table (or at the end of the document) there is nothing to
+      // pull up, as in Word.
+      e.preventDefault();
     }
 
     // Formatting shortcuts.
@@ -459,20 +483,166 @@
     }
   }
 
+  // Word's caret jumps (⌘ on the Mac, Ctrl elsewhere). Left to the browser,
+  // ⌘↑ / ⌘↓ put the caret outside every paragraph, where typing is lost.
+  const JUMPS: Readonly<Record<string, ParagraphJump>> = {
+    ArrowUp: 'previous',
+    ArrowDown: 'next',
+    Home: 'first',
+    End: 'last',
+  };
+
+  function jumpCaret(e: KeyboardEvent): boolean {
+    // Only the platform's own modifier: on the Mac, Ctrl+A is the line-start
+    // key the browser already handles.
+    const mod = (/Mac|iPhone|iPad/.test(navigator.platform) ? e.metaKey : e.ctrlKey) && !e.altKey;
+    const domSel = window.getSelection();
+    const from = focusParagraph();
+    if (!mod || !domSel?.focusNode || !from || !canvas) return false;
+    // The browser's Select All takes the whole page box, which maps to no
+    // document position.
+    if (e.key.toLowerCase() === 'a' && !e.shiftKey) {
+      const all = storyRange(canvas, from);
+      e.preventDefault();
+      if (all) domSel.setBaseAndExtent(all.start.node, all.start.offset, all.end.node, all.end.offset);
+      onSelChange();
+      return true;
+    }
+    const jump = JUMPS[e.key];
+    if (!jump) return false;
+    const to = paragraphJumpPoint(canvas, from, { node: domSel.focusNode, offset: domSel.focusOffset }, jump);
+    e.preventDefault();
+    if (!to) return true;
+    if (e.shiftKey) domSel.extend(to.node, to.offset);
+    else domSel.collapse(to.node, to.offset);
+    (to.node instanceof HTMLElement ? to.node : to.node.parentElement)?.scrollIntoView({ block: 'nearest' });
+    onSelChange();
+    return true;
+  }
+
+  /**
+   * Whether native typing at the caret lands in a rendered run the model has,
+   * the only text syncFromDom reads back. An empty paragraph saved by Word
+   * (`<w:p/>`) has no run, so its typing must go through a command.
+   */
+  function caretInModelRun(): boolean {
+    const node = window.getSelection()?.focusNode;
+    const el = node instanceof HTMLElement ? node : node?.parentElement;
+    const span = el?.closest<HTMLElement>('.wk-run[data-wk-block]');
+    const pos = span ? positionFromDom(span, 0) : null;
+    return !!pos && !!runAtPath(model.doc, pos);
+  }
+
   function hasRangeSelection(): boolean {
     const sel = model.selection;
     return !!sel && !orderSelection(sel).collapsed;
   }
 
+  function history(step: 'undo' | 'redo'): void {
+    // Typed text is already in the AST (onInput syncs every keystroke), so
+    // undo/redo can act on the model directly.
+    endTyping();
+    if (step === 'undo') model.undo();
+    else model.redo();
+    rerender();
+    session.edited();
+  }
+
+  // The edits the browser may make itself: plain typing, IME composition, and
+  // a one-character delete (when it stays inside one run, see nativeDeleteFits).
+  const NATIVE_INPUTS: ReadonlySet<string> = new Set([
+    'insertText',
+    'insertCompositionText',
+    'deleteCompositionText',
+    'insertFromComposition',
+    'deleteContentBackward',
+    'deleteContentForward',
+  ]);
+
   /**
-   * Typing / deleting over a *range* is routed to commands: the browser's own
+   * Every other input — Enter from a virtual keyboard or voice input, a word
+   * or line delete (⌥⌫, ⌘⌫), a spelling suggestion, a text drop, Undo from
+   * the browser's menu — becomes the matching command: the browser's own
    * handling would restructure the DOM across runs and paragraphs in ways the
-   * per-run text sync cannot map back. Collapsed-caret typing stays native
-   * (reconciled by onInput) so the caret and IME behave normally.
+   * per-run text sync cannot map back.
+   */
+  function applyInput(e: InputEvent): void {
+    onSelChange();
+    switch (e.inputType) {
+      case 'insertParagraph':
+        if (!leaveEmptyListItem()) exec(commands.splitParagraphCommand, undefined);
+        return;
+      case 'insertLineBreak':
+        exec(commands.insertLineBreakCommand, { kind: 'line' });
+        return;
+      case 'historyUndo':
+        history('undo');
+        return;
+      case 'historyRedo':
+        history('redo');
+        return;
+      case 'insertReplacementText':
+      case 'insertFromDrop':
+      case 'insertFromYank': {
+        const text = e.dataTransfer?.getData('text/plain') ?? e.data;
+        if (text && selectTargetRange(e)) exec(commands.insertTextCommand, { text });
+        return;
+      }
+    }
+    if (e.inputType.startsWith('delete') && selectTargetRange(e) && hasRangeSelection()) {
+      exec(commands.deleteSelectionCommand, undefined);
+    }
+  }
+
+  /** Put the model selection on the range an input event is about to change. */
+  function selectTargetRange(e: InputEvent): boolean {
+    const [range] = e.getTargetRanges();
+    if (!range) return true;
+    const anchor = positionFromDom(range.startContainer, range.startOffset);
+    const focus = positionFromDom(range.endContainer, range.endOffset);
+    if (!anchor || !focus) return false;
+    model.setSelection({ anchor, focus });
+    return true;
+  }
+
+  /**
+   * Whether the browser may make a one-character delete itself: it removes
+   * text from one text node of a run the model has, and leaves text there
+   * (a run emptied by the browser loses its span, and with it the sync).
+   */
+  function nativeDeleteFits(e: InputEvent): boolean {
+    const [range] = e.getTargetRanges();
+    const node = range?.startContainer;
+    if (!range || !(node instanceof Text) || range.endContainer !== node || !caretInModelRun()) return false;
+    const span = node.parentElement?.closest('.wk-run');
+    const left = (span?.textContent ?? '').replace(/\u200b/g, '').length - (range.endOffset - range.startOffset);
+    return left > 0;
+  }
+
+  /**
+   * Typing / deleting over a *range* is routed to commands, like every input
+   * outside NATIVE_INPUTS. Collapsed-caret typing stays native (reconciled by
+   * onInput) so the caret and IME behave normally.
    */
   function onBeforeInput(e: InputEvent): void {
+    if (!NATIVE_INPUTS.has(e.inputType)) {
+      e.preventDefault();
+      // Enter confirming a composition is the IME's, not a paragraph break.
+      if (!composing && !imeRange && !e.isComposing) applyInput(e);
+      return;
+    }
     // While tracking changes every edit is recorded by a command, never synced natively.
-    if (imeRange || e.isComposing || (!hasRangeSelection() && !isTrackingRevisions(model))) return;
+    if (imeRange || e.isComposing) return;
+    // Mouse selections reach here without a keydown to sync them.
+    onSelChange();
+    // A selection the browser placed outside every paragraph (on a page box)
+    // has no document position: editing it natively would wreck the pages.
+    if (!readDomSelection(document)) {
+      e.preventDefault();
+      return;
+    }
+    const nativeOk = e.inputType.startsWith('delete') ? nativeDeleteFits(e) : caretInModelRun();
+    if (!hasRangeSelection() && !isTrackingRevisions(model) && nativeOk) return;
     if (e.inputType === 'insertText') {
       e.preventDefault();
       // The replacement's undo snapshot (taken by runCommand) is the burst's
@@ -483,8 +653,11 @@
       }
     } else if (e.inputType.startsWith('delete')) {
       e.preventDefault();
-      if (hasRangeSelection()) exec(commands.deleteSelectionCommand, undefined);
-      else exec(commands.trackedDeleteCommand, { direction: e.inputType.endsWith('Forward') ? 1 : -1 });
+      if (isTrackingRevisions(model) && !hasRangeSelection()) {
+        exec(commands.trackedDeleteCommand, { direction: e.inputType.endsWith('Forward') ? 1 : -1 });
+      } else if (hasRangeSelection() || (selectTargetRange(e) && hasRangeSelection())) {
+        exec(commands.deleteSelectionCommand, undefined);
+      }
     }
   }
 
@@ -517,6 +690,37 @@
     if (y < top) return { kind: 'header', page };
     if (y > box.offsetHeight - bottom) return { kind: 'footer', page };
     return undefined;
+  }
+
+  /**
+   * A single click in the header or footer margin while editing the body puts
+   * the caret on the nearest body line, as in Word. The header is not
+   * editable then, so the browser would leave the caret where it was.
+   */
+  function onMouseDown(e: MouseEvent): void {
+    endTyping();
+    if (session.viewMode !== 'print' || editingHeaderFooter || e.button !== 0 || e.shiftKey) return;
+    // Body content placed in the margin (a picture) takes its own click.
+    if ((e.target as Element).closest('.wk-body')) return;
+    const zone = marginZoneAt(e);
+    const body = (e.target as Element).closest('.wk-pagebox')?.querySelector<HTMLElement>('.wk-body');
+    const lines = body ? [...body.querySelectorAll<HTMLElement>('.wk-p')] : [];
+    const line = zone?.kind === 'header' ? lines[0] : lines.at(-1);
+    if (!zone || !line) return;
+    const rect = line.getBoundingClientRect();
+    const y = Math.min(Math.max(e.clientY, rect.top + 1), rect.bottom - 1);
+    const x = Math.min(Math.max(e.clientX, rect.left + 1), rect.right - 1);
+    const hit = document.caretPositionFromPoint(x, y);
+    // Off screen (a long page scrolled to its foot) the line has no hit
+    // point: take its end nearest the click instead.
+    const at =
+      hit && line.contains(hit.offsetNode)
+        ? { node: hit.offsetNode, offset: hit.offset }
+        : edgePoint(line, zone.kind === 'footer');
+    e.preventDefault();
+    canvas?.focus({ preventScroll: true });
+    window.getSelection()?.collapse(at.node, at.offset);
+    onSelChange();
   }
 
   /** Double-click in a header/footer area opens it; in the body, closes it (Word). */
@@ -593,7 +797,7 @@
     aria-label={t('canvas.label')}
     oninput={onInput}
     onkeydown={onKeydown}
-    onmousedown={endTyping}
+    onmousedown={onMouseDown}
     onpointerdown={(e) => tablePointerDown(e, model, exec)}
     onpointerup={(e) => tablePointerUp(e, model, exec)}
     onblur={endTyping}
