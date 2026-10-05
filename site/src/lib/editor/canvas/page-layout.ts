@@ -27,6 +27,7 @@ import {
   paginate,
   type PaginatorSection,
   type ParagraphFlags,
+  layoutScaledText,
   layoutTabStops,
   renderBlocksHtml,
   renderDocumentHtml,
@@ -300,6 +301,7 @@ export class PageLayout {
 
     // Tabs widen to their stops before anything is measured: they move text
     // to the next line. One read pass after the writes above otherwise.
+    layoutScaledText(this.galley);
     layoutTabStops(this.galley);
     for (const story of this.headers.values()) story.height = outerHeight(story.el);
     for (const note of this.notes.values()) note.height = outerHeight(note.el);
@@ -342,6 +344,7 @@ export class PageLayout {
     // A clipped (split) block is measured through its master element, whose
     // full height the clip does not change.
     const before = item.height;
+    layoutScaledText(item.content);
     layoutTabStops(item.content);
     this.measureItem(item);
     return Math.abs(item.height - before) > 0.5 || item.breaks.length > 0;
@@ -620,6 +623,7 @@ export class PageLayout {
     flow.append(...blockElements(renderDocumentHtml(doc), blocks.length));
     this.items = [];
     this.root.replaceChildren(flow);
+    layoutScaledText(flow);
     layoutTabStops(flow);
   }
 }

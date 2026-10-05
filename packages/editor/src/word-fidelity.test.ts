@@ -27,6 +27,8 @@ import {
   setPageSize,
   setParagraphAlignment,
   setParagraphIndent,
+  setSectionProperties,
+  setParagraphValProp,
   setParagraphSpacing,
   setParagraphStyle,
   setParagraphTabs,
@@ -607,7 +609,96 @@ describe("run rendering", () => {
     const html = renderDocumentHtml(model.doc);
     expect(html).toContain("vertical-align:super");
     // Calibri's metric-compatible stand-in comes before the East Asian font
-    // (docDefaults: Times New Roman), and the generic family last.
-    expect(html).toContain("font-family:'Calibri',Carlito,'Times New Roman',sans-serif");
+    // (docDefaults: Times New Roman) and its own stand-ins, and the generic
+    // family last.
+    expect(html).toContain(
+      "font-family:'Calibri',Carlito,'Times New Roman',Tinos,'Liberation Serif',sans-serif",
+    );
+  });
+
+  it("falls back from Japanese font names to the system's Japanese fonts", () => {
+    const model = headingAndBody();
+    const r = run(model.doc, 1);
+    setRunValProp(r, "rFonts", undefined);
+    r.rPr?.children.push(w("rFonts", { ascii: "Calibri", eastAsia: "游明朝" }));
+    const html = renderDocumentHtml(model.doc);
+    expect(html).toContain("'游明朝',YuMincho,'Hiragino Mincho ProN','Noto Serif JP'");
+  });
+});
+
+describe("East Asian typography (measured in Japanese Word for Mac 16)", () => {
+  /** A Japanese paragraph in 游明朝 10.5 pt, Word's Japanese default. */
+  function japanese(texts: string[]): Docx {
+    const doc = createDocx({ paragraphs: texts });
+    for (const [i] of texts.entries()) {
+      const r = run(doc, i);
+      setRunValProp(r, "sz", "21");
+      r.rPr?.children.push(w("rFonts", { ascii: "游明朝", eastAsia: "游明朝", hAnsi: "游明朝" }));
+    }
+    return doc;
+  }
+  const styleOf = (html: string, index: number): string =>
+    [...html.matchAll(/<p class="wk-p"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
+  const runStyleOf = (html: string, index: number): string =>
+    [...html.matchAll(/<span class="wk-run"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
+
+  it("snaps lines to the line grid by the font's own line height (§17.6.5)", () => {
+    const doc = japanese(["本文", "見出し"]);
+    setRunValProp(run(doc, 1), "sz", "56");
+    setSectionProperties(doc, { documentGrid: { type: "lines", linePitch: 360 } });
+    for (const p of paragraphs(doc))
+      setParagraphSpacing(p, { after: 0, line: 240, lineRule: "auto" });
+    const html = renderDocumentHtml(doc);
+    // Word: 10.5 pt takes one 18 pt grid line, 28 pt three.
+    expect(runStyleOf(html, 0)).toContain("line-height:18pt");
+    expect(runStyleOf(html, 1)).toContain("line-height:54pt");
+  });
+
+  it("uses 游明朝's single line without a grid", () => {
+    const doc = japanese(["本文"]);
+    setParagraphSpacing(para(doc, 0), { after: 0, line: 240, lineRule: "auto" });
+    // Word: 15.2 pt for 10.5 pt text.
+    expect(runStyleOf(renderDocumentHtml(doc), 0)).toContain("line-height:1.447");
+  });
+
+  it("converts character indents and line spacing (§17.3.1.12, §17.3.1.33)", () => {
+    const doc = japanese(["字下げ"]);
+    setSectionProperties(doc, { documentGrid: { type: "lines", linePitch: 360 } });
+    setParagraphIndent(para(doc, 0), { leftChars: 200, firstLineChars: 100 });
+    setParagraphSpacing(para(doc, 0), { beforeLines: 50 });
+    const css = styleOf(renderDocumentHtml(doc), 0);
+    // A character is the paragraph mark's size: 11 pt here.
+    expect(css).toContain("margin-left:22pt");
+    expect(css).toContain("text-indent:11pt");
+    // Half a grid line.
+    expect(css).toContain("margin-top:9pt");
+  });
+
+  it("draws emphasis marks, fit text, scale and combined characters", () => {
+    const doc = japanese(["傍点", "氏名", "横長", "株式会社"]);
+    setRunValProp(run(doc, 0), "em", "dot");
+    run(doc, 1).rPr?.children.push(w("fitText", { val: "840", id: "1" }));
+    setRunValProp(run(doc, 2), "w", "200");
+    run(doc, 3).rPr?.children.push(
+      w("eastAsianLayout", { id: "2", combine: "1", combineBrackets: "round" }),
+    );
+    const html = renderDocumentHtml(doc);
+    expect(runStyleOf(html, 0)).toContain("text-emphasis:filled dot");
+    expect(runStyleOf(html, 1)).toContain("width:42pt");
+    expect(runStyleOf(html, 1)).toContain("text-align-last:justify");
+    expect(runStyleOf(html, 2)).toContain("transform:scaleX(2)");
+    expect(html).toContain('data-wk-scale="200"');
+    expect(html).toMatch(/\(<span[^>]*><span>株式<\/span><span>会社<\/span><\/span>\)/);
+  });
+
+  it("follows the paragraph's line breaking and spacing settings", () => {
+    const doc = japanese(["禁則"]);
+    setRunValProp(run(doc, 0), "sz", undefined);
+    // Off is written explicitly: these default to on.
+    setParagraphValProp(para(doc, 0), "kinsoku", "0");
+    setParagraphValProp(para(doc, 0), "autoSpaceDN", "0");
+    const css = styleOf(renderDocumentHtml(doc), 0);
+    expect(css).toContain("line-break:anywhere");
+    expect(css).toContain("text-autospace:normal;text-autospace:ideograph-alpha");
   });
 });

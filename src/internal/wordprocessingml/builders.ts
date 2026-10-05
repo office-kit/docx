@@ -1038,16 +1038,36 @@ export interface ParagraphIndent {
   readonly firstLine?: number;
   /** Hanging indent in twips. */
   readonly hanging?: number;
+  /**
+   * The same indents in hundredths of a character (`w:leftChars` …,
+   * §17.3.1.12), as Japanese and Chinese Word set them ("2 字"). Where both
+   * are given, the character value wins.
+   */
+  readonly leftChars?: number;
+  readonly rightChars?: number;
+  readonly firstLineChars?: number;
+  readonly hangingChars?: number;
 }
+
+const INDENT_ATTRS = [
+  "left",
+  "leftChars",
+  "right",
+  "rightChars",
+  "hanging",
+  "hangingChars",
+  "firstLine",
+  "firstLineChars",
+] as const satisfies readonly (keyof ParagraphIndent)[];
 
 /** Set `<w:ind>` on the paragraph's pPr. */
 export function setParagraphIndent(p: WmlParagraph, indent: ParagraphIndent): void {
   const pPr = ensurePPr(p);
   const attrs: XmlAttr[] = [];
-  if (indent.left !== undefined) attrs.push(wmlAttr("left", String(indent.left)));
-  if (indent.right !== undefined) attrs.push(wmlAttr("right", String(indent.right)));
-  if (indent.firstLine !== undefined) attrs.push(wmlAttr("firstLine", String(indent.firstLine)));
-  if (indent.hanging !== undefined) attrs.push(wmlAttr("hanging", String(indent.hanging)));
+  for (const name of INDENT_ATTRS) {
+    const value = indent[name];
+    if (value !== undefined) attrs.push(wmlAttr(name, String(value)));
+  }
   const idx = pPr.children.findIndex(
     (c) => c.kind === "element" && c.name.uri === WML_NS && c.name.local === "ind",
   );
@@ -1065,6 +1085,13 @@ export interface ParagraphSpacing {
   readonly line?: number;
   /** Line spacing rule: `"auto"`, `"exact"`, or `"atLeast"`. */
   readonly lineRule?: "auto" | "exact" | "atLeast";
+  /**
+   * Space before / after in hundredths of a line (`w:beforeLines`,
+   * `w:afterLines`, §17.3.1.33), as East Asian Word sets them ("0.5 行").
+   * Where both are given, the line value wins.
+   */
+  readonly beforeLines?: number;
+  readonly afterLines?: number;
 }
 
 /** Set `<w:spacing>` on the paragraph's pPr. */
@@ -1072,7 +1099,13 @@ export function setParagraphSpacing(p: WmlParagraph, spacing: ParagraphSpacing):
   const pPr = ensurePPr(p);
   const attrs: XmlAttr[] = [];
   if (spacing.before !== undefined) attrs.push(wmlAttr("before", String(spacing.before)));
+  if (spacing.beforeLines !== undefined) {
+    attrs.push(wmlAttr("beforeLines", String(spacing.beforeLines)));
+  }
   if (spacing.after !== undefined) attrs.push(wmlAttr("after", String(spacing.after)));
+  if (spacing.afterLines !== undefined) {
+    attrs.push(wmlAttr("afterLines", String(spacing.afterLines)));
+  }
   if (spacing.line !== undefined) attrs.push(wmlAttr("line", String(spacing.line)));
   if (spacing.lineRule !== undefined) attrs.push(wmlAttr("lineRule", spacing.lineRule));
   const idx = pPr.children.findIndex(

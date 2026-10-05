@@ -97,6 +97,8 @@ export interface DocumentGrid {
   readonly type: "default" | "lines" | "linesAndChars" | "snapToChars";
   /** Twips between grid lines. */
   readonly linePitch?: number | undefined;
+  /** 4096ths of a point added to the character pitch (§17.6.5). */
+  readonly charSpace?: number | undefined;
 }
 
 export interface PageNumbering {
@@ -263,6 +265,7 @@ function readGrid(sectPr: XmlElement | undefined): DocumentGrid | undefined {
       "default",
     ),
     linePitch: num(el, "linePitch"),
+    charSpace: num(el, "charSpace"),
   };
 }
 

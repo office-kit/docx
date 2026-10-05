@@ -64,6 +64,7 @@ export {
   pageGeometry,
 } from "./resolve.js";
 export { positionFromDom, readDomSelection, runPoint, STORY_ATTR } from "./dom-selection.js";
+export { layoutScaledText } from "./scale-layout.js";
 export { layoutTabStops } from "./tab-layout.js";
 export {
   adjacentCellPosition,

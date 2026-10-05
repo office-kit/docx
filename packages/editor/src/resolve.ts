@@ -140,6 +140,23 @@ export interface ResolvedRunFormat {
   readonly border?: ResolvedBorder | undefined;
   /** The run's character style id. */
   readonly characterStyle?: string | undefined;
+  /** Emphasis mark (`w:em`, §17.3.2.12): `dot`, `comma`, `circle` or `underDot`. */
+  readonly emphasis?: string | undefined;
+  /** East Asian layout (`w:eastAsianLayout`, §17.3.2.10). */
+  readonly eastAsianLayout?: ResolvedEastAsianLayout | undefined;
+  /** Fit-to-width text (`w:fitText`, §17.3.2.14). */
+  readonly fitText?: { readonly width: number; readonly id?: number | undefined } | undefined;
+}
+
+/** Word's Asian Layout: combined characters, two lines in one, horizontal-in-vertical. */
+export interface ResolvedEastAsianLayout {
+  /** Combine Characters, or with brackets Two Lines in One: the text set in two half-size lines. */
+  readonly combine: boolean;
+  /** ST_CombineBrackets around two-lines-in-one text: `round`, `square`, `angle`, `curly`. */
+  readonly brackets?: string | undefined;
+  /** Horizontal in vertical (縦中横): upright in vertical text. */
+  readonly vert: boolean;
+  readonly vertCompress: boolean;
 }
 
 /** On-off paragraph properties the Paragraph dialog shows, by element name. */
@@ -158,10 +175,12 @@ export type ParagraphToggle =
   | "topLinePunct"
   | "autoSpaceDE"
   | "autoSpaceDN"
-  | "bidi";
+  | "bidi"
+  | "snapToGrid";
 
 // Their values when nothing in the hierarchy sets them (§17.3.1): the East
-// Asian line-breaking rules are on unless turned off; everything else is off.
+// Asian line-breaking rules and grid snapping are on unless turned off;
+// everything else is off.
 const PARAGRAPH_TOGGLE_DEFAULTS: Readonly<Record<ParagraphToggle, boolean>> = {
   keepNext: false,
   keepLines: false,
@@ -178,6 +197,7 @@ const PARAGRAPH_TOGGLE_DEFAULTS: Readonly<Record<ParagraphToggle, boolean>> = {
   autoSpaceDE: true,
   autoSpaceDN: true,
   bidi: false,
+  snapToGrid: true,
 };
 
 export type ParagraphBorderSide = "top" | "left" | "bottom" | "right" | "between" | "bar";
@@ -190,8 +210,19 @@ export interface ResolvedParagraphFormat {
   readonly right?: number | undefined;
   readonly firstLine?: number | undefined;
   readonly hanging?: number | undefined;
+  /**
+   * Hundredths of a character (`w:leftChars` …, §17.3.1.12); where set, they
+   * take precedence over the twips value of the same indent.
+   */
+  readonly leftChars?: number | undefined;
+  readonly rightChars?: number | undefined;
+  readonly firstLineChars?: number | undefined;
+  readonly hangingChars?: number | undefined;
   readonly before?: number | undefined;
   readonly after?: number | undefined;
+  /** Hundredths of a line (§17.3.1.33); where set, they take precedence over `before` / `after`. */
+  readonly beforeLines?: number | undefined;
+  readonly afterLines?: number | undefined;
   /** 240ths of a line when `lineRule` is `auto`, twips otherwise. */
   readonly line?: number | undefined;
   readonly lineRule?: string | undefined;
@@ -264,6 +295,12 @@ function intAttr(el: XmlElement, local: string): number | undefined {
 function onOff(el: XmlElement): boolean {
   const val = getElementAttr(el, "val");
   return val === undefined || !OFF_VALUES.has(val);
+}
+
+/** An ST_OnOff attribute other than `val`; absent means off. */
+function onOffAttr(el: XmlElement, local: string): boolean {
+  const val = getElementAttr(el, local);
+  return val !== undefined && !OFF_VALUES.has(val);
 }
 
 /** `<a:latin typeface>` of the theme's major / minor font, if there is a theme. */
@@ -487,6 +524,26 @@ function applyRPr(
       case "kern":
         out.kern = intAttr(el, "val");
         break;
+      case "em": {
+        const val = getElementAttr(el, "val");
+        out.emphasis = val === undefined || val === "none" ? undefined : val;
+        break;
+      }
+      case "eastAsianLayout": {
+        const brackets = getElementAttr(el, "combineBrackets");
+        out.eastAsianLayout = {
+          combine: onOffAttr(el, "combine"),
+          brackets: brackets === "none" ? undefined : brackets,
+          vert: onOffAttr(el, "vert"),
+          vertCompress: onOffAttr(el, "vertCompress"),
+        };
+        break;
+      }
+      case "fitText": {
+        const width = intAttr(el, "val");
+        out.fitText = width ? { width, id: intAttr(el, "id") } : undefined;
+        break;
+      }
       case "shd":
         out.shading = shadingOf(el, ctx);
         break;
@@ -571,14 +628,22 @@ function applyPPr(
         // the bidi-aware names for `left` / `right` (§17.3.1.12).
         const left = intAttr(el, "left") ?? intAttr(el, "start");
         const right = intAttr(el, "right") ?? intAttr(el, "end");
+        const leftChars = intAttr(el, "leftChars") ?? intAttr(el, "startChars");
+        const rightChars = intAttr(el, "rightChars") ?? intAttr(el, "endChars");
         const firstLine = intAttr(el, "firstLine");
         const hanging = intAttr(el, "hanging");
+        const firstLineChars = intAttr(el, "firstLineChars");
+        const hangingChars = intAttr(el, "hangingChars");
         if (left !== undefined) out.left = left;
         if (right !== undefined) out.right = right;
+        if (leftChars !== undefined) out.leftChars = leftChars;
+        if (rightChars !== undefined) out.rightChars = rightChars;
         // firstLine and hanging exclude each other; the later level replaces both.
-        if (firstLine !== undefined || hanging !== undefined) {
+        if ([firstLine, hanging, firstLineChars, hangingChars].some((v) => v !== undefined)) {
           out.firstLine = firstLine;
           out.hanging = hanging;
+          out.firstLineChars = firstLineChars;
+          out.hangingChars = hangingChars;
         }
         break;
       }
@@ -597,8 +662,12 @@ function applyPPr(
         const before = intAttr(el, "before");
         const after = intAttr(el, "after");
         const line = intAttr(el, "line");
+        const beforeLines = intAttr(el, "beforeLines");
+        const afterLines = intAttr(el, "afterLines");
         if (before !== undefined) out.before = before;
         if (after !== undefined) out.after = after;
+        if (beforeLines !== undefined) out.beforeLines = beforeLines;
+        if (afterLines !== undefined) out.afterLines = afterLines;
         if (line !== undefined) {
           out.line = line;
           // A missing lineRule means auto (§17.3.1.33).
