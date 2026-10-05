@@ -4,7 +4,7 @@
  * the span's text and writes it to the matching run here.
  */
 
-import type { Docx, WmlRun, WmlRunPiece } from "@office-kit/docx";
+import type { Docx, WmlParagraph, WmlRun, WmlRunPiece } from "@office-kit/docx";
 import { paragraphAt } from "./doc-access.js";
 import type { DocPosition } from "./selection.js";
 
@@ -43,4 +43,14 @@ export function setSimpleRunText(run: WmlRun, text: string): boolean {
   });
   run.pieces = pieces;
   return true;
+}
+
+/**
+ * Whether a paragraph holds nothing but empty text: no characters, and no
+ * picture, field or other inline that would be lost with the paragraph.
+ */
+export function isEmptyParagraph(para: WmlParagraph): boolean {
+  return para.children.every(
+    (c) => c.kind === "run" && c.pieces.every((p) => p.kind === "text" && p.value === ""),
+  );
 }

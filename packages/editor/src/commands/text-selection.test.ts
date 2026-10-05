@@ -16,6 +16,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { editorFor } from "../index.js";
 import type { EditorModel } from "../model.js";
+import { insertTextCommand } from "./structure.js";
 import { toggleBoldCommand, toggleItalicCommand } from "./text.js";
 import { runCommand } from "./types.js";
 
@@ -126,6 +127,58 @@ describe("selection-aware bold", () => {
     expect(profile).toEqual([
       { t: "abc", b: true, i: false },
       { t: "def", b: false, i: true },
+    ]);
+  });
+});
+
+function caret(model: EditorModel, inline: number, offset: number): void {
+  const pos = { block: 0, inline, offset };
+  model.setSelection({ anchor: pos, focus: pos });
+}
+
+describe("character formatting at a caret (Word)", () => {
+  it("formats the whole word the caret is inside", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Hello world foo"] }));
+    caret(model, 0, 8); // wo|rld
+    runCommand(model, toggleBoldCommand, undefined);
+    expect(runProfile(model)).toEqual([
+      ["Hello ", false],
+      ["world", true],
+      [" foo", false],
+    ]);
+    expect(model.selection?.focus).toMatchObject({ inline: 1, offset: 2 });
+  });
+
+  it("finds Japanese words too", () => {
+    const model = editorFor(createDocx({ paragraphs: ["今日は晴れ"] }));
+    caret(model, 0, 1); // 今|日
+    runCommand(model, toggleBoldCommand, undefined);
+    expect(runProfile(model).filter(([, bold]) => bold)).toEqual([["今日", true]]);
+  });
+
+  it("at a word edge formats only what is typed next", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Hello"] }));
+    caret(model, 0, 5);
+    runCommand(model, toggleBoldCommand, undefined);
+    runCommand(model, insertTextCommand, { text: " bold" });
+    runCommand(model, toggleBoldCommand, undefined);
+    runCommand(model, insertTextCommand, { text: " plain" });
+    expect(runProfile(model)).toEqual([
+      ["Hello", false],
+      [" bold", true],
+      [" plain", false],
+    ]);
+    expect(validate(openDocx(toUint8Array(model.doc)))).toHaveLength(0);
+  });
+
+  it("pressing Bold twice at a caret turns the pending formatting back off", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Hello"] }));
+    caret(model, 0, 5);
+    runCommand(model, toggleBoldCommand, undefined);
+    runCommand(model, toggleBoldCommand, undefined);
+    expect(runProfile(model)).toEqual([
+      ["Hello", false],
+      ["", false],
     ]);
   });
 });

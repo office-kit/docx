@@ -21,14 +21,22 @@ import {
   type WmlInline,
   type WmlParagraph,
   type WmlRun,
+  type WmlTable,
+  type WmlTableCell,
   type XmlElement,
 } from "@office-kit/docx";
 import { absoluteOffset, positionAtOffset } from "../char-offset.js";
-import { blockAt, cellAt, paragraphAt } from "../doc-access.js";
+import { blockAt, bodyOf, cellAt, paragraphAt } from "../doc-access.js";
 import type { EditorModel } from "../model.js";
 import { caretAt, type DocPosition, orderSelection } from "../selection.js";
 import { WML_NS } from "../wml-ns.js";
-import { isPlainTextRun, plainRunText, runAtPath, setSimpleRunText } from "../text-edit.js";
+import {
+  isEmptyParagraph,
+  isPlainTextRun,
+  plainRunText,
+  runAtPath,
+  setSimpleRunText,
+} from "../text-edit.js";
 import {
   isTrackingRevisions,
   recordSplit,
@@ -106,6 +114,12 @@ export const mergeBackCommand: Command<void> = {
       model.setSelection(caretAt(caret));
       return;
     }
+    const blocks = bodyOf(model.doc, pos).blocks;
+    const prev = blocks[pos.block - 1];
+    if (prev?.kind === "table") {
+      backIntoTable(model, pos, prev);
+      return;
+    }
     const joined = mergeParagraphIntoPrevious(model.doc, pos.block);
     if (joined) model.setSelection(caretAt(joined));
   },
@@ -115,6 +129,33 @@ export const mergeBackCommand: Command<void> = {
     return pos.cell ? (pos.para ?? 0) > 0 : pos.block > 0;
   },
 };
+
+/**
+ * Backspace at the start of a paragraph that follows a table, as in Word: the
+ * text never joins a cell. An empty paragraph is removed (unless it is the
+ * last block, which the body must keep) and the caret moves to the end of the
+ * table's last cell; a paragraph with text stays as it is.
+ */
+function backIntoTable(model: EditorModel, pos: DocPosition, table: WmlTable): void {
+  const blocks = bodyOf(model.doc, pos).blocks;
+  const cur = blocks[pos.block];
+  if (cur?.kind !== "paragraph" || !isEmptyParagraph(cur)) return;
+  const row = table.rows.length - 1;
+  const cells = table.rows[row]?.cells ?? [];
+  const col = cells.length - 1;
+  const paras = cells[col]?.paragraphs ?? [];
+  const last = paras.at(-1);
+  if (!last) return;
+  if (pos.block < blocks.length - 1) blocks.splice(pos.block, 1);
+  const { story } = pos;
+  const at = {
+    ...(story ? { story } : {}),
+    block: pos.block - 1,
+    cell: { row, col },
+    para: paras.length - 1,
+  };
+  model.setSelection(caretAt(positionAtOffset(last, Number.POSITIVE_INFINITY, at)));
+}
 
 /** Insert `text` at `pos` (a run boundary or inside a text run); returns the caret after it. */
 function insertIntoRun(model: EditorModel, pos: DocPosition, text: string): DocPosition {
@@ -256,11 +297,7 @@ function deleteRange(model: EditorModel, start: DocPosition, end: DocPosition): 
       start.block === end.block &&
       start.cell?.row === end.cell?.row &&
       start.cell?.col === end.cell?.col;
-    // A range spanning several cells (or leaving the table) would need
-    // per-cell clearing and row/column structure decisions; refuse atomically.
-    if (!sameCell) {
-      throw new Error("Deleting a selection that crosses table cells is not supported yet.");
-    }
+    if (!sameCell) return deleteAcrossCells(model, start, end);
     const first = cell.paragraphs[start.para ?? 0];
     const last = cell.paragraphs[end.para ?? 0];
     if (!first || !last) throw new Error("The selection is not inside the cell's paragraphs.");
@@ -301,6 +338,73 @@ function deleteRange(model: EditorModel, start: DocPosition, end: DocPosition): 
         };
   }
   return joined;
+}
+
+/**
+ * Delete a range with an end inside a table, as Word does once a selection
+ * leaves a cell: within one table the covered cells are emptied; across the
+ * table's edge the rows the range touches go (a table losing every row goes
+ * with them), and the text outside the table is cut up to the table.
+ */
+function deleteAcrossCells(model: EditorModel, start: DocPosition, end: DocPosition): DocPosition {
+  const blocks = model.doc.document.body.blocks;
+  const startBlock = blocks[start.block];
+  const first = start.cell;
+  const last = end.cell;
+  if (start.block === end.block && first && last && startBlock?.kind === "table") {
+    startBlock.rows.forEach((row, r) =>
+      row.cells.forEach((cell, c) => {
+        const afterFirst = r > first.row || (r === first.row && c >= first.col);
+        const beforeLast = r < last.row || (r === last.row && c <= last.col);
+        if (afterFirst && beforeLast) clearCell(cell);
+      }),
+    );
+    return { block: start.block, cell: first, para: 0, inline: 0, offset: 0 };
+  }
+  // Work from the end backwards so earlier block indices stay valid.
+  const endBlock = blocks[end.block];
+  if (last && endBlock?.kind === "table") {
+    endBlock.rows.splice(0, last.row + 1);
+    if (endBlock.rows.length === 0) blocks.splice(end.block, 1);
+  } else if (endBlock?.kind === "paragraph") {
+    cutParagraph(endBlock, 0, absoluteOffset(endBlock, end));
+  }
+  blocks.splice(start.block + 1, end.block - start.block - 1);
+  if (first && startBlock?.kind === "table") {
+    startBlock.rows.splice(first.row);
+    if (startBlock.rows.length > 0) return startOfBlock(model, start.block + 1);
+    blocks.splice(start.block, 1);
+    return startOfBlock(model, start.block);
+  }
+  if (startBlock?.kind !== "paragraph")
+    throw new Error("The selection does not start in a paragraph.");
+  const from = absoluteOffset(startBlock, start);
+  cutParagraph(startBlock, from, paragraphLength(startBlock));
+  return positionAtOffset(startBlock, from, { ...start });
+}
+
+function clearCell(cell: WmlTableCell): void {
+  const [first] = cell.paragraphs;
+  if (!first) return;
+  first.children = ensureRun([]);
+  cell.paragraphs = [first];
+}
+
+function cutParagraph(para: WmlParagraph, from: number, to: number): void {
+  const removed = new Set<WmlRun>(isolateParagraphRunRange(para, from, to));
+  para.children = ensureRun(para.children.filter((c) => !(c.kind === "run" && removed.has(c))));
+}
+
+function paragraphLength(para: WmlParagraph): number {
+  return para.children.reduce((n, c) => n + (c.kind === "run" ? runTextLength(c) : 0), 0);
+}
+
+/** The first caret position in a top-level block (its first cell for a table). */
+function startOfBlock(model: EditorModel, index: number): DocPosition {
+  const block = model.doc.document.body.blocks[index];
+  return block?.kind === "table"
+    ? { block: index, cell: { row: 0, col: 0 }, para: 0, inline: 0, offset: 0 }
+    : { block: index, inline: 0, offset: 0 };
 }
 
 /**

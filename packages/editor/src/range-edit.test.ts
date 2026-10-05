@@ -223,15 +223,79 @@ describe("table cells", () => {
     expect(cellTexts(model)).toEqual(["abkl"]);
   });
 
-  it("refuses a range across cells atomically", () => {
+  it("empties every cell a range across cells covers", () => {
     const model = cellModel();
-    model.setSelection({ anchor: at(0, 1), focus: at(0, 0, 1) });
-    expect(() => runCommand(model, commands.deleteSelectionCommand, undefined)).toThrow(
-      /crosses table cells/,
-    );
+    model.setSelection({ anchor: at(0, 0, 1), focus: at(0, 0, 1) });
+    runCommand(model, commands.insertTextCommand, { text: "xyz" });
+    model.setSelection({ anchor: at(0, 1, 1), focus: at(0, 3) });
+    runCommand(model, commands.deleteSelectionCommand, undefined);
+    expect([cellTexts(model, 0), cellTexts(model, 1)]).toEqual([[""], [""]]);
+    expect(model.selection?.focus).toEqual(at(0, 0));
+    expect(validate(openDocx(toUint8Array(model.doc)))).toHaveLength(0);
+  });
+
+  it("deletes the rows a range from a paragraph into the table touches", () => {
+    const model = cellModel();
+    model.setSelection({ anchor: { block: 0, inline: 0, offset: 2 }, focus: at(0, 3) });
+    runCommand(model, commands.deleteSelectionCommand, undefined);
+    expect(model.doc.document.body.blocks.map((b) => b.kind)).toEqual(["paragraph", "paragraph"]);
+    expect(texts(model)).toEqual(["be", ""]);
+    expect(model.selection?.focus).toMatchObject({ block: 0, offset: 2 });
+    expect(validate(openDocx(toUint8Array(model.doc)))).toHaveLength(0);
+    model.undo();
     expect(cellTexts(model)).toEqual(["abcdef"]);
-    expect(model.selection).toEqual({ anchor: at(0, 1), focus: at(0, 0, 1) });
-    expect(model.canUndo()).toBe(true); // only the setup commands remain
+  });
+
+  it("deletes the rows and the text a range from the table out of it covers", () => {
+    const model = cellModel();
+    model.setSelection({ anchor: { block: 2 }, focus: { block: 2 } });
+    runCommand(model, commands.insertTextCommand, { text: "after" });
+    model.setSelection({ anchor: at(0, 1), focus: { block: 2, inline: 0, offset: 2 } });
+    runCommand(model, commands.insertTextCommand, { text: "X" });
+    expect(texts(model)).toEqual(["before", "Xter"]);
+    expect(model.selection?.focus).toMatchObject({ block: 1, offset: 1 });
+    expect(validate(openDocx(toUint8Array(model.doc)))).toHaveLength(0);
+  });
+
+  it("Backspace after a table never joins text into it", () => {
+    const model = cellModel();
+    model.setSelection({ anchor: { block: 2 }, focus: { block: 2 } });
+    runCommand(model, commands.insertTextCommand, { text: "after" });
+    model.setSelection({
+      anchor: { block: 2, inline: 0, offset: 0 },
+      focus: { block: 2, inline: 0, offset: 0 },
+    });
+    runCommand(model, commands.mergeBackCommand, undefined);
+    expect(texts(model)).toEqual(["before", "after"]);
+    expect(cellTexts(model)).toEqual(["abcdef"]);
+  });
+
+  it("Backspace in an empty paragraph after a table removes it and enters the last cell", () => {
+    const model = cellModel();
+    model.setSelection({ anchor: { block: 2 }, focus: { block: 2 } });
+    runCommand(model, commands.insertTextCommand, { text: "\nend" });
+    model.setSelection({
+      anchor: { block: 2, inline: 0, offset: 0 },
+      focus: { block: 2, inline: 0, offset: 0 },
+    });
+    runCommand(model, commands.mergeBackCommand, undefined);
+    expect(texts(model)).toEqual(["before", "end"]);
+    expect(model.selection?.focus).toEqual(at(0, 0, 1));
+  });
+
+  it("Backspace in the document's last paragraph after a table only enters the table", () => {
+    const model = cellModel();
+    model.setSelection({
+      anchor: { block: 2, inline: 0, offset: 0 },
+      focus: { block: 2, inline: 0, offset: 0 },
+    });
+    runCommand(model, commands.mergeBackCommand, undefined);
+    expect(model.doc.document.body.blocks.map((b) => b.kind)).toEqual([
+      "paragraph",
+      "table",
+      "paragraph",
+    ]);
+    expect(model.selection?.focus).toEqual(at(0, 0, 1));
   });
 
   it("an IME-style replacement of a range is one undo step", () => {

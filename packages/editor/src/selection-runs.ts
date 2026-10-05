@@ -23,9 +23,11 @@ import { withRunFormatTracking } from "./track-changes.js";
 import {
   type CellCoord,
   type DocPosition,
+  caretAt,
   type OrderedSelection,
   orderSelection,
 } from "./selection.js";
+import { positionAtOffset } from "./char-offset.js";
 
 function paragraphRuns(para: WmlParagraph): WmlRun[] {
   return para.children.filter((c): c is WmlRun => c.kind === "run");
@@ -174,6 +176,104 @@ export function overlappingSelectionRunRefs(model: EditorModel): RunRef[] {
 }
 
 /**
+ * Character formatting at a caret, as in Word: inside a word it formats the
+ * whole word; anywhere else it formats what is typed next, held by an empty
+ * run at the caret (the caret's own run when that is already empty, as after
+ * pressing Bold twice).
+ */
+function applyAtCaret(
+  model: EditorModel,
+  caret: DocPosition,
+  applyFn: (run: WmlRun, para: WmlParagraph) => void,
+): void {
+  const para = paragraphAt(model.doc, caret);
+  if (!para) return;
+  const runs = paragraphRuns(para);
+  const own = runs[caret.inline ?? 0];
+  if (own && runTextLength(own) === 0) {
+    withRunFormatTracking(model, own, () => applyFn(own, para));
+    return;
+  }
+  const at = absoluteChar(runs, caret.inline ?? 0, caret.offset ?? 0);
+  const word = wordAround(paragraphCharText(runs), at);
+  if (word) {
+    for (const run of isolateParagraphRunRange(para, word[0], word[1])) {
+      withRunFormatTracking(model, run, () => applyFn(run, para));
+    }
+    model.setSelection(caretAt(positionAtOffset(para, at, caret)));
+    return;
+  }
+  const pending = insertEmptyRunAt(para, at);
+  if (!pending) {
+    // The caret sits inside a run that cannot be split (a tab or field in
+    // it): format that run, as before there was a pending run.
+    if (own) withRunFormatTracking(model, own, () => applyFn(own, para));
+    return;
+  }
+  withRunFormatTracking(model, pending, () => applyFn(pending, para));
+  const inline = paragraphRuns(para).indexOf(pending);
+  const pos = { ...caret, inline, offset: 0 };
+  model.setSelection({ anchor: pos, focus: pos });
+}
+
+/** A paragraph's run text, one character per unit `runTextLength` counts. */
+function paragraphCharText(runs: WmlRun[]): string {
+  return runs
+    .flatMap((run) =>
+      run.pieces.map((p) => {
+        if (p.kind === "text") return p.value;
+        // Tabs, breaks and hyphens count one character and never join a word.
+        return runTextLength({ kind: "run", pieces: [p], extras: [] }) ? " " : "";
+      }),
+    )
+    .join("");
+}
+
+/** The word the character offset `at` falls strictly inside, if any. */
+function wordAround(text: string, at: number): [number, number] | undefined {
+  for (const seg of new Intl.Segmenter(undefined, { granularity: "word" }).segment(text)) {
+    const start = seg.index;
+    const end = start + seg.segment.length;
+    if (start >= at) return undefined;
+    if (at < end) return seg.isWordLike ? [start, end] : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Split the runs at character `at` and put an empty run there carrying the
+ * formatting of the text before it (after it at the paragraph start), the
+ * formatting typing at that point would take. `undefined` when `at` falls
+ * inside a run that cannot be split.
+ */
+function insertEmptyRunAt(para: WmlParagraph, at: number): WmlRun | undefined {
+  isolateParagraphRunRange(para, 0, at);
+  let cursor = 0;
+  let index = 0;
+  let source: WmlRun | undefined;
+  for (const [i, child] of para.children.entries()) {
+    if (child.kind !== "run") continue;
+    if (cursor === at) {
+      index = i;
+      source ??= child;
+      break;
+    }
+    cursor += runTextLength(child);
+    if (cursor > at) return undefined;
+    index = i + 1;
+    source = child;
+  }
+  const run: WmlRun = {
+    kind: "run",
+    ...(source?.rPr ? { rPr: structuredClone(source.rPr) } : {}),
+    pieces: [],
+    extras: [],
+  };
+  para.children.splice(index, 0, run);
+  return run;
+}
+
+/**
  * Apply `applyFn` to exactly the runs covering the selection, splitting runs at
  * the selection boundaries first so a partial selection formats only the
  * selected characters. Keeps the same text selected afterwards.
@@ -186,11 +286,8 @@ export function applyToSelectionRuns(
   if (!sel) return;
   const { start, end } = orderSelection(sel);
 
-  // Collapsed caret: apply to the whole caret run (there is no range to isolate).
   if (isCollapsed(start, end)) {
-    for (const { run, para } of overlappingSelectionRunRefs(model)) {
-      withRunFormatTracking(model, run, () => applyFn(run, para));
-    }
+    applyAtCaret(model, start, applyFn);
     return;
   }
 

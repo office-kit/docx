@@ -42,6 +42,25 @@ function textBefore(span: Element, node: Node, offset: number): number {
 }
 
 /**
+ * The offset in a text node's data after `chars` visible characters. A
+ * zero-width placeholder there is stepped over: a caret before the one an
+ * empty run renders would type into the previous run instead, since the
+ * browser moves an insertion point at the start of an inline element to the
+ * end of the text before it.
+ */
+function domOffset(data: string, chars: number): number {
+  let seen = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (seen === chars) {
+      while (data[i] === "\u200b") i++;
+      return i;
+    }
+    if (data[i] !== "\u200b") seen++;
+  }
+  return data.length;
+}
+
+/**
  * The DOM point `offset` characters into a run span. The span holds text
  * nodes and tab elements; a point next to a tab is placed in the text beside
  * it, or between the span's children, never inside the (read-only) tab.
@@ -54,7 +73,8 @@ export function runPoint(span: Element, offset: number): { node: Node; offset: n
     if (!node) continue;
     const length = (node.textContent ?? "").replace(/\u200b/g, "").length;
     if (node.nodeType === Node.TEXT_NODE) {
-      if (remaining <= length) return { node, offset: remaining };
+      if (remaining <= length)
+        return { node, offset: domOffset(node.textContent ?? "", remaining) };
     } else if (remaining === 0) {
       return { node: span, offset: i };
     }
