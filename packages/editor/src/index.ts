@@ -33,6 +33,13 @@ export { type SvgSubpath, vmlPathToSvg } from "./vml-path.js";
 export { themeColors } from "./render-smartart.js";
 export { type InkPoint, type RecognizedShape, recognizeInkShape } from "./ink-shape.js";
 export {
+  type OutlineOp,
+  type OutlineRow,
+  applyOutlineOp,
+  outlineToNodes,
+  outlineRows,
+} from "./smartart-outline.js";
+export {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,
   type PageGeometry,

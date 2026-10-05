@@ -77,15 +77,23 @@ export function recognizeInkShape(points: readonly InkPoint[]): RecognizedShape 
   if (!closed) {
     const deviation = Math.max(...points.map((p) => distanceToSegment(p, first, last)));
     if (deviation > STRAIGHT_DEVIATION * size) return undefined;
-    return { ...box, preset: "line", flipH: last[0] < first[0] !== last[1] < first[1], flipV: false };
+    return {
+      ...box,
+      preset: "line",
+      flipH: last[0] < first[0] !== last[1] < first[1],
+      flipV: false,
+    };
   }
 
   const cx = left + width / 2;
   const cy = top + height / 2;
   // Roundness: distance to the centre, normalised by the box's half-axes.
-  const radii = points.map(([x, y]) => Math.hypot((x - cx) / (width / 2 || 1), (y - cy) / (height / 2 || 1)));
+  const radii = points.map(([x, y]) =>
+    Math.hypot((x - cx) / (width / 2 || 1), (y - cy) / (height / 2 || 1)),
+  );
   const mean = radii.reduce((a, b) => a + b, 0) / radii.length;
-  const spread = Math.sqrt(radii.reduce((a, r) => a + (r - mean) ** 2, 0) / radii.length) / (mean || 1);
+  const spread =
+    Math.sqrt(radii.reduce((a, r) => a + (r - mean) ** 2, 0) / radii.length) / (mean || 1);
 
   const corners = simplify(points, SIMPLIFY_EPSILON * size);
   // The closing point duplicates the first corner.
@@ -101,7 +109,8 @@ export function recognizeInkShape(points: readonly InkPoint[]): RecognizedShape 
     case 4: {
       const nearMid = vertices.every(
         ([x, y]) =>
-          Math.abs(x - cx) < MIDPOINT_TOLERANCE * width || Math.abs(y - cy) < MIDPOINT_TOLERANCE * height,
+          Math.abs(x - cx) < MIDPOINT_TOLERANCE * width ||
+          Math.abs(y - cy) < MIDPOINT_TOLERANCE * height,
       );
       return { ...box, preset: nearMid ? "diamond" : "rect" };
     }

@@ -5,6 +5,7 @@
     DocPosition,
     Selection as EditorSelection,
   } from '@office-kit/docx-editor';
+  import ShapeOverlay from './shapes/ShapeOverlay.svelte';
   import {
     renderDocumentHtml,
     positionFromDom,
@@ -438,6 +439,7 @@
     oncompositionend={onCompositionEnd}
   ></div>
 </div>
+<ShapeOverlay {canvas} />
 
 <style>
   .wk-page {
@@ -450,6 +452,9 @@
    * corners of the text area.
    */
   .wk-canvas {
+    /* Floating shapes are positioned against the page and stacked within it. */
+    position: relative;
+    isolation: isolate;
     --mark: 13.5pt;
     --mark-color: #a6a6a6;
     box-sizing: border-box;

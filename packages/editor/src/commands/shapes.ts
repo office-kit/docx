@@ -257,6 +257,17 @@ export const shapeShadowCommand = shapeCommand<{ shadow: ShapeShadow | null }>(
   (_doc, shape, { shadow }) => setShapeShadow(shape, shadow),
 );
 
+/** Shape Styles / WordArt Styles: fill, outline and shadow together, as one undo step. */
+export const shapeStyleCommand = shapeCommand<{
+  fill: ShapeFill;
+  stroke: ShapeStroke | null;
+  shadow: ShapeShadow | null;
+}>("shape.style", "Shape Styles", (doc, shape, { fill, stroke, shadow }) => {
+  setShapeFill(doc, shape, fill);
+  setShapeStroke(shape, stroke);
+  setShapeShadow(shape, shadow);
+});
+
 /** Move, resize, rotate, flip, align or hide (Size group, Align, Rotate, Selection Pane). */
 export const shapeLayoutCommand = shapeCommand<{ layout: Partial<ShapeLayout> }>(
   "shape.layout",
@@ -504,6 +515,7 @@ export const shapeCommands = [
   shapeFillCommand,
   shapeOutlineCommand,
   shapeShadowCommand,
+  shapeStyleCommand,
   shapeLayoutCommand,
   shapeWrapCommand,
   shapeOrderCommand,

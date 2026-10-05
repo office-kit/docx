@@ -8,6 +8,7 @@
 
 import type { EditorSession, SelectedObject } from "../session.svelte";
 import { pictureArrange, pictureObjects } from "./arrange-picture";
+import { shapeArrange, shapeObjects } from "./arrange-shape";
 
 /** Wrap Text menu entries, in Word's order. */
 export type ArrangeWrap =
@@ -40,7 +41,15 @@ export type ArrangeOrder =
   | "sendToBack"
   | "sendBehindText";
 
-export type AlignOp = "left" | "center" | "right" | "top" | "middle" | "bottom" | "distributeH" | "distributeV";
+export type AlignOp =
+  | "left"
+  | "center"
+  | "right"
+  | "top"
+  | "middle"
+  | "bottom"
+  | "distributeH"
+  | "distributeV";
 
 export type RotateOp = "right90" | "left90" | "flipV" | "flipH";
 
@@ -65,6 +74,9 @@ export interface ArrangeOps {
 export const ARRANGE_OPS: Partial<Record<SelectedObject["kind"], ArrangeOps>> = {
   picture: pictureArrange,
   chart: pictureArrange,
+  shape: shapeArrange,
+  textBox: shapeArrange,
+  ink: shapeArrange,
 };
 
 /** A row of the Selection Pane. */
@@ -79,7 +91,10 @@ export interface PaneObject {
 }
 
 /** Sources of Selection Pane rows, one per object family. */
-export const OBJECT_LISTERS: Array<(s: EditorSession) => PaneObject[]> = [pictureObjects];
+export const OBJECT_LISTERS: Array<(s: EditorSession) => PaneObject[]> = [
+  pictureObjects,
+  shapeObjects,
+];
 
 /** The adapter for the selected object, if any. */
 export function arrangeOpsFor(s: EditorSession): ArrangeOps | undefined {

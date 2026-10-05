@@ -6,7 +6,8 @@ function trace(corners: readonly InkPoint[], steps = 10): InkPoint[] {
   const out: InkPoint[] = [];
   corners.forEach((a, i) => {
     const b = corners[(i + 1) % corners.length] ?? a;
-    for (let s = 0; s < steps; s++) out.push([a[0] + ((b[0] - a[0]) * s) / steps, a[1] + ((b[1] - a[1]) * s) / steps]);
+    for (let s = 0; s < steps; s++)
+      out.push([a[0] + ((b[0] - a[0]) * s) / steps, a[1] + ((b[1] - a[1]) * s) / steps]);
   });
   const start = corners[0];
   if (start) out.push(start);
@@ -35,9 +36,35 @@ describe("recognizeInkShape", () => {
   });
 
   it("recognises rectangles, diamonds and triangles", () => {
-    expect(recognizeInkShape(trace([[0, 0], [100, 0], [100, 60], [0, 60]]))?.preset).toBe("rect");
-    expect(recognizeInkShape(trace([[50, 0], [100, 50], [50, 100], [0, 50]]))?.preset).toBe("diamond");
-    expect(recognizeInkShape(trace([[50, 0], [100, 90], [0, 90]]))).toMatchObject({ preset: "triangle", flipV: false });
+    expect(
+      recognizeInkShape(
+        trace([
+          [0, 0],
+          [100, 0],
+          [100, 60],
+          [0, 60],
+        ]),
+      )?.preset,
+    ).toBe("rect");
+    expect(
+      recognizeInkShape(
+        trace([
+          [50, 0],
+          [100, 50],
+          [50, 100],
+          [0, 50],
+        ]),
+      )?.preset,
+    ).toBe("diamond");
+    expect(
+      recognizeInkShape(
+        trace([
+          [50, 0],
+          [100, 90],
+          [0, 90],
+        ]),
+      ),
+    ).toMatchObject({ preset: "triangle", flipV: false });
   });
 
   it("recognises a circle as an ellipse", () => {

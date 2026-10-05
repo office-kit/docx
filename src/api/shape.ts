@@ -1118,7 +1118,9 @@ export function vmlImageData(
   const rel = relationshipById(partRelationships(doc.opc, partName), relId);
   if (!rel || rel.targetMode === "External") return undefined;
   const folder = partName.slice(0, partName.lastIndexOf("/") + 1);
-  const target = rel.target.startsWith("/") ? rel.target : `${folder}${rel.target.replace(/^\.\//, "")}`;
+  const target = rel.target.startsWith("/")
+    ? rel.target
+    : `${folder}${rel.target.replace(/^\.\//, "")}`;
   const part = getPart(doc.opc, target);
   return part ? { bytes: part.data, contentType: part.contentType ?? "" } : undefined;
 }
