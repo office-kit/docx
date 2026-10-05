@@ -62,7 +62,7 @@
 {#if chrome}
   <a class="skip" href="#main">{m.skip}</a>
 
-  <KitHeader product="docx" {links}>
+  <KitHeader product="docx" {links} locale={locale()}>
     <!-- The shell's only slot for site controls; the language switch sits
          beside search there. -->
     {#snippet search()}
@@ -79,7 +79,7 @@
 <CodeCopyEnhancer />
 
 {#if chrome}
-  <KitFooter product="docx" {links} />
+  <KitFooter product="docx" {links} locale={locale()} />
 {/if}
 
 <style>
