@@ -1,19 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { openEditor, editorFor } from '@office-kit/docx-editor';
-  import { newDocument } from '$lib/editor/new-document';
-  import {
-    createDocx,
-    appendHeading,
-    appendParagraph,
-    addTable,
-    toUint8Array,
-    PAGE_SIZE_A4,
-    MARGINS_NORMAL,
-    setPageSize,
-    setPageMargins,
-    ensureHeadingStyles,
-  } from '@office-kit/docx';
+  import { newDocument, sampleDocument } from '$lib/editor/new-document';
+  import { toUint8Array } from '@office-kit/docx';
   import EditorCanvas from '$lib/editor/EditorCanvas.svelte';
   import RibbonIcon from '$lib/editor/RibbonIcon.svelte';
   import StatusBar from '$lib/editor/StatusBar.svelte';
@@ -73,32 +62,12 @@
     // The editor opens in the language last chosen on the docs site.
     const siteLocale = storedLocale();
     if (siteLocale) setLocale(siteLocale);
-    session.load(editorFor(sampleDoc()), t('doc.newName'));
+    session.load(editorFor(sampleDocument(locale())), t('doc.newName'));
     // Dev-only handle so the editor can be driven/inspected from the console
     // (and by the e2e verification). Stripped from production builds.
     if (import.meta.env.DEV) Object.assign(window, { wkEditorModel: () => session.model, wkEditorSession: session });
     return () => window.removeEventListener('resize', measure);
   });
-
-  function sampleDoc() {
-    const doc = createDocx({ paragraphs: [] });
-    setPageSize(doc, PAGE_SIZE_A4);
-    setPageMargins(doc, MARGINS_NORMAL);
-    ensureHeadingStyles(doc);
-    appendHeading(doc, 'Welcome to the word-kit editor', 1);
-    appendParagraph(
-      doc,
-      'This is a Word-like editor. Every edit routes through @office-kit/docx, so what you save is a real .docx. Type here, use the ribbon above, then Save.',
-    );
-    appendHeading(doc, 'Try it', 2);
-    appendParagraph(doc, 'Select text and click Bold, or change alignment and color.');
-    addTable(doc, [
-      ['Feature', 'Status'],
-      ['Text formatting', 'Editable'],
-      ['Tables', 'Editable'],
-    ]);
-    return doc;
-  }
 
   function onGlobalKey(e: KeyboardEvent): void {
     const mod = e.ctrlKey || e.metaKey;
@@ -175,7 +144,7 @@
       <button class="qb" onclick={() => session.undo()} disabled={session.tick < 0 || !session.model?.canUndo()} title={`${t('action.undo')} (⌘Z)`} aria-label={t('action.undo')}><RibbonIcon name="undo" size={18} /></button>
       <button class="qb" onclick={() => session.redo()} disabled={session.tick < 0 || !session.model?.canRedo()} title={`${t('action.redo')} (⌘Y)`} aria-label={t('action.redo')}><RibbonIcon name="redo" size={18} /></button>
     </div>
-    <input class="docname" bind:value={session.fileName} aria-label="File name" spellcheck="false" />
+    <input class="docname" bind:value={session.fileName} aria-label={t('doc.fileName')} spellcheck="false" />
     <label class="search">
       <RibbonIcon name="search" size={16} />
       <input

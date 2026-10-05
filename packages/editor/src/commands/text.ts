@@ -52,6 +52,7 @@ import {
   replaceRange,
   selectionOf,
 } from "../find.js";
+import { isEastAsianFont } from "../east-asian-fonts.js";
 import type { EditorModel } from "../model.js";
 import { createStyleResolver, type ResolvedRunFormat } from "../resolve.js";
 import { caretAt, orderSelection, type Selection } from "../selection.js";
@@ -201,7 +202,8 @@ export const setUnderlineColorCommand: Command<{ color: ColorValue | undefined }
 
 /**
  * Set the Latin font by name, or the theme's body (`minor`) / headings
- * (`major`) font — the "+Body" / "+Headings" entries of the font list.
+ * (`major`) font — the "+Body" / "+Headings" entries of the font list. An
+ * East Asian font is also set for East Asian text, as Word's font box does.
  */
 export const setFontCommand: Command<{ font: string } | { theme: "major" | "minor" }> = {
   id: "text.font",
@@ -209,7 +211,11 @@ export const setFontCommand: Command<{ font: string } | { theme: "major" | "mino
   label: "Font",
   run(model, params) {
     const choice: FontChoice = "theme" in params ? { theme: params.theme } : { name: params.font };
-    editRuns(model, (run) => setRunFont(run, "latin", choice));
+    const eastAsia = "font" in params && isEastAsianFont(params.font);
+    editRuns(model, (run) => {
+      setRunFont(run, "latin", choice);
+      if (eastAsia) setRunFont(run, "eastAsia", choice);
+    });
   },
   isEnabled: hasRuns,
 };

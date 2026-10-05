@@ -121,6 +121,20 @@ describe("Font group", () => {
     expect(xml(m.doc)).toContain('<w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/>');
   });
 
+  it("sets an East Asian font for East Asian text too, and a Latin font for Latin text only", () => {
+    const m = model("日本語");
+    select(m, 0, 0, 3);
+    runCommand(m, setFontCommand, { font: "ＭＳ ゴシック" });
+    expect(xml(m.doc)).toContain(
+      '<w:rFonts w:ascii="ＭＳ ゴシック" w:hAnsi="ＭＳ ゴシック" w:eastAsia="ＭＳ ゴシック"/>',
+    );
+    runCommand(m, setFontCommand, { font: "Arial" });
+    const rFonts = /<w:rFonts [^>]*\/>/.exec(xml(m.doc))?.[0] ?? "";
+    expect(rFonts).toContain('w:ascii="Arial"');
+    expect(rFonts).toContain('w:eastAsia="ＭＳ ゴシック"');
+    expectValid(m.doc);
+  });
+
   it("writes a theme colour with its tint", () => {
     const m = model("Hello");
     select(m, 0, 0, 5);

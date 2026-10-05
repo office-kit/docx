@@ -57,7 +57,7 @@
 </script>
 
 <div class="picker">
-  <select bind:value={source} aria-label="XML source">
+  <select bind:value={source} aria-label={t('xml.sourceLabel')}>
     <option value="">{t('xml.documentSource')}</option>
     {#each parts as part (part)}
       <option value={part}>{part}</option>
@@ -78,7 +78,7 @@
           />
         </label>
       {/each}
-      <button class="add" title="Add child element" onclick={() => addChild(node)}>+</button>
+      <button class="add" title={t('xml.addChild')} aria-label={t('xml.addChild')} onclick={() => addChild(node)}>+</button>
     </div>
     {#each node.children as child (child)}
       {@render nodeRow(child, depth + 1)}
