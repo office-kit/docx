@@ -5,6 +5,8 @@
  */
 
 export * from "./docx.js";
+export * from "./shape.js";
+export * from "./smartart.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,
