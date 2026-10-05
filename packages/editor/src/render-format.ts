@@ -157,7 +157,8 @@ function eastAsianRunCss(fmt: ResolvedRunFormat): string[] {
   if (fmt.fitText) {
     css.push(
       "display:inline-block",
-      `width:${fmt.fitText.width / TWIPS_PER_POINT}pt`,
+      // Along the line, so it also holds in vertical text.
+      `inline-size:${fmt.fitText.width / TWIPS_PER_POINT}pt`,
       "text-align:justify",
       "text-align-last:justify",
       "text-justify:inter-character",

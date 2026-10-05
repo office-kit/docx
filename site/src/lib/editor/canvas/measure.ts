@@ -2,6 +2,9 @@
  * DOM measurement for the paginator. Everything is returned in unzoomed CSS
  * px: the canvas may sit under CSS `zoom`, which scales client rects but not
  * layout sizes, so rect-based numbers are divided by the zoom actually seen.
+ *
+ * "Height" is along the block axis, the way lines follow each other: down the
+ * page, or right to left in vertical text (縦書き, `writing-mode: vertical-rl`).
  */
 
 import type { WmlParagraph } from "@office-kit/docx";
@@ -14,16 +17,43 @@ export function zoomOf(el: HTMLElement): number {
   return layout > 0 && rect > 0 ? rect / layout : 1;
 }
 
-/** Height including vertical margins. */
+function isVertical(el: Element): boolean {
+  return getComputedStyle(el).writingMode.startsWith("vertical");
+}
+
+/** Layout size along the block axis. */
+export function blockSize(el: HTMLElement): number {
+  return isVertical(el) ? el.offsetWidth : el.offsetHeight;
+}
+
+/** Block size including the block-axis margins. */
 export function outerHeight(el: HTMLElement): number {
   const style = getComputedStyle(el);
   return (
-    el.offsetHeight + (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0)
+    blockSize(el) +
+    (parseFloat(style.marginBlockStart) || 0) +
+    (parseFloat(style.marginBlockEnd) || 0)
   );
 }
 
-function marginTop(el: HTMLElement): number {
-  return parseFloat(getComputedStyle(el).marginTop) || 0;
+/**
+ * Where a client rect starts and ends on the block axis, from the start of
+ * the element's margin box, in unzoomed px. Vertical text is `vertical-rl`
+ * (Word's tbRl): its block axis runs right to left.
+ */
+function blockAxis(content: HTMLElement): {
+  start: (r: DOMRect) => number;
+  end: (r: DOMRect) => number;
+} {
+  const zoom = zoomOf(content);
+  const margin = (parseFloat(getComputedStyle(content).marginBlockStart) || 0) * zoom;
+  const box = content.getBoundingClientRect();
+  if (isVertical(content)) {
+    const origin = box.right + margin;
+    return { start: (r) => (origin - r.right) / zoom, end: (r) => (origin - r.left) / zoom };
+  }
+  const origin = box.top - margin;
+  return { start: (r) => (r.top - origin) / zoom, end: (r) => (r.bottom - origin) / zoom };
 }
 
 /**
@@ -41,7 +71,7 @@ export function textRects(el: HTMLElement): DOMRect[] {
   return out;
 }
 
-// Rects whose vertical ranges overlap by more than this are one line.
+// Rects whose block-axis ranges overlap by more than this are one line.
 const SAME_LINE_SLACK = 1;
 
 /**
@@ -50,25 +80,22 @@ const SAME_LINE_SLACK = 1;
  * paragraph's space after travels with its last line.
  */
 export function lineBottoms(content: HTMLElement): number[] {
-  const zoom = zoomOf(content);
-  const rects = textRects(content);
-  if (rects.length === 0) return [outerHeight(content)];
-  rects.sort((a, b) => a.top - b.top);
+  const axis = blockAxis(content);
+  const spans = textRects(content).map((r) => ({ start: axis.start(r), end: axis.end(r) }));
+  if (spans.length === 0) return [outerHeight(content)];
+  spans.sort((a, b) => a.start - b.start);
   const bottoms: number[] = [];
   let lineBottom = Number.NEGATIVE_INFINITY;
-  for (const r of rects) {
-    if (r.top >= lineBottom - SAME_LINE_SLACK) {
+  for (const r of spans) {
+    if (r.start >= lineBottom - SAME_LINE_SLACK) {
       if (Number.isFinite(lineBottom)) bottoms.push(lineBottom);
-      lineBottom = r.bottom;
+      lineBottom = r.end;
     } else {
-      lineBottom = Math.max(lineBottom, r.bottom);
+      lineBottom = Math.max(lineBottom, r.end);
     }
   }
-  bottoms.push(lineBottom);
-  const origin = content.getBoundingClientRect().top - marginTop(content) * zoom;
-  const out = bottoms.map((b) => (b - origin) / zoom);
-  out[out.length - 1] = outerHeight(content);
-  return out;
+  bottoms.push(outerHeight(content));
+  return bottoms;
 }
 
 /** A `w:br w:type="page|column"` inside a paragraph, by run and character. */
@@ -110,8 +137,7 @@ export function breakOffsets(
   breaks: readonly ForcedBreak[],
 ): Array<{ offset: number; kind: "page" | "column" }> {
   if (breaks.length === 0) return [];
-  const zoom = zoomOf(content);
-  const origin = content.getBoundingClientRect().top - marginTop(content) * zoom;
+  const axis = blockAxis(content);
   const out: Array<{ offset: number; kind: "page" | "column" }> = [];
   for (const br of breaks) {
     const span = content.querySelector(`.wk-run[data-wk-inline="${br.inline}"]`);
@@ -122,7 +148,7 @@ export function breakOffsets(
     range.setStart(node, offset);
     range.setEnd(node, offset + 1);
     const rect = range.getBoundingClientRect();
-    out.push({ offset: (rect.bottom - origin) / zoom, kind: br.kind });
+    out.push({ offset: axis.end(rect), kind: br.kind });
   }
   return out;
 }

@@ -47,6 +47,7 @@ export function fontLineHeight(mark: ResolvedRunFormat): { ratio: number; known:
     ? { ratio: Math.max(...ratios), known: true }
     : { ratio: DEFAULT_LINE_HEIGHT, known: false };
 }
+// w:spacing/@w:line in auto mode is in 240ths of a line.
 const AUTO_LINE_UNIT = 240;
 
 /** The grid pitches that apply to a paragraph, in points. */
@@ -108,8 +109,10 @@ export function paragraphMetrics(
  * `undefined` to inherit. Set on every run (and the paragraph, for its mark),
  * so a line is as tall as its tallest text, as in Word:
  *
- * - on a line grid, the font's single line times an auto multiple, rounded up
- *   to whole grid lines (§17.6.5);
+ * - on a line grid, the grid lines the font's single line needs, times the
+ *   auto multiple (§17.6.5). Word scales the grid line itself: with 1.08
+ *   spacing a 10.5 pt line on an 18 pt grid is 19.4 pt, measured in Word for
+ *   Mac 16 in both horizontal and vertical text;
  * - otherwise, auto spacing as a multiple of the font's single line.
  *
  * Exact and at-least spacing is the paragraph's own fixed height.
@@ -124,12 +127,15 @@ export function lineHeightCss(
   const single = fontLineHeight(run);
   const multiple = fmt.line ? fmt.line / AUTO_LINE_UNIT : 1;
   if (pitch.line !== undefined && fmt.toggles.snapToGrid) {
-    const lines = Math.max(1, Math.ceil((size * single.ratio * multiple) / pitch.line));
-    return `line-height:${lines * pitch.line}pt`;
+    const lines = Math.max(1, Math.ceil((size * single.ratio) / pitch.line));
+    return `line-height:${round(lines * pitch.line * multiple)}pt`;
   }
   if (!fmt.line && !single.known) return undefined;
-  return `line-height:${single.ratio * multiple}`;
+  return `line-height:${round(single.ratio * multiple)}`;
 }
+
+// Three decimals: well under a device pixel, and no float noise in the CSS.
+const round = (n: number): number => Math.round(n * 1000) / 1000;
 
 // w:sz when nothing sets it (§17.3.2.38).
 const DEFAULT_SIZE_HALF_POINTS = 20;

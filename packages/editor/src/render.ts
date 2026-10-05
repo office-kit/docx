@@ -232,10 +232,14 @@ function fontCss(fmt: ResolvedRunFormat, complexScript = false): string[] {
   return parts;
 }
 
+const HORIZONTAL_SIDES = { before: "top", after: "bottom", left: "left", right: "right" } as const;
+const VERTICAL_SIDES = { before: "right", after: "left", left: "top", right: "bottom" } as const;
+
 export function paragraphCss(
   fmt: ResolvedParagraphFormat,
   mark: ResolvedRunFormat,
   pitch: GridPitch = {},
+  vertical = false,
 ): string {
   const css = fontCss(mark);
   const fontSize = (mark.sizeHalfPoints ?? DEFAULT_SIZE_HALF_POINTS) / 2;
@@ -246,9 +250,13 @@ export function paragraphCss(
     css.push("text-align-last:justify", "text-justify:inter-character");
   }
   const m = paragraphMetrics(fmt, pitch, fontSize);
-  css.push(`margin-top:${m.before}pt`, `margin-bottom:${m.after}pt`);
-  if (m.left !== undefined) css.push(`margin-left:${m.left}pt`);
-  if (m.right !== undefined) css.push(`margin-right:${m.right}pt`);
+  // In vertical text (tbRl) lines follow each other right to left, so space
+  // before is on the right and the left indent at the top. Physical sides
+  // rather than logical ones: a bidi paragraph's own direction must not flip them.
+  const side = vertical ? VERTICAL_SIDES : HORIZONTAL_SIDES;
+  css.push(`margin-${side.before}:${m.before}pt`, `margin-${side.after}:${m.after}pt`);
+  if (m.left !== undefined) css.push(`margin-${side.left}:${m.left}pt`);
+  if (m.right !== undefined) css.push(`margin-${side.right}:${m.right}pt`);
   if (m.hanging !== undefined) css.push(`text-indent:${-m.hanging}pt`);
   else if (m.firstLine !== undefined) css.push(`text-indent:${m.firstLine}pt`);
   const lineHeight = lineHeightCss(fmt, pitch, mark);
@@ -435,8 +443,8 @@ function renderParagraph(
     labelText === undefined
       ? ""
       : listLabelHtml(labelText, paragraphFmt, runCss(styles.listLabelRun(para, text)));
-  const pitch = gridPitchOf(block);
-  const styleAttr = ` style="${escapeHtml(paragraphCss(paragraphFmt, styles.run(para, undefined, text), pitch))}"`;
+  const { pitch, vertical } = sectionFlowOf(block);
+  const styleAttr = ` style="${escapeHtml(paragraphCss(paragraphFmt, styles.run(para, undefined, text), pitch, vertical))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
@@ -564,24 +572,29 @@ export function renderDocumentHtml(doc: Docx): string {
   drawingContext = createDrawingContext(doc);
   const sections = documentSections(doc);
   const base = baseFontSize(doc);
-  const pitches = sections.map((s) => gridPitch(s.grid, base));
-  const pitchOfBlock: GridPitch[] = [];
-  sections.forEach((s, i) => {
-    for (let b = s.firstBlock; b <= s.lastBlock; b++) pitchOfBlock[b] = pitches[i] ?? {};
-  });
-  gridPitchOf = (block) => pitchOfBlock[block] ?? {};
+  const flowOfBlock: SectionFlow[] = [];
+  for (const s of sections) {
+    const flow = { pitch: gridPitch(s.grid, base), vertical: s.vertical };
+    for (let b = s.firstBlock; b <= s.lastBlock; b++) flowOfBlock[b] = flow;
+  }
+  sectionFlowOf = (block) => flowOfBlock[block] ?? HORIZONTAL;
   try {
     return renderBlocksHtml(doc, doc.document.body.blocks);
   } finally {
     drawingContext = undefined;
-    gridPitchOf = NO_GRID;
+    sectionFlowOf = () => HORIZONTAL;
   }
 }
 
-const NO_GRID = (): GridPitch => ({});
-// The grid of the section a body block is in, for the render in progress.
-// Stories (headers, notes) are rendered on their own and take no grid.
-let gridPitchOf: (block: number) => GridPitch = NO_GRID;
+/** What a block takes from its section: the grid, and the text direction. */
+interface SectionFlow {
+  readonly pitch: GridPitch;
+  readonly vertical: boolean;
+}
+const HORIZONTAL: SectionFlow = { pitch: {}, vertical: false };
+// The section flow of a body block, for the render in progress. Stories
+// (headers, notes) are rendered on their own: no grid, horizontal.
+let sectionFlowOf: (block: number) => SectionFlow = () => HORIZONTAL;
 
 /** The Normal style's font size in points: the size a character grid is built on. */
 function baseFontSize(doc: Docx): number {

@@ -654,6 +654,25 @@ describe("East Asian typography (measured in Japanese Word for Mac 16)", () => {
     expect(runStyleOf(html, 1)).toContain("line-height:54pt");
   });
 
+  it("scales the grid line by the auto multiple, not the font", () => {
+    const doc = japanese(["本文"]);
+    setSectionProperties(doc, { documentGrid: { type: "lines", linePitch: 360 } });
+    setParagraphSpacing(para(doc, 0), { line: 259, lineRule: "auto" });
+    // Word: 19.4 pt, one 18 pt grid line × 1.08, horizontal and vertical alike.
+    expect(runStyleOf(renderDocumentHtml(doc), 0)).toContain("line-height:19.425pt");
+  });
+
+  it("puts space before on the right and the left indent at the top in vertical text", () => {
+    const doc = japanese(["縦書き"]);
+    setSectionProperties(doc, { textDirection: "tbRl" });
+    setParagraphIndent(para(doc, 0), { left: 420 });
+    setParagraphSpacing(para(doc, 0), { before: 240, after: 0 });
+    const css = styleOf(renderDocumentHtml(doc), 0);
+    expect(css).toContain("margin-right:12pt");
+    expect(css).toContain("margin-left:0pt");
+    expect(css).toContain("margin-top:21pt");
+  });
+
   it("uses 游明朝's single line without a grid", () => {
     const doc = japanese(["本文"]);
     setParagraphSpacing(para(doc, 0), { after: 0, line: 240, lineRule: "auto" });
@@ -684,7 +703,7 @@ describe("East Asian typography (measured in Japanese Word for Mac 16)", () => {
     );
     const html = renderDocumentHtml(doc);
     expect(runStyleOf(html, 0)).toContain("text-emphasis:filled dot");
-    expect(runStyleOf(html, 1)).toContain("width:42pt");
+    expect(runStyleOf(html, 1)).toContain("inline-size:42pt");
     expect(runStyleOf(html, 1)).toContain("text-align-last:justify");
     expect(runStyleOf(html, 2)).toContain("transform:scaleX(2)");
     expect(html).toContain('data-wk-scale="200"');
