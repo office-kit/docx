@@ -1,5 +1,8 @@
 <script lang="ts">
   import type { ValidationIssue } from '@office-kit/docx';
+  import RichText from '$lib/components/RichText.svelte';
+  import { localized } from '$lib/i18n';
+  import core from '$lib/i18n/messages/core';
 
   type Props = {
     /** What `validate(doc)` returned. */
@@ -7,15 +10,17 @@
   };
 
   const { issues }: Props = $props();
+
+  const m = $derived(localized(core).validation);
 </script>
 
 {#if issues.length === 0}
-  <p class="clean"><code>validate(doc)</code> found nothing wrong with the package.</p>
+  <p class="clean"><RichText text={m.clean} /></p>
 {:else}
   <ul class="issues">
     {#each issues as issue, i (i)}
       <li class="issue-{issue.level}">
-        <span class="level">{issue.level}</span>
+        <span class="level">{m.level[issue.level]}</span>
         <span class="message">{issue.message}</span>
         {#if issue.partName}<code>{issue.partName}</code>{/if}
       </li>

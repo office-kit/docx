@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { base } from '$app/paths';
+  import RichText from '$lib/components/RichText.svelte';
   import { apiGroups, apiTotalCount } from '$lib/api-groups';
+  import { localized, translate } from '$lib/i18n';
+  import api from '$lib/i18n/messages/api';
 
   // The listing lives in `$lib/api-groups` so `/llms-full.txt` and the
   // `check:api-page` CI gate read the same source as this page.
@@ -8,21 +10,30 @@
   // eslint-disable-next-line prefer-const -- reassigned by `bind:value` in template
   let filter = $state('');
 
-  const SOURCE = 'https://github.com/office-kit/docx/blob/main/src/api/index.ts';
+  const m = $derived(localized(api));
 
+  // Anchors come from the English title so a link to a group works in every locale.
   const slug = (title: string): string =>
     title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
 
+  const groups = $derived(
+    apiGroups.map((g) => ({
+      id: slug(g.title),
+      text: translate({ title: g.title, description: g.description }, g.translations),
+      entries: g.entries,
+    })),
+  );
+
   const visible = $derived.by(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return apiGroups;
-    return apiGroups
+    if (!q) return groups;
+    return groups
       .map((g) => ({
-        title: g.title,
-        description: g.description,
+        id: g.id,
+        text: g.text,
         entries: g.entries.filter((e) => e.name.toLowerCase().includes(q)),
       }))
       .filter((g) => g.entries.length > 0);
@@ -32,61 +43,47 @@
 </script>
 
 <svelte:head>
-  <title>API reference · @office-kit/docx</title>
+  <title>{m.title} · @office-kit/docx</title>
 </svelte:head>
 
 <div class="api frame">
   <aside class="toc" data-pagefind-ignore>
-    <nav aria-label="API groups">
-      <h2>Groups</h2>
+    <nav aria-label={m.groupsLabel}>
+      <h2>{m.groups}</h2>
       <ul>
-        {#each apiGroups as group (group.title)}
-          <li><a href="#{slug(group.title)}">{group.title}</a></li>
+        {#each groups as group (group.id)}
+          <li><a href="#{group.id}">{group.text.title}</a></li>
         {/each}
       </ul>
     </nav>
   </aside>
 
   <div class="content">
-    <h1>API reference</h1>
-    <p class="lede">
-      Every public export of <code>@office-kit/docx</code>, plus the one function of
-      <code>@office-kit/docx-preview</code>: {apiTotalCount} names in {apiGroups.length} groups. The
-      library is functions and constants only, with no classes. Most functions take a
-      <code>Docx</code> as their first argument, and the module has no side effects, so a bundler
-      drops whatever you do not import.
-    </p>
-    <p class="lede">
-      A CI check compares this page with the built package, so it cannot fall behind. For
-      parameter shapes, read the type declarations that ship with the package or
-      <a href={SOURCE} rel="noopener" target="_blank">the source</a>. For code you can paste, see
-      <a href="{base}/docs/getting-started">Getting started</a> and the
-      <a href="{base}/docs/recipes">recipes</a>.
-    </p>
+    <h1>{m.title}</h1>
+    <p class="lede"><RichText text={m.lede(apiTotalCount, apiGroups.length)} /></p>
+    <p class="lede"><RichText text={m.sync} /></p>
 
     <div class="filter" data-pagefind-ignore>
-      <label for="api-filter">Filter by name</label>
+      <label for="api-filter">{m.filter}</label>
       <input
         id="api-filter"
         type="search"
         bind:value={filter}
-        placeholder="Table, replace, Footnote…"
+        placeholder={m.placeholder}
         autocomplete="off"
         spellcheck="false"
       />
       <p aria-live="polite">
         {#if filter.trim()}
-          {visibleCount === 0
-            ? `No export name contains “${filter.trim()}”.`
-            : `${visibleCount} of ${apiTotalCount} exports`}
+          {visibleCount === 0 ? m.noMatch(filter.trim()) : m.count(visibleCount, apiTotalCount)}
         {/if}
       </p>
     </div>
 
-    {#each visible as group (group.title)}
-      <section class="group" id={slug(group.title)}>
-        <h2>{group.title}</h2>
-        <p class="g-desc">{group.description}</p>
+    {#each visible as group (group.id)}
+      <section class="group" id={group.id}>
+        <h2>{group.text.title}</h2>
+        <p class="g-desc">{group.text.description}</p>
         <ul class="exports">
           {#each group.entries as entry (entry.name)}
             <li>

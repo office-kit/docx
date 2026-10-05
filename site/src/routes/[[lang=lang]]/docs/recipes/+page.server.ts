@@ -15,10 +15,9 @@ export const load: PageServerLoad = async () => {
       const ex: Example = examples[key];
       return {
         key,
-        title: ex.title,
-        description: ex.description,
+        text: { title: ex.title, description: ex.description, seeAlso: ex.seeAlso },
+        translations: ex.translations,
         path: ex.path,
-        seeAlso: ex.seeAlso,
         html: await highlight(ex.source, "ts"),
       };
     }),

@@ -2,8 +2,11 @@
   import { onMount } from 'svelte';
   import type { ValidationIssue } from '@office-kit/docx';
   import DocumentPreview from '$lib/components/DocumentPreview.svelte';
+  import RichText from '$lib/components/RichText.svelte';
   import ValidationReport from '$lib/components/ValidationReport.svelte';
   import { downloadDocx } from '$lib/download';
+  import { localized } from '$lib/i18n';
+  import tools from '$lib/i18n/messages/tools';
 
   type Stats = ReturnType<typeof import('@office-kit/docx').statistics>;
 
@@ -11,7 +14,9 @@
     '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const SAMPLE_NAME = 'office-kit-demo.docx';
 
-  let status = $state('Loading the library…');
+  const m = $derived(localized(tools).playground);
+
+  let status = $state(localized(tools).playground.loading);
   let busy = $state(false);
   let dropping = $state(false);
   let fileName = $state('');
@@ -27,7 +32,7 @@
   async function inspect(bytes: Uint8Array, name: string): Promise<void> {
     busy = true;
     fileName = name;
-    status = `Opening ${name}…`;
+    status = m.opening(name);
     try {
       const core = await import('@office-kit/docx');
       const doc = core.openDocx(bytes);
@@ -36,7 +41,11 @@
       docAuthor = core.author(doc);
       issues = core.validate(doc);
       savedBytes = core.toUint8Array(doc);
-      status = `Opened ${name} (${bytes.byteLength.toLocaleString()} bytes) and saved it again (${savedBytes.byteLength.toLocaleString()} bytes). The preview shows the saved copy.`;
+      status = m.opened(
+        name,
+        bytes.byteLength.toLocaleString(),
+        savedBytes.byteLength.toLocaleString(),
+      );
     } catch (err) {
       fail(err);
     } finally {
@@ -48,7 +57,7 @@
     stats = null;
     issues = [];
     savedBytes = null;
-    status = `This file could not be opened: ${err instanceof Error ? err.message : String(err)}`;
+    status = m.failed(err instanceof Error ? err.message : String(err));
   }
 
   // Gives a visitor with no .docx at hand something real to inspect: the
@@ -79,15 +88,15 @@
   const cells = $derived(
     stats
       ? [
-          { label: 'Paragraphs', value: stats.paragraphs },
-          { label: 'Headings', value: stats.headings },
-          { label: 'Tables', value: stats.tables },
-          { label: 'Images', value: stats.images },
-          { label: 'Words', value: stats.words.toLocaleString() },
-          { label: 'Comments', value: stats.comments },
-          { label: 'Footnotes and endnotes', value: stats.footnotes + stats.endnotes },
-          { label: 'Title', value: docTitle || 'Not set' },
-          { label: 'Author', value: docAuthor || 'Not set' },
+          { label: m.stats.paragraphs, value: stats.paragraphs },
+          { label: m.stats.headings, value: stats.headings },
+          { label: m.stats.tables, value: stats.tables },
+          { label: m.stats.images, value: stats.images },
+          { label: m.stats.words, value: stats.words.toLocaleString() },
+          { label: m.stats.comments, value: stats.comments },
+          { label: m.stats.notes, value: stats.footnotes + stats.endnotes },
+          { label: m.stats.title, value: docTitle || m.stats.notSet },
+          { label: m.stats.author, value: docAuthor || m.stats.notSet },
         ]
       : [],
   );
@@ -96,22 +105,18 @@
 </script>
 
 <svelte:head>
-  <title>Playground · @office-kit/docx</title>
+  <title>{m.title} · @office-kit/docx</title>
 </svelte:head>
 
 <section class="content">
-  <h1>Open a .docx in your browser</h1>
-  <p class="lede">
-    Drop a file and this page opens it with <code>@office-kit/docx</code>, counts what is inside,
-    validates the package, saves it again, and renders the saved copy with
-    <code>@office-kit/docx-preview</code>. Nothing is uploaded: the whole pipeline runs in this tab.
-  </p>
+  <h1>{m.heading}</h1>
+  <p class="lede"><RichText text={m.lede} /></p>
 
   <div
     class="drop"
     class:dropping
     role="group"
-    aria-label="Choose a .docx file"
+    aria-label={m.chooseLabel}
     ondragover={(e) => {
       e.preventDefault();
       dropping = true;
@@ -119,7 +124,7 @@
     ondragleave={() => (dropping = false)}
     ondrop={onDrop}
   >
-    <p class="drop-text">{fileName || 'Drop a .docx file here'}</p>
+    <p class="drop-text">{fileName || m.dropHere}</p>
     <div class="drop-actions">
       <label class="btn primary drop-pick">
         <input
@@ -130,22 +135,18 @@
             if (file) void onFileChosen(file);
           }}
         />
-        Choose a file
+        {m.choose}
       </label>
       <button type="button" class="btn" onclick={loadSample} disabled={busy}>
-        Load the sample document
+        {m.sample}
       </button>
       {#if savedBytes}
-        <button type="button" class="btn" onclick={downloadSaved}>Download the re-saved file</button>
+        <button type="button" class="btn" onclick={downloadSaved}>{m.downloadSaved}</button>
       {/if}
     </div>
   </div>
 
-  <p class="caveat">
-    The preview is drawn by the open-source docx-preview renderer, which approximates Word’s layout:
-    pagination, fonts, and floating objects can differ. Word and LibreOffice remain the exact
-    renderers.
-  </p>
+  <p class="caveat">{m.caveat}</p>
 
   <p class="status" class:busy aria-live="polite">{status}</p>
 
@@ -163,11 +164,11 @@
   {/if}
 
   {#if stats}
-    <h2>Validation</h2>
+    <h2>{m.validation}</h2>
     <ValidationReport {issues} />
   {/if}
 
-  <h2>Preview</h2>
+  <h2>{m.preview}</h2>
   <div class="preview-frame">
     <DocumentPreview bytes={savedBytes} maxHeight="80vh" onerror={fail} />
   </div>
@@ -186,7 +187,7 @@
     font-size: 1.08rem;
   }
 
-  .lede code {
+  .lede :global(code) {
     white-space: nowrap;
   }
 
