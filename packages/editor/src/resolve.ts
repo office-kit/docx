@@ -29,23 +29,129 @@ import {
   type XmlElement,
   xmlPartNames,
 } from "@office-kit/docx";
+import { createNumberingResolver } from "./list-numbering.js";
+import { resolveThemeColor, type ThemePalette, themePalette, themeRoot } from "./theme-color.js";
+
+/** A border line as resolved for display. */
+export interface ResolvedBorder {
+  /** ST_Border, e.g. `single`; `none` / `nil` draw nothing. */
+  readonly style: string;
+  /** Eighths of a point. */
+  readonly size: number;
+  /** Points between the border and the text. */
+  readonly space: number;
+  /** Hex RGB (theme colour applied) or `auto`. */
+  readonly color: string;
+}
+
+/** Shading as resolved for display. */
+export interface ResolvedShading {
+  /** ST_Shd pattern. */
+  readonly pattern: string;
+  /** Hex RGB (theme colour applied) or `auto`. */
+  readonly fill: string;
+  /** Pattern colour, hex RGB or `auto`. */
+  readonly color: string;
+}
+
+/** On-off run properties beyond bold / italic / strike, by their element name. */
+export type RunToggle =
+  | "caps"
+  | "smallCaps"
+  | "dstrike"
+  | "outline"
+  | "shadow"
+  | "emboss"
+  | "imprint"
+  | "vanish";
+
+const RUN_TOGGLES: ReadonlySet<string> = new Set<RunToggle>([
+  "caps",
+  "smallCaps",
+  "dstrike",
+  "outline",
+  "shadow",
+  "emboss",
+  "imprint",
+  "vanish",
+]);
 
 export interface ResolvedRunFormat {
   /** Font name for Latin text, theme fonts already looked up. */
   readonly font?: string | undefined;
   /** Set when the font comes from the theme, as Word labels it "(Body)" / "(Headings)". */
   readonly fontRole?: "body" | "headings" | undefined;
+  /** Font for East Asian text (`w:eastAsia` / `w:eastAsiaTheme`). */
+  readonly eastAsiaFont?: string | undefined;
   readonly sizeHalfPoints?: number | undefined;
   readonly bold: boolean;
   readonly italic: boolean;
   readonly strike: boolean;
+  /** The other on-off effects that are on. */
+  readonly toggles: ReadonlySet<RunToggle>;
   /** `w:u/@w:val`; `"none"` and absent both mean no underline. */
   readonly underline?: string | undefined;
-  /** Hex RGB or `"auto"`. */
+  /** Underline colour, hex RGB (theme colour applied). */
+  readonly underlineColor?: string | undefined;
+  /** Hex RGB (theme colour applied) or `"auto"`. */
   readonly color?: string | undefined;
+  /** `w:color/@w:themeColor`, when the colour comes from the theme. */
+  readonly themeColor?: string | undefined;
   readonly highlight?: string | undefined;
   readonly vertAlign?: string | undefined;
+  /** Character spacing in twips (`w:spacing`), negative = condensed. */
+  readonly spacing?: number | undefined;
+  /** Raised (+) / lowered (−) position in half-points (`w:position`). */
+  readonly position?: number | undefined;
+  /** Horizontal scale in percent (`w:w`). */
+  readonly scale?: number | undefined;
+  /** Kerning threshold in half-points (`w:kern`). */
+  readonly kern?: number | undefined;
+  readonly shading?: ResolvedShading | undefined;
+  readonly border?: ResolvedBorder | undefined;
+  /** The run's character style id. */
+  readonly characterStyle?: string | undefined;
 }
+
+/** On-off paragraph properties the Paragraph dialog shows, by element name. */
+export type ParagraphToggle =
+  | "keepNext"
+  | "keepLines"
+  | "pageBreakBefore"
+  | "widowControl"
+  | "suppressLineNumbers"
+  | "suppressAutoHyphens"
+  | "contextualSpacing"
+  | "mirrorIndents"
+  | "kinsoku"
+  | "wordWrap"
+  | "overflowPunct"
+  | "topLinePunct"
+  | "autoSpaceDE"
+  | "autoSpaceDN"
+  | "bidi";
+
+// Their values when nothing in the hierarchy sets them (§17.3.1): the East
+// Asian line-breaking rules are on unless turned off; everything else is off.
+const PARAGRAPH_TOGGLE_DEFAULTS: Readonly<Record<ParagraphToggle, boolean>> = {
+  keepNext: false,
+  keepLines: false,
+  pageBreakBefore: false,
+  widowControl: false,
+  suppressLineNumbers: false,
+  suppressAutoHyphens: false,
+  contextualSpacing: false,
+  mirrorIndents: false,
+  kinsoku: true,
+  wordWrap: true,
+  overflowPunct: true,
+  topLinePunct: false,
+  autoSpaceDE: true,
+  autoSpaceDN: true,
+  bidi: false,
+};
+
+export type ParagraphBorderSide = "top" | "left" | "bottom" | "right" | "between" | "bar";
 
 export interface ResolvedParagraphFormat {
   /** `w:jc/@w:val`. */
@@ -60,21 +166,34 @@ export interface ResolvedParagraphFormat {
   /** 240ths of a line when `lineRule` is `auto`, twips otherwise. */
   readonly line?: number | undefined;
   readonly lineRule?: string | undefined;
+  /** 0–8 for the outline (Navigation pane) levels; 9 or absent is body text. */
+  readonly outlineLevel?: number | undefined;
+  readonly textAlignment?: string | undefined;
+  readonly toggles: Readonly<Record<ParagraphToggle, boolean>>;
+  readonly shading?: ResolvedShading | undefined;
+  readonly borders: Readonly<Partial<Record<ParagraphBorderSide, ResolvedBorder>>>;
+  /** The list the paragraph belongs to, directly or through its style. */
+  readonly numbering?: { readonly numId: number; readonly ilvl: number } | undefined;
 }
 
 export interface StyleResolver {
   paragraph(para: WmlParagraph): ResolvedParagraphFormat;
   /** A run's formatting; without a run, the paragraph mark's (for empty paragraphs). */
   run(para: WmlParagraph, run?: WmlRun): ResolvedRunFormat;
+  /** A paragraph or character style's own formatting, for gallery previews. */
+  style(styleId: string): { paragraph: ResolvedParagraphFormat; run: ResolvedRunFormat };
+  /** The document's theme colours (or Word's default theme). */
+  readonly palette: ThemePalette;
+  /** The theme's headings / body Latin fonts, if the document has a theme. */
+  readonly themeFonts: ThemeFonts;
 }
 
 // ST_OnOff false values (§17.17.4); a bare `<w:b/>` means on.
 const OFF_VALUES: ReadonlySet<string> = new Set(["0", "false", "off"]);
-const THEME_PART_DIR = "/word/theme/";
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
-interface ThemeFonts {
+export interface ThemeFonts {
   readonly major?: string | undefined;
   readonly minor?: string | undefined;
 }
@@ -95,12 +214,8 @@ function onOff(el: XmlElement): boolean {
 }
 
 /** `<a:latin typeface>` of the theme's major / minor font, if there is a theme. */
-function readThemeFonts(doc: Docx): ThemeFonts {
-  // The document part has exactly one theme relationship (§14.2.7); Word
-  // always stores it under /word/theme/.
-  const name = xmlPartNames(doc).find((n) => n.startsWith(THEME_PART_DIR));
-  const root = name ? getRawPartRoot(doc, name) : undefined;
-  const scheme = child(child(root, "themeElements"), "fontScheme");
+export function readThemeFonts(doc: Docx): ThemeFonts {
+  const scheme = child(child(themeRoot(doc), "themeElements"), "fontScheme");
   const latin = (which: string): string | undefined => {
     const typeface = child(child(scheme, which), "latin");
     return typeface && getElementAttr(typeface, "typeface");
@@ -108,14 +223,94 @@ function readThemeFonts(doc: Docx): ThemeFonts {
   return { major: latin("majorFont"), minor: latin("minorFont") };
 }
 
+interface Context {
+  readonly theme: ThemeFonts;
+  readonly palette: ThemePalette;
+}
+
+/** A colour attribute set (`val`/`color` + theme attributes) as display RGB. */
+function colorOf(el: XmlElement, valName: string, ctx: Context): string | undefined {
+  return resolveThemeColor(
+    ctx.palette,
+    getElementAttr(el, valName),
+    getElementAttr(el, "themeColor"),
+    getElementAttr(el, "themeTint"),
+    getElementAttr(el, "themeShade"),
+  );
+}
+
+function borderOf(el: XmlElement, ctx: Context): ResolvedBorder {
+  return {
+    style: getElementAttr(el, "val") ?? "none",
+    size: intAttr(el, "sz") ?? 0,
+    space: intAttr(el, "space") ?? 0,
+    color: colorOf(el, "color", ctx) ?? "auto",
+  };
+}
+
+function shadingOf(el: XmlElement, ctx: Context): ResolvedShading {
+  return {
+    pattern: getElementAttr(el, "val") ?? "clear",
+    fill:
+      resolveThemeColor(
+        ctx.palette,
+        getElementAttr(el, "fill"),
+        getElementAttr(el, "themeFill"),
+        getElementAttr(el, "themeFillTint"),
+        getElementAttr(el, "themeFillShade"),
+      ) ?? "auto",
+    color: colorOf(el, "color", ctx) ?? "auto",
+  };
+}
+
+/** A theme font reference (`minorHAnsi`, `majorEastAsia` …) looked up in the theme. */
+function themeFont(
+  ref: string,
+  theme: ThemeFonts,
+): { font: string | undefined; role: "body" | "headings" } {
+  const major = ref.startsWith("major");
+  return { font: major ? theme.major : theme.minor, role: major ? "headings" : "body" };
+}
+
+function applyFonts(out: Mutable<ResolvedRunFormat>, el: XmlElement, theme: ThemeFonts): void {
+  // A theme attribute overrides the named font on the same element (§17.3.2.26).
+  const asciiTheme = getElementAttr(el, "asciiTheme");
+  const ascii = getElementAttr(el, "ascii");
+  if (asciiTheme !== undefined) {
+    const { font, role } = themeFont(asciiTheme, theme);
+    if (font !== undefined) {
+      out.font = font;
+      out.fontRole = role;
+    }
+  } else if (ascii !== undefined) {
+    out.font = ascii;
+    out.fontRole = undefined;
+  }
+  const eastAsiaTheme = getElementAttr(el, "eastAsiaTheme");
+  const eastAsia = getElementAttr(el, "eastAsia");
+  if (eastAsiaTheme !== undefined) {
+    const { font } = themeFont(eastAsiaTheme, theme);
+    if (font !== undefined) out.eastAsiaFont = font;
+  } else if (eastAsia !== undefined) {
+    out.eastAsiaFont = eastAsia;
+  }
+}
+
 function applyRPr(
   out: Mutable<ResolvedRunFormat>,
   rPr: XmlElement | undefined,
-  theme: ThemeFonts,
+  ctx: Context,
 ): void {
   if (!rPr) return;
+  const toggles = out.toggles as Set<RunToggle>;
   for (const el of childElementsOf(rPr)) {
-    switch (el.name.local) {
+    const local = el.name.local;
+    if (RUN_TOGGLES.has(local)) {
+      if (onOff(el)) toggles.add(local as RunToggle);
+      else toggles.delete(local as RunToggle);
+      continue;
+    }
+    switch (local) {
       case "b":
         out.bold = onOff(el);
         break;
@@ -127,9 +322,12 @@ function applyRPr(
         break;
       case "u":
         out.underline = getElementAttr(el, "val");
+        out.underlineColor =
+          getElementAttr(el, "color") === undefined ? undefined : colorOf(el, "color", ctx);
         break;
       case "color":
-        out.color = getElementAttr(el, "val");
+        out.color = colorOf(el, "val", ctx);
+        out.themeColor = getElementAttr(el, "themeColor");
         break;
       case "highlight":
         out.highlight = getElementAttr(el, "val");
@@ -143,20 +341,123 @@ function applyRPr(
         if (size !== undefined) out.sizeHalfPoints = size;
         break;
       }
-      case "rFonts": {
-        // An explicit font wins over a theme font on the same element (§17.3.2.26).
-        const ascii = getElementAttr(el, "ascii");
-        const themeRef = getElementAttr(el, "asciiTheme");
-        if (ascii !== undefined) {
-          out.font = ascii;
-          out.fontRole = undefined;
-        } else if (themeRef !== undefined) {
-          const major = themeRef.startsWith("major");
-          const font = major ? theme.major : theme.minor;
-          if (font !== undefined) {
-            out.font = font;
-            out.fontRole = major ? "headings" : "body";
-          }
+      case "spacing":
+        out.spacing = intAttr(el, "val");
+        break;
+      case "position":
+        out.position = intAttr(el, "val");
+        break;
+      case "w":
+        out.scale = intAttr(el, "val");
+        break;
+      case "kern":
+        out.kern = intAttr(el, "val");
+        break;
+      case "shd":
+        out.shading = shadingOf(el, ctx);
+        break;
+      case "bdr":
+        out.border = borderOf(el, ctx);
+        break;
+      case "rFonts":
+        applyFonts(out, el, ctx.theme);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+const PARAGRAPH_TOGGLE_NAMES: ReadonlySet<string> = new Set(Object.keys(PARAGRAPH_TOGGLE_DEFAULTS));
+const PARAGRAPH_BORDER_SIDES: ReadonlySet<string> = new Set([
+  "top",
+  "left",
+  "bottom",
+  "right",
+  "between",
+  "bar",
+]);
+// `w:outlineLvl` 9 means body text (§17.3.1.20).
+const BODY_TEXT_LEVEL = 9;
+
+function applyPPr(
+  out: Mutable<ResolvedParagraphFormat>,
+  pPr: XmlElement | undefined,
+  ctx: Context,
+): void {
+  if (!pPr) return;
+  const toggles = out.toggles as Record<ParagraphToggle, boolean>;
+  for (const el of childElementsOf(pPr)) {
+    const local = el.name.local;
+    if (PARAGRAPH_TOGGLE_NAMES.has(local)) {
+      toggles[local as ParagraphToggle] = onOff(el);
+      continue;
+    }
+    switch (local) {
+      case "jc":
+        out.alignment = getElementAttr(el, "val");
+        break;
+      case "textAlignment":
+        out.textAlignment = getElementAttr(el, "val");
+        break;
+      case "outlineLvl": {
+        const level = intAttr(el, "val");
+        out.outlineLevel = level === BODY_TEXT_LEVEL ? undefined : level;
+        break;
+      }
+      case "shd":
+        out.shading = shadingOf(el, ctx);
+        break;
+      case "pBdr": {
+        // A pBdr replaces the inherited box as a whole.
+        const borders: Partial<Record<ParagraphBorderSide, ResolvedBorder>> = {};
+        for (const side of childElementsOf(el)) {
+          if (PARAGRAPH_BORDER_SIDES.has(side.name.local))
+            borders[side.name.local as ParagraphBorderSide] = borderOf(side, ctx);
+        }
+        out.borders = borders;
+        break;
+      }
+      case "numPr": {
+        const numId = child(el, "numId");
+        const ilvl = child(el, "ilvl");
+        const id = numId && intAttr(numId, "val");
+        if (id !== undefined) {
+          // numId 0 removes the numbering a style would apply (§17.9.18).
+          out.numbering =
+            id === 0 ? undefined : { numId: id, ilvl: (ilvl && intAttr(ilvl, "val")) ?? 0 };
+        } else if (out.numbering && ilvl) {
+          out.numbering = { ...out.numbering, ilvl: intAttr(ilvl, "val") ?? 0 };
+        }
+        break;
+      }
+      case "ind": {
+        // Each attribute of <w:ind> inherits on its own: a style that sets
+        // only `left` keeps the `hanging` from below it. `start` / `end` are
+        // the bidi-aware names for `left` / `right` (§17.3.1.12).
+        const left = intAttr(el, "left") ?? intAttr(el, "start");
+        const right = intAttr(el, "right") ?? intAttr(el, "end");
+        const firstLine = intAttr(el, "firstLine");
+        const hanging = intAttr(el, "hanging");
+        if (left !== undefined) out.left = left;
+        if (right !== undefined) out.right = right;
+        // firstLine and hanging exclude each other; the later level replaces both.
+        if (firstLine !== undefined || hanging !== undefined) {
+          out.firstLine = firstLine;
+          out.hanging = hanging;
+        }
+        break;
+      }
+      case "spacing": {
+        const before = intAttr(el, "before");
+        const after = intAttr(el, "after");
+        const line = intAttr(el, "line");
+        if (before !== undefined) out.before = before;
+        if (after !== undefined) out.after = after;
+        if (line !== undefined) {
+          out.line = line;
+          // A missing lineRule means auto (§17.3.1.33).
+          out.lineRule = getElementAttr(el, "lineRule") ?? "auto";
         }
         break;
       }
@@ -166,40 +467,12 @@ function applyRPr(
   }
 }
 
-function applyPPr(out: Mutable<ResolvedParagraphFormat>, pPr: XmlElement | undefined): void {
-  if (!pPr) return;
-  const jc = child(pPr, "jc");
-  if (jc) out.alignment = getElementAttr(jc, "val");
-  // Each attribute of <w:ind> / <w:spacing> inherits on its own: a style that
-  // sets only `after` keeps the `line` from below it.
-  const ind = child(pPr, "ind");
-  if (ind) {
-    // `start` / `end` are the bidi-aware names for `left` / `right` (§17.3.1.12).
-    const left = intAttr(ind, "left") ?? intAttr(ind, "start");
-    const right = intAttr(ind, "right") ?? intAttr(ind, "end");
-    const firstLine = intAttr(ind, "firstLine");
-    const hanging = intAttr(ind, "hanging");
-    if (left !== undefined) out.left = left;
-    if (right !== undefined) out.right = right;
-    // firstLine and hanging exclude each other; the later level replaces both.
-    if (firstLine !== undefined || hanging !== undefined) {
-      out.firstLine = firstLine;
-      out.hanging = hanging;
-    }
-  }
-  const spacing = child(pPr, "spacing");
-  if (spacing) {
-    const before = intAttr(spacing, "before");
-    const after = intAttr(spacing, "after");
-    const line = intAttr(spacing, "line");
-    if (before !== undefined) out.before = before;
-    if (after !== undefined) out.after = after;
-    if (line !== undefined) {
-      out.line = line;
-      // A missing lineRule means auto (§17.3.1.33).
-      out.lineRule = getElementAttr(spacing, "lineRule") ?? "auto";
-    }
-  }
+function emptyRun(): Mutable<ResolvedRunFormat> {
+  return { bold: false, italic: false, strike: false, toggles: new Set() };
+}
+
+function emptyParagraph(): Mutable<ResolvedParagraphFormat> {
+  return { toggles: { ...PARAGRAPH_TOGGLE_DEFAULTS }, borders: {} };
 }
 
 /**
@@ -221,7 +494,7 @@ export function createStyleResolver(doc: Docx): StyleResolver {
   const defaults = part?.docDefaults;
   const defaultRPr = child(child(defaults, "rPrDefault"), "rPr");
   const defaultPPr = child(child(defaults, "pPrDefault"), "pPr");
-  const theme = readThemeFonts(doc);
+  const ctx: Context = { theme: readThemeFonts(doc), palette: themePalette(doc) };
 
   /** The style and its `basedOn` ancestors, weakest (root) first. */
   const chain = (id: string | undefined): XmlElement[] => {
@@ -241,29 +514,62 @@ export function createStyleResolver(doc: Docx): StyleResolver {
   };
 
   // A pStyle that names a missing style falls back to the default style, as in Word.
-  const paragraphChain = (para: WmlParagraph): XmlElement[] => {
-    const id = getParagraphStyle(para);
-    return id !== undefined && byId.has(id) ? chain(id) : chain(defaultParagraphStyle);
+  const paragraphChain = (id: string | undefined): XmlElement[] =>
+    id !== undefined && byId.has(id) ? chain(id) : chain(defaultParagraphStyle);
+
+  const levels = createNumberingResolver(doc);
+  const layer = (
+    styleId: string | undefined,
+    pPr: XmlElement | undefined,
+    listPPr: XmlElement | undefined,
+  ) => {
+    const out = emptyParagraph();
+    applyPPr(out, defaultPPr, ctx);
+    for (const style of paragraphChain(styleId)) applyPPr(out, child(style, "pPr"), ctx);
+    applyPPr(out, listPPr, ctx);
+    applyPPr(out, pPr, ctx);
+    return out;
+  };
+  // A list level's indents apply between the style and the paragraph's own
+  // formatting (§17.9.23), so a list item without direct indents is indented
+  // by its level.
+  const paragraphOf = (styleId: string | undefined, pPr: XmlElement | undefined) => {
+    const base = layer(styleId, pPr, undefined);
+    const list = base.numbering && levels.level(base.numbering.numId, base.numbering.ilvl);
+    const listPPr = list && child(list.lvl, "pPr");
+    return listPPr ? layer(styleId, pPr, listPPr) : base;
   };
 
   return {
+    palette: ctx.palette,
+    themeFonts: ctx.theme,
     paragraph(para) {
-      const out: Mutable<ResolvedParagraphFormat> = {};
-      applyPPr(out, defaultPPr);
-      for (const style of paragraphChain(para)) applyPPr(out, child(style, "pPr"));
-      applyPPr(out, para.pPr);
-      return out;
+      return paragraphOf(getParagraphStyle(para), para.pPr);
     },
     run(para, run) {
-      const out: Mutable<ResolvedRunFormat> = { bold: false, italic: false, strike: false };
-      applyRPr(out, defaultRPr, theme);
-      for (const style of paragraphChain(para)) applyRPr(out, child(style, "rPr"), theme);
+      const out = emptyRun();
+      applyRPr(out, defaultRPr, ctx);
+      for (const style of paragraphChain(getParagraphStyle(para)))
+        applyRPr(out, child(style, "rPr"), ctx);
       if (run) {
-        for (const style of chain(getRunProp(run, "rStyle").val))
-          applyRPr(out, child(style, "rPr"), theme);
-        applyRPr(out, run.rPr, theme);
+        const characterStyle = getRunProp(run, "rStyle").val;
+        for (const style of chain(characterStyle)) applyRPr(out, child(style, "rPr"), ctx);
+        applyRPr(out, run.rPr, ctx);
+        out.characterStyle = characterStyle;
       }
       return out;
+    },
+    style(styleId) {
+      const style = byId.get(styleId);
+      const isCharacter = style !== undefined && getElementAttr(style, "type") === "character";
+      const paragraph = paragraphOf(isCharacter ? undefined : styleId, undefined);
+      const run = emptyRun();
+      applyRPr(run, defaultRPr, ctx);
+      const runChain = isCharacter
+        ? [...paragraphChain(undefined), ...chain(styleId)]
+        : paragraphChain(styleId);
+      for (const s of runChain) applyRPr(run, child(s, "rPr"), ctx);
+      return { paragraph, run };
     },
   };
 }
