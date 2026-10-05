@@ -100,6 +100,8 @@ export class EditorSession {
   pageOfParagraph: ((paragraph: WmlParagraph) => number) | undefined = undefined;
   // Where the caret was in the body before a header/footer was opened.
   private bodySelection: Selection | null = null;
+  /** Toggle Field Codes: show `{ CODE }` instead of field results on the canvas. */
+  showFieldCodes = $state(false);
   wordCount = $state(0);
   charCount = $state(0);
 

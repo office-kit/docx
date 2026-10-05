@@ -13,7 +13,7 @@ import type { CellCoord, DocPosition, Selection } from "./selection.js";
  */
 export const STORY_ATTR = "data-wk-story";
 
-function parseCell(value: string | null): CellCoord | undefined {
+export function parseCell(value: string | null): CellCoord | undefined {
   if (!value) return undefined;
   const [r, c] = value.split(",").map((n) => Number.parseInt(n, 10));
   if (r === undefined || c === undefined || Number.isNaN(r) || Number.isNaN(c)) return undefined;

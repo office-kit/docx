@@ -8,6 +8,7 @@ export * from "./docx.js";
 export * from "./story.js";
 export * from "./layout.js";
 export * from "./design.js";
+export * from "./insert.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,

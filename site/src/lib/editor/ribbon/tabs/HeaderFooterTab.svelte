@@ -7,8 +7,10 @@
    */
   import { commands, documentSections } from '@office-kit/docx-editor';
   import Button from '../Button.svelte';
-  import SplitButton from '../SplitButton.svelte';
   import Group from '../Group.svelte';
+  import HeaderButton from '../../insert/HeaderButton.svelte';
+  import FooterButton from '../../insert/FooterButton.svelte';
+  import PageNumberButton from '../../insert/PageNumberButton.svelte';
   import { getSession, type HeaderFooterTarget } from '../../session.svelte';
   import { locale, t } from '../../i18n/index.svelte';
 
@@ -59,21 +61,9 @@
 </script>
 
 <Group label={t('group.headerFooter')}>
-  <SplitButton id="hf.header" size="large" icon="header" tip={t('hf.header')}>
-    {#snippet menu()}
-      <button class="mi" onclick={() => goTo('header')}>{t('hf.goToHeader')}</button>
-    {/snippet}
-  </SplitButton>
-  <SplitButton id="hf.footer" size="large" icon="footer" tip={t('hf.footer')}>
-    {#snippet menu()}
-      <button class="mi" onclick={() => goTo('footer')}>{t('hf.goToFooter')}</button>
-    {/snippet}
-  </SplitButton>
-  <SplitButton id="hf.pageNumber" size="large" icon="pageNumber" tip={t('hf.pageNumber')}>
-    {#snippet menu()}
-      <button class="mi" onclick={() => session.apply(commands.addPageNumberFooterCommand, {})}>{t('hf.pageNumber')}</button>
-    {/snippet}
-  </SplitButton>
+  <HeaderButton />
+  <FooterButton />
+  <PageNumberButton />
 </Group>
 <Group label={t('hf.goToHeader')}>
   <Button size="large" icon="goToHeader" tip={t('hf.goToHeader')} disabled={target.kind === 'header'} onclick={() => goTo('header')} />

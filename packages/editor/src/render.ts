@@ -21,7 +21,16 @@ import {
   type XmlElement,
 } from "@office-kit/docx";
 import { highlightCss } from "./highlight.js";
-import { fieldAttrs, fieldResultRuns, fieldType, simpleFieldInstruction } from "./render-fields.js";
+import {
+  fieldAttrs,
+  fieldResultRuns,
+  fieldRunRoles,
+  fieldType,
+  renderFieldStructureRun,
+  renderSymbolRun,
+  simpleFieldInstruction,
+} from "./render-fields.js";
+import { isMathElement, renderMath } from "./render-math.js";
 import { noteMarksHtml, ownNoteMarkHtml } from "./render-notes.js";
 import {
   type BorderSpec,
@@ -198,6 +207,7 @@ function renderRun(
   inline: number,
   cell?: CellAnchor,
   extraAttrs = "",
+  extraClass = "",
 ): string {
   const text = runText(run);
   const attrs = [
@@ -211,7 +221,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `${ownNoteMarkHtml(run)}<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>${noteMarksHtml(run)}`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}" ${attrs}>${escapeHtml(text) || "​"}</span>${noteMarksHtml(run)}`;
 }
 
 /**
@@ -259,17 +269,34 @@ function renderParagraph(
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
   const fields = fieldResultRuns(para);
+  // Fields, symbols and equations (Insert tab): see render-fields / render-math.
+  const fieldRoles = fieldRunRoles(para);
+  let mathIndex = 0;
+  const mathAnchor = (): string =>
+    `data-wk-math-block="${block}" data-wk-math="${mathIndex++}"${cell ? ` data-wk-math-cell="${cell.coord}" data-wk-math-para="${cell.para}"` : ""}`;
   let inner = para.children
     .map((child, i) => {
-      if (child.kind !== "run") return renderRawInline(child);
+      if (child.kind !== "run") {
+        return isMathElement(child.node)
+          ? renderMath(child.node, mathAnchor())
+          : renderRawInline(child);
+      }
+      const role = fieldRoles.get(child);
+      const css = runCss(styles.run(para, child));
+      const special = renderFieldStructureRun(child, role) ?? renderSymbolRun(child, css);
+      if (special !== undefined) {
+        runIndex++;
+        return special;
+      }
       const field = fields.get(i);
       return renderRun(
         child,
-        runCss(styles.run(para, child)),
+        css,
         block,
         runIndex++,
         cell,
         field ? fieldAttrs(field) : "",
+        role === "result" ? " wk-fresult" : "",
       );
     })
     .join("");

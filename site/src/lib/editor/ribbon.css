@@ -624,3 +624,187 @@
 .wk-app .dialog > form {
   display: contents;
 }
+
+/* Insert tab: fields (results by default, `{ CODE }` with Toggle Field Codes),
+   symbol-font characters and equations on the canvas. */
+.wk-app .wk-fchar,
+.wk-app .wk-fcode {
+  display: none;
+}
+.wk-app.field-codes .wk-fchar,
+.wk-app.field-codes .wk-fcode {
+  display: inline;
+  background: #e6e6e6;
+}
+.wk-app.field-codes .wk-fresult {
+  display: none;
+}
+.wk-app .wk-math {
+  font-family: "Cambria Math", "STIX Two Math", math;
+  cursor: default;
+}
+.wk-app .wk-math:hover {
+  background: #eef3fb;
+}
+.wk-app .wk-math-display {
+  display: block;
+  text-align: center;
+}
+
+/* Insert tab galleries and dialogs. */
+.wk-app .gallery-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 108px);
+  gap: 8px;
+  padding: 6px;
+}
+.wk-app .gallery-menu .tile {
+  width: 108px;
+  height: 128px;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.wk-app .gallery-menu.wide {
+  grid-template-columns: repeat(2, 200px);
+}
+.wk-app .gallery-menu.wide .tile {
+  width: 200px;
+  height: 64px;
+}
+.wk-app .preview-page {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  border: 1px solid #ccc;
+  background: #fff;
+  overflow: hidden;
+}
+.wk-app .preview-mark {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+}
+.wk-app .listbox {
+  height: 160px;
+  overflow: auto;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+}
+.wk-app .listbox button {
+  display: block;
+  width: 100%;
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wk-app .listbox button.selected {
+  background: #2f6fe0;
+  color: #fff;
+}
+.wk-app .listbox .group-label {
+  padding: 4px 6px 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.wk-app .dialog-row {
+  display: flex;
+  gap: 12px;
+}
+.wk-app .dialog-row > * {
+  flex: 1;
+  min-width: 0;
+}
+.wk-app .dialog-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wk-app .dialog label.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wk-app .dialog input[type="text"],
+.wk-app .dialog input[type="email"],
+.wk-app .dialog input[type="number"],
+.wk-app .dialog textarea,
+.wk-app .dialog select {
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+  padding: 2px 6px;
+}
+.wk-app .dialog-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+}
+.wk-app .dialog-tabs button {
+  padding: 3px 14px;
+  border: 1px solid var(--control-line);
+  background: #fff;
+  cursor: pointer;
+}
+.wk-app .dialog-tabs button.on {
+  background: #2f6fe0;
+  border-color: #2f6fe0;
+  color: #fff;
+}
+.wk-app .symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(16, 30px);
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--control-line);
+  background: #fff;
+}
+.wk-app .symbol-grid button {
+  height: 30px;
+  border: none;
+  border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.wk-app .symbol-grid button.selected {
+  background: #2f6fe0;
+  color: #fff;
+}
+.wk-app .symbol-grid.recent {
+  max-height: none;
+}
+.wk-app .math-preview {
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font-family: "Cambria Math", "STIX Two Math", math;
+  font-size: 18px;
+  text-align: center;
+}
+.wk-app .structure-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wk-app .error-note {
+  margin: 0;
+  font-size: 12px;
+  color: #c42b1c;
+}
+.wk-app .syntax {
+  margin: 0;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}

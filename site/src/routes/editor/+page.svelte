@@ -16,6 +16,7 @@
   import EditorCanvas from '$lib/editor/EditorCanvas.svelte';
   import RibbonIcon from '$lib/editor/RibbonIcon.svelte';
   import StatusBar from '$lib/editor/StatusBar.svelte';
+  import InsertDialogs from '$lib/editor/insert/InsertDialogs.svelte';
   import { TABS } from '$lib/editor/ribbon/tabs';
   import { PANES } from '$lib/editor/panes/registry';
   import { EditorSession, setSession, type PaneSide } from '$lib/editor/session.svelte';
@@ -138,7 +139,7 @@
   {#if Pane}<aside class="pane {side}"><Pane /></aside>{/if}
 {/snippet}
 
-<div class="wk-app" class:marks={session.showMarks} bind:this={appEl} style="--app-top: {appTop}px">
+<div class="wk-app" class:marks={session.showMarks} class:field-codes={session.showFieldCodes} bind:this={appEl} style="--app-top: {appTop}px">
   <!-- Title bar: Quick Access Toolbar, document name, search (Word for Mac). -->
   <header class="titlebar" onmousedown={keepSelection} role="toolbar" tabindex="-1">
     <div class="qat">
@@ -192,6 +193,7 @@
   </div>
 
   <StatusBar />
+  <InsertDialogs />
 </div>
 
 <style>

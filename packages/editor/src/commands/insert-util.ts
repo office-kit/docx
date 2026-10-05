@@ -1,14 +1,15 @@
 /**
- * Helpers for inserting a freshly-built block at a specific position.
+ * Helpers for inserting content at the caret.
  *
- * The `@office-kit/docx` builders (`appendParagraph`, `addTable`, …) construct a
- * node and push it to the end of the body. To insert at the caret instead, we
- * let the builder create the node at the end, then move that last block to the
- * target index. `body.blocks` is a public mutable array, so this stays on the
- * supported path while getting positional inserts the append API doesn't offer.
+ * Block builders (`appendParagraph`, `addTable`, …) push a node to the end of
+ * the body; {@link moveLastBlockAfter} moves it to the caret. Inline inserts
+ * (fields, symbols, links, equations) take the caret paragraph and a
+ * character offset (see `insertionPoint` in ./insert.ts).
  */
 
-import type { Docx, WmlBlock } from "@office-kit/docx";
+import type { Docx, WmlBlock, WmlParagraph } from "@office-kit/docx";
+import { paragraphAt } from "../doc-access.js";
+import type { EditorModel } from "../model.js";
 
 /** Move the block the builder just appended to sit right after `afterIndex`. */
 export function moveLastBlockAfter(doc: Docx, afterIndex: number): void {
@@ -24,4 +25,10 @@ export function caretBlockIndex(doc: Docx, block: number | undefined): number {
   const count = doc.document.body.blocks.length;
   if (block === undefined) return Math.max(count - 1, 0);
   return Math.min(Math.max(block, 0), Math.max(count - 1, 0));
+}
+
+/** The caret paragraph without touching the selection, or undefined. */
+export function caretParagraph(model: EditorModel): WmlParagraph | undefined {
+  const pos = model.selection?.focus;
+  return pos ? paragraphAt(model.doc, pos) : undefined;
 }

@@ -60,6 +60,9 @@ export {
   THEME_PALETTE_COLUMNS,
   themePalette,
 } from "./theme.js";
+export * from "./insert-queries.js";
+export { renderMath } from "./render-math.js";
+export { symbolGlyph } from "./render-fields.js";
 
 // Coverage / capability ledger — the completeness-guarantee surface.
 export {

@@ -193,6 +193,76 @@ export const apiGroups: ApiGroup[] = [
     ],
   },
   {
+    title: "Insert at a position",
+    description:
+      "What Word's Insert tab places at a character offset of a paragraph: complex fields with computed results, links, bookmarks, symbols, equations, drop caps and signature lines.",
+    entries: [
+      {
+        name: "insertField",
+        sig: "(doc, paragraph, offset, instruction, { result?, rPr?, lang?, context? }?) => WmlRun[]",
+      },
+      { name: "buildComplexField", sig: "(instruction, result, rPr?, beginChildren?) => WmlRun[]" },
+      { name: "updateFields", sig: "(doc, { now?, page?, pageCount?, types? … }?) => number" },
+      { name: "complexFields", sig: "(doc) => FieldInfo[]" },
+      { name: "insertFormField", sig: "(doc, paragraph, offset, FormFieldOptions) => WmlRun[]" },
+      { name: "formatDatePicture", sig: "(date, picture, locale?) => string" },
+      { name: "quoteFieldArgument", sig: "(value) => string" },
+      {
+        name: "insertHyperlink",
+        sig: "(doc, paragraph, offset, text, { url? | bookmark?, tooltip?, targetFrame? }) => XmlElement",
+      },
+      { name: "paragraphHyperlinks", sig: "(doc, paragraph) => HyperlinkInfo[]" },
+      { name: "editHyperlink" },
+      { name: "removeHyperlink" },
+      { name: "insertBookmark", sig: "(doc, name, start: TextPoint, end?: TextPoint) => number" },
+      { name: "isValidBookmarkName", sig: "(name) => boolean" },
+      { name: "ensureReferenceBookmark", sig: "(doc, paragraph, run?) => string" },
+      { name: "insertSymbol", sig: "(doc, paragraph, offset, SymbolSpec, rPr?) => WmlRun" },
+      {
+        name: "insertEquation",
+        sig: "(doc, paragraph, offset, linear, { display? }?) => XmlElement",
+      },
+      { name: "buildEquation", sig: "(linear, { display? }?) => XmlElement" },
+      { name: "equationLinear", sig: "(element) => string" },
+      { name: "paragraphEquations", sig: "(paragraph) => XmlElement[]" },
+      { name: "setEquation", sig: "(doc, paragraph, index, linear) => XmlElement" },
+      { name: "getDropCap", sig: "(doc, paragraph) => DropCapOptions" },
+      {
+        name: "setDropCap",
+        sig: "(doc, paragraph, { position, lines?, distanceTwips?, font? }) => void",
+      },
+      {
+        name: "insertSignatureLine",
+        sig: "(doc, paragraph, offset, SignatureLineOptions) => WmlRun",
+      },
+    ],
+  },
+  {
+    title: "Pages, headers & page numbers",
+    description:
+      "Cover pages, header and footer content, page numbers and their format, and another document's content merged in (Insert ▸ Object ▸ Text from File).",
+    entries: [
+      { name: "insertCoverPage", sig: "(doc, paragraphs) => void" },
+      { name: "removeCoverPage", sig: "(doc) => boolean" },
+      { name: "hasCoverPage", sig: "(doc) => boolean" },
+      { name: "setDifferentFirstPage", sig: "(doc, on) => void" },
+      { name: "headerFooterParagraphs", sig: "(doc, kind, type?) => WmlParagraph[]" },
+      { name: "setHeaderFooterParagraphs", sig: "(doc, kind, type, paragraphs) => void" },
+      { name: "removeHeaderFooter", sig: "(doc, kind, type?) => boolean" },
+      { name: "ensureHeaderFooterStyle", sig: "(doc, kind) => string" },
+      { name: "insertPageNumbers", sig: "(doc, { position, align, style? }) => void" },
+      { name: "removePageNumbers", sig: "(doc) => number" },
+      {
+        name: "setPageNumberFormat",
+        sig: "(doc, { format?, start?, chapterStyle?, chapterSeparator? }) => void",
+      },
+      { name: "getPageNumberFormat", sig: "(doc) => PageNumberFormatOptions" },
+      { name: "PAGE_NUMBER_FORMATS" },
+      { name: "CHAPTER_SEPARATORS" },
+      { name: "insertDocumentContent", sig: "(doc, source: Docx, blockIndex) => number" },
+    ],
+  },
+  {
     title: "Document properties",
     description: "Core and app properties, with shortcuts for the title and the author.",
     entries: [
