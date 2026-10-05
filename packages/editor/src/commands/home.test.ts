@@ -52,6 +52,7 @@ import {
 import {
   applyStyleCommand,
   deleteStyleCommand,
+  listStyles,
   modifyStyleCommand,
   newStyleCommand,
 } from "./style.js";
@@ -577,5 +578,21 @@ describe("Rendering", () => {
     expect(html).toContain("--wk-hidden-display");
     expect(html).toContain("letter-spacing:2pt");
     expect(html).toContain("background-color:#d9d9d9");
+  });
+});
+
+describe("Style list", () => {
+  it("lists document and built-in styles in Word's order, without linked character styles", () => {
+    const m = model("x");
+    caret(m, 0);
+    runCommand(m, applyStyleCommand, { styleId: "Heading1" });
+    const list = listStyles(m);
+    const ids = list.map((s) => s.styleId);
+    expect(ids.indexOf("Normal")).toBeLessThan(ids.indexOf("Heading1"));
+    expect(ids).not.toContain("Heading1Char");
+    expect(list.find((s) => s.styleId === "Title")).toMatchObject({
+      quick: true,
+      inDocument: false,
+    });
   });
 });

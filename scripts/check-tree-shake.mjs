@@ -64,7 +64,9 @@ globalThis.__exports = Object.keys(everything);
 const minimal = await bundleSize(minimalEntry);
 const full = await bundleSize(fullEntry);
 
-const MIN_BUDGET = 50_000; // 50 KB after minify
+// 51 KB after minify. Every document is written, so the writer's wml.xsd
+// child-order tables (schema-order.ts, ~1.3 KB) are part of any bundle.
+const MIN_BUDGET = 51_000;
 console.log(`minimal bundle: ${minimal.length} bytes`);
 console.log(`full bundle:    ${full.length} bytes`);
 

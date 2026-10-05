@@ -16,6 +16,7 @@
   import EditorCanvas from '$lib/editor/EditorCanvas.svelte';
   import RibbonIcon from '$lib/editor/RibbonIcon.svelte';
   import StatusBar from '$lib/editor/StatusBar.svelte';
+  import HomeDialogs from '$lib/editor/ribbon/tabs/home/HomeDialogs.svelte';
   import { TABS } from '$lib/editor/ribbon/tabs';
   import { PANES } from '$lib/editor/panes/registry';
   import { EditorSession, setSession, type PaneSide } from '$lib/editor/session.svelte';
@@ -195,6 +196,7 @@
   </div>
 
   <StatusBar />
+  <HomeDialogs />
 </div>
 
 <style>

@@ -246,6 +246,77 @@ function clearStyleRefs(para: WmlParagraph, gone: ReadonlySet<string>): void {
   }
 }
 
+/** A style as the gallery and the Styles pane list it. */
+export interface StyleEntry {
+  readonly styleId: string;
+  readonly name: string;
+  readonly type: "paragraph" | "character";
+  readonly uiPriority: number;
+  /** In the Styles gallery (`w:qFormat`). */
+  readonly quick: boolean;
+  /** Defined in the document (otherwise a built-in style added on first use). */
+  readonly inDocument: boolean;
+}
+
+// Word sorts styles without a priority last (§17.7.4.19 says the value is
+// "the maximum" when omitted).
+const NO_PRIORITY = 99;
+
+function onOff(el: XmlElement | undefined): boolean {
+  if (!el) return false;
+  const val = getElementAttr(el, "val");
+  return val === undefined || !["0", "false", "off"].includes(val);
+}
+
+/**
+ * Built-in styles keep Word's internal names ("heading 1", "caption"), which
+ * Word's UI shows capitalized ("Heading 1").
+ */
+function uiName(name: string, builtIn: boolean): string {
+  return builtIn ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+}
+
+/**
+ * The paragraph and character styles Word offers, in its recommended order
+ * (`w:uiPriority`, then name): the document's own visible styles, plus Word's
+ * built-in styles the document does not define yet.
+ */
+export function listStyles(model: EditorModel): StyleEntry[] {
+  const out: StyleEntry[] = [];
+  const seen = new Set<string>();
+  for (const s of stylesPart(model.doc)?.styles ?? []) {
+    const type = getElementAttr(s, "type");
+    const styleId = getElementAttr(s, "styleId");
+    if ((type !== "paragraph" && type !== "character") || !styleId) continue;
+    seen.add(styleId);
+    if (onOff(child(s, "semiHidden")) || onOff(child(s, "hidden"))) continue;
+    // A linked character style is listed through its paragraph style, as in Word.
+    if (type === "character" && child(s, "link")) continue;
+    const priority = child(s, "uiPriority");
+    const name = child(s, "name");
+    out.push({
+      styleId,
+      type,
+      name: uiName(
+        (name && getElementAttr(name, "val")) ?? styleId,
+        getElementAttr(s, "customStyle") !== "1",
+      ),
+      // Word's latent default for Normal is priority 0, so it leads the gallery.
+      uiPriority: Number(
+        (priority && getElementAttr(priority, "val")) ??
+          (getElementAttr(s, "default") === "1" ? 0 : NO_PRIORITY),
+      ),
+      quick: onOff(child(s, "qFormat")),
+      inDocument: true,
+    });
+  }
+  for (const b of builtinStyles()) {
+    if (seen.has(b.styleId)) continue;
+    out.push({ ...b, name: uiName(b.name, true), quick: b.quickStyle, inDocument: false });
+  }
+  return out.toSorted((a, b) => a.uiPriority - b.uiPriority || a.name.localeCompare(b.name));
+}
+
 export const styleCommands = [
   addStyleCommand,
   ensureHeadingStylesCommand,
