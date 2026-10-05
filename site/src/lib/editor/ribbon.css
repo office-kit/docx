@@ -1,0 +1,626 @@
+/*
+ * Ribbon controls shared by every tab (buttons, split buttons, menus, combo
+ * boxes, galleries). Global, but scoped under .wk-app so nothing leaks into the
+ * rest of the site. Colors are the tokens measured from Word for Mac.
+ */
+
+.wk-app .ribbon {
+  display: flex;
+  align-items: stretch;
+  min-height: 74px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--chrome-line);
+  /* Visible, not scrolling: a scroll container would clip the drop-down menus. */
+  overflow: visible;
+  outline: none;
+}
+.wk-app .group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  border-right: 1px solid var(--chrome-line);
+}
+.wk-app .group:last-child {
+  border-right: none;
+}
+.wk-app .rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wk-app .row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.wk-app .col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wk-app .sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  background: var(--chrome-line);
+}
+
+.wk-app .rb,
+.wk-app .arrow,
+.wk-app .big,
+.wk-app .qb {
+  color: var(--icon);
+}
+.wk-app .rb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+.wk-app .rb:hover:not(:disabled),
+.wk-app .arrow:hover:not(:disabled),
+.wk-app .big:hover,
+.wk-app .tile:hover:not(:disabled),
+.wk-app .mi:hover {
+  background: var(--hover);
+}
+.wk-app .rb.on {
+  background: var(--pressed);
+}
+.wk-app .rb:disabled,
+.wk-app .arrow:disabled,
+.wk-app .tile:disabled,
+.wk-app .big:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wk-app .glyph {
+  font-size: 15px;
+  line-height: 1;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.wk-app .glyph.b {
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.wk-app .glyph.i {
+  font-style: italic;
+}
+.wk-app .glyph.u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wk-app .glyph.strike {
+  text-decoration: line-through;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+}
+.wk-app .glyph.script sub,
+.wk-app .glyph.script sup {
+  font-size: 9px;
+}
+.wk-app .glyph.grow {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+}
+.wk-app .glyph.grow sup {
+  font-size: 9px;
+}
+.wk-app .glyph.clear {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  position: relative;
+}
+.wk-app .glyph.clear .eraser {
+  position: absolute;
+  right: 3px;
+  bottom: 5px;
+  width: 7px;
+  height: 5px;
+  border-radius: 1px;
+  background: #d13438;
+  transform: rotate(-35deg);
+}
+
+.wk-app .split {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.wk-app .arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+.wk-app .split.open .arrow {
+  background: var(--pressed);
+}
+.wk-app .swatch-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+.wk-app .swatch-icon .a {
+  font-size: 15px;
+  line-height: 15px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.wk-app .swatch-icon i {
+  display: block;
+  width: 16px;
+  height: 4px;
+  margin-top: 1px;
+  border: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+
+.wk-app .menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 170px;
+  padding: 6px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+.wk-app .menu-head {
+  padding: 6px 6px 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.wk-app .mi {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wk-app .mi.check::before {
+  content: "";
+  width: 12px;
+}
+.wk-app .mi.check.checked::before {
+  content: "✓";
+}
+.wk-app .grid {
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+}
+.wk-app .grid.five {
+  grid-template-columns: repeat(5, 22px);
+}
+.wk-app .grid.ten {
+  grid-template-columns: repeat(10, 18px);
+  gap: 3px;
+}
+.wk-app .chip {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+.wk-app .chip:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.wk-app .auto-chip {
+  width: 14px;
+  height: 14px;
+  background: #000;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.wk-app .ul-sample {
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
+}
+.wk-app .ul-double {
+  text-decoration-style: double;
+}
+.wk-app .ul-thick {
+  text-decoration-thickness: 2px;
+}
+.wk-app .ul-dotted {
+  text-decoration-style: dotted;
+}
+.wk-app .ul-wave {
+  text-decoration-style: wavy;
+}
+
+.wk-app .combo {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+}
+.wk-app .combo:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.wk-app .combo-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.wk-app .combo-wrap .combo {
+  padding-right: 20px;
+}
+/* Chromium draws its own datalist indicator; Word shows one chevron. */
+.combo::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+.wk-app .combo-arrow {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 18px;
+  border: none;
+  border-radius: 0 3px 3px 0;
+  background: none;
+  color: var(--icon);
+  cursor: pointer;
+  padding: 0;
+}
+.wk-app .combo-arrow:hover:not(:disabled) {
+  background: var(--hover);
+}
+.wk-app .combo:disabled {
+  background: #f7f7f7;
+  color: var(--muted);
+}
+.wk-app .combo.font {
+  width: 140px;
+}
+.wk-app .combo.size {
+  width: 52px;
+}
+
+.wk-app .big {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 56px;
+  height: 64px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wk-app .big.paste {
+  color: var(--text);
+}
+.wk-app .big.lang select {
+  border: 1px solid var(--chrome-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+}
+.wk-app .check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  white-space: nowrap;
+}
+.wk-app .group:has(.check-item) {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.wk-app .gallery-group {
+  padding-right: 4px;
+}
+.wk-app .gallery {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+}
+.wk-app .tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 72px;
+  height: 52px;
+  padding: 6px 4px 3px;
+  border: 1px solid #dedede;
+  border-radius: 3px;
+  background: #f8f8f8;
+  cursor: pointer;
+  overflow: hidden;
+}
+.wk-app .tile.selected {
+  border-color: #a9bcd9;
+  background: #ebf0f6;
+  box-shadow: 0 0 0 1px #a9bcd9;
+}
+.wk-app .sample {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+  color: #000;
+  line-height: 1.1;
+}
+.wk-app .sample-Normal {
+  font-family: Calibri, Aptos, sans-serif;
+  font-size: 12px;
+}
+/* Scaled previews of the styles ensureHeadingStyles writes (20/16/14 pt). */
+.sample-Heading1 {
+  font-family: Calibri, Aptos, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f497d;
+}
+.wk-app .sample-Heading2 {
+  font-family: Calibri, Aptos, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f497d;
+}
+.wk-app .sample-Heading3 {
+  font-family: Calibri, Aptos, sans-serif;
+  font-size: 13px;
+  color: #4f81bd;
+}
+.wk-app .tile-name {
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* Small icon + label buttons stacked in a column (Insert ▸ Field, Date & Time). */
+.wk-app .mid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text);
+}
+.wk-app .mid :is(svg) {
+  color: var(--icon);
+}
+.wk-app .mid:hover:not(:disabled) {
+  background: var(--hover);
+}
+.wk-app .mid:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wk-app .big.on,
+.wk-app .mid.on {
+  background: var(--pressed);
+}
+.wk-app .big .caret {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.wk-app .menu .mi:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.wk-app .menu hr {
+  margin: 4px 2px;
+  border: none;
+  border-top: 1px solid var(--chrome-line);
+}
+.wk-app .menu.right {
+  left: auto;
+  right: 0;
+}
+.wk-app .field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.wk-app .field input,
+.wk-app .field select {
+  height: 22px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+  padding: 0 4px;
+}
+.wk-app .field input[type="number"] {
+  width: 64px;
+}
+
+/* Word-style modal dialog (Font, Paragraph, Page Setup …). */
+.wk-app .dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  background: rgba(0, 0, 0, 0.18);
+}
+.wk-app .dialog {
+  display: flex;
+  flex-direction: column;
+  min-width: 360px;
+  max-width: min(720px, 94vw);
+  max-height: 80vh;
+  border: 1px solid var(--chrome-line);
+  border-radius: 10px;
+  background: var(--status-bg);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  color: var(--text);
+}
+.wk-app .dialog-title {
+  padding: 10px 16px 0;
+  font-weight: 600;
+  text-align: center;
+}
+.wk-app .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  overflow: auto;
+}
+.wk-app .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+.wk-app .dialog-actions button,
+.wk-app .push {
+  min-width: 72px;
+  height: 24px;
+  padding: 0 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+.wk-app .dialog-actions button.default {
+  border-color: #2f6fe0;
+  background: #2f6fe0;
+  color: #fff;
+}
+.wk-app .push:hover:not(:disabled) {
+  background: var(--hover);
+}
+.wk-app .push:disabled,
+.wk-app .dialog-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.wk-app fieldset {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 6px;
+}
+.wk-app legend {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Docked task panes (Navigation, Styles, Comments, Reviewing …). */
+.wk-app .pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 280px;
+  min-height: 0;
+  padding: 10px 12px;
+  background: var(--chrome);
+  overflow: auto;
+}
+.wk-app .pane.left {
+  border-right: 1px solid var(--chrome-line);
+}
+.wk-app .pane.right {
+  border-left: 1px solid var(--chrome-line);
+}
+.wk-app .pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+.wk-app .pane-close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--icon);
+}
+.wk-app .pane-close:hover {
+  background: var(--hover);
+}
+.wk-app .pane-search,
+.wk-app .pane-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+}
+.wk-app .pane-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font: inherit;
+}
+.wk-app .pane-button {
+  height: 28px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.wk-app .pane-button:hover:not(:disabled) {
+  background: var(--hover);
+}
+.wk-app .pane-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.wk-app .pane-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wk-app button {
+  font: inherit;
+  color: inherit;
+}
+.wk-app .dialog > form {
+  display: contents;
+}

@@ -8,7 +8,7 @@
     type EditorModel,
     type RawNode,
   } from '@office-kit/docx-editor';
-  import { t } from './i18n.svelte';
+  import { t } from './i18n/index.svelte';
 
   let { model, onchange }: { model: EditorModel; onchange?: () => void } = $props();
 
