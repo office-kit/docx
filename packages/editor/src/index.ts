@@ -15,6 +15,7 @@ import { EditorModel } from "./model.js";
 
 export { EditorModel, type ChangeListener, type EditorSnapshot } from "./model.js";
 export { type Command, type FeatureGroup, runCommand } from "./commands/types.js";
+export type { SectionTarget } from "./commands/section.js";
 export { ALL_COMMANDS, COMMAND_IDS, commandsInGroup, getCommand } from "./commands/registry.js";
 // Named command objects + group arrays for typed UI wiring.
 export * as commands from "./commands/index.js";

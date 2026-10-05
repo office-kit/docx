@@ -209,8 +209,12 @@ describe("design commands", () => {
         top: { style: "single", size: 4, spacePt: 24, color: "auto" },
       },
       target: "document",
+      options: { alignBordersAndEdges: true, surroundHeader: false, surroundFooter: true },
     });
     const background = resolvePageBackground(saved(model));
+    expect(getDocumentSetting(model.doc, "alignBordersAndEdges").present).toBe(true);
+    expect(getDocumentSetting(model.doc, "bordersDoNotSurroundHeader").present).toBe(true);
+    expect(getDocumentSetting(model.doc, "bordersDoNotSurroundFooter").present).toBe(false);
     expect(background.color?.color).toBe("DDEEFF");
     expect(background.watermark).toMatchObject({ kind: "text", text: "DRAFT" });
     expect(getSectionProperties(model.doc).pageBorders?.top?.style).toBe("single");

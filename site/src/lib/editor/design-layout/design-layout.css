@@ -1,0 +1,572 @@
+/*
+ * Design and Layout tab chrome: the theme / style-set / watermark galleries,
+ * Word's measurement spinners, and the controls of their dialogs (Page Setup,
+ * Columns, Page Borders, …). Kept apart from ribbon.css so each feature area
+ * owns its own rules.
+ */
+
+/* ---- Dialog building blocks ---- */
+.wk-app .dialog fieldset {
+  margin: 0 0 10px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 6px;
+}
+.wk-app .dialog legend {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wk-app .dialog-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.wk-app .dialog-tab {
+  padding: 3px 12px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.wk-app .dialog-tab.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.wk-app .form-grid {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 6px 10px;
+  align-items: center;
+  margin: 4px 0;
+}
+.wk-app .form-grid.four {
+  grid-template-columns: repeat(2, max-content max-content);
+}
+.wk-app
+  .form-grid
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select),
+.wk-app .dialog select,
+.wk-app .dialog input[type="number"] {
+  height: 22px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+  padding: 0 4px;
+}
+.wk-app .dialog select[size] {
+  height: auto;
+  width: 100%;
+}
+.wk-app .radio,
+.wk-app .dialog .check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+.wk-app .indent {
+  margin-left: 22px;
+}
+.wk-app .dim {
+  opacity: 0.5;
+}
+.wk-app .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.wk-app .error {
+  color: #c42b1c;
+  font-size: 12px;
+}
+.wk-app .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.wk-app .apply-to {
+  margin-top: 6px;
+}
+.wk-app .file-push {
+  position: relative;
+  overflow: hidden;
+}
+.wk-app .file-push input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ---- Measurement spinner (LengthField) ---- */
+.wk-app .spin {
+  display: inline-flex;
+  align-items: stretch;
+  height: 22px;
+  border: 1px solid var(--control-line);
+  border-radius: 4px;
+  background: #fff;
+}
+.wk-app .spin:focus-within {
+  border-color: var(--accent);
+}
+.wk-app .spin input {
+  width: 58px;
+  min-width: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  padding: 0 4px;
+  outline: none;
+}
+.wk-app .spin input:disabled {
+  color: var(--muted);
+}
+.wk-app .spin-arrows {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--control-line);
+}
+.wk-app .spin-arrows button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--icon);
+  cursor: pointer;
+}
+.wk-app .spin-arrows button:first-child svg {
+  transform: rotate(180deg);
+}
+.wk-app .spin-arrows button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* ---- Layout ▸ Indent / Spacing boxes ---- */
+.wk-app .layout-spin-group {
+  gap: 14px;
+}
+.wk-app .spin-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wk-app .spin-head {
+  font-size: 11px;
+  color: var(--muted);
+}
+.wk-app .spin-row {
+  display: grid;
+  grid-template-columns: 16px 46px auto;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+.wk-app .spin-row svg {
+  color: var(--icon);
+}
+
+/* ---- Menus with a description line (Margins, Size, Breaks) ---- */
+.wk-app .mi.described {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  column-gap: 8px;
+  max-width: 340px;
+  white-space: normal;
+}
+.wk-app .mi.described:not(.check) {
+  grid-template-columns: 1fr;
+}
+.wk-app .mi.described > :is(b, small) {
+  grid-column: -2;
+}
+.wk-app .mi.described b {
+  font-weight: 600;
+}
+.wk-app .mi.described small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Column preset glyphs: grey text bars split the way the preset splits the page. */
+.wk-app .col-icon {
+  display: inline-block;
+  width: 18px;
+  height: 20px;
+  border: 1px solid var(--icon);
+  border-radius: 1px;
+  background: repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 2px 3px / 12px 14px
+    no-repeat;
+}
+.wk-app .col-icon-two {
+  background:
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 2px 3px / 5px 14px no-repeat,
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 9px 3px / 5px 14px no-repeat;
+}
+.wk-app .col-icon-three {
+  background:
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 2px 3px / 3px 14px no-repeat,
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 6.5px 3px / 3px 14px no-repeat,
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 11px 3px / 3px 14px no-repeat;
+}
+.wk-app .col-icon-left {
+  background:
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 2px 3px / 3px 14px no-repeat,
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 7px 3px / 7px 14px no-repeat;
+}
+.wk-app .col-icon-right {
+  background:
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 2px 3px / 7px 14px no-repeat,
+    repeating-linear-gradient(#999 0 1px, transparent 1px 4px) 11px 3px / 3px 14px no-repeat;
+}
+.wk-app .preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.wk-app .preset.selected {
+  border-color: #a9bcd9;
+  background: #ebf0f6;
+}
+.wk-app .cols-table {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  gap: 4px 10px;
+  align-items: center;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* ---- Text Direction dialog ---- */
+.wk-app .td-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.wk-app .td-choice.selected {
+  border-color: #a9bcd9;
+  background: #ebf0f6;
+}
+.wk-app .td-choice input {
+  position: absolute;
+  opacity: 0;
+}
+.wk-app .td-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 56px;
+  border: 1px solid var(--control-line);
+  background: #fff;
+}
+.wk-app .td-tbRl {
+  writing-mode: vertical-rl;
+}
+.wk-app .td-btLr {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* ---- Design ▸ Themes ---- */
+.wk-app .theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 92px);
+  gap: 8px;
+  padding: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.wk-app .theme-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #dedede;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+}
+.wk-app .theme-tile.selected,
+.wk-app .wm-tile.selected {
+  border-color: #a9bcd9;
+  box-shadow: 0 0 0 1px #a9bcd9;
+}
+.wk-app .theme-aa {
+  font-size: 22px;
+  line-height: 1.1;
+  color: #333;
+}
+.wk-app .theme-bars {
+  display: flex;
+  gap: 1px;
+}
+.wk-app .theme-bars i,
+.wk-app .swatches i {
+  display: block;
+  width: 12px;
+  height: 10px;
+}
+.wk-app .theme-name {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Design ▸ Document Formatting (style sets) ---- */
+.wk-app .set-gallery {
+  max-width: 420px;
+  overflow: hidden;
+}
+.wk-app .set-tile {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 1px;
+  width: 64px;
+  height: 58px;
+  padding: 4px;
+  background: #fff;
+}
+.wk-app .set-tile > span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.15;
+}
+.wk-app .set-title {
+  font-size: 9px;
+}
+.wk-app .set-heading {
+  font-size: 7px;
+}
+.wk-app .set-body {
+  font-size: 4px;
+  color: #444;
+  white-space: normal !important;
+}
+.wk-app .set-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 64px);
+  gap: 8px;
+  padding: 4px;
+}
+
+/* ---- Design ▸ Colors / Fonts menus ---- */
+.wk-app .scheme-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+.wk-app .swatches {
+  display: flex;
+  gap: 1px;
+}
+.wk-app .font-scheme {
+  align-items: flex-start;
+}
+.wk-app .font-aa {
+  font-size: 22px;
+  line-height: 1;
+  width: 32px;
+}
+.wk-app .font-names {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+/* ---- Design ▸ Watermark gallery ---- */
+.wk-app .wm-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 80px);
+  gap: 8px;
+  padding: 4px;
+}
+.wk-app .wm-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  border: 1px solid #dedede;
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+}
+.wk-app .wm-text {
+  font-family: Calibri, Aptos, sans-serif;
+  font-size: 11px;
+  color: #b8b8b8;
+  white-space: nowrap;
+}
+.wk-app .wm-text.diag {
+  transform: rotate(-45deg);
+}
+
+/* ---- Design ▸ Page Color face ---- */
+.wk-app .page-color-face {
+  position: relative;
+  display: inline-flex;
+}
+.wk-app .page-color-face i {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 1px;
+  height: 4px;
+}
+
+/* ---- Customize Colors / Fonts dialogs ---- */
+.wk-app .cc-layout {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px;
+}
+.wk-app .cc-sample {
+  width: 140px;
+  padding: 6px;
+  border: 1px solid var(--control-line);
+}
+.wk-app .cc-sample-band {
+  padding: 4px;
+  margin-bottom: 6px;
+}
+.wk-app .cc-sample-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 40px;
+}
+.wk-app .cf-sample {
+  padding: 8px;
+  border: 1px solid var(--control-line);
+  background: #fff;
+}
+
+/* ---- Fill Effects ---- */
+.wk-app .variant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 48px);
+  gap: 6px;
+}
+.wk-app .variant {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--control-line);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.wk-app .variant.selected {
+  outline: 2px solid var(--accent);
+}
+
+/* ---- Page Borders ---- */
+.wk-app .pb-layout {
+  display: grid;
+  grid-template-columns: max-content 180px 200px;
+  gap: 10px;
+  align-items: start;
+}
+.wk-app .pb-settings .pb-setting {
+  gap: 8px;
+}
+.wk-app .pb-swatch {
+  width: 18px;
+  height: 22px;
+  border: 1px solid #888;
+  background: #fff;
+}
+.wk-app .pb-none {
+  border-style: dotted;
+}
+.wk-app .pb-box {
+  border: 2px solid #333;
+}
+.wk-app .pb-shadow {
+  border: 1px solid #333;
+  box-shadow: 3px 3px 0 #555;
+}
+.wk-app .pb-threeD {
+  border: 3px ridge #888;
+}
+.wk-app .pb-custom {
+  border-width: 2px 0 0 2px;
+  border-color: #333;
+}
+.wk-app .pb-style {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wk-app .pb-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wk-app .pb-page {
+  position: relative;
+  width: 110px;
+  height: 140px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+.wk-app .pb-side {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.wk-app .pb-side:hover {
+  background: rgba(47, 111, 186, 0.08);
+}
+.wk-app .pb-side-top {
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  height: 8px;
+}
+.wk-app .pb-side-bottom {
+  bottom: 0;
+  left: 6px;
+  right: 6px;
+  height: 8px;
+}
+.wk-app .pb-side-left {
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: 8px;
+}
+.wk-app .pb-side-right {
+  top: 6px;
+  bottom: 6px;
+  right: 0;
+  width: 8px;
+}

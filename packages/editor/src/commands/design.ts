@@ -11,6 +11,7 @@ import {
   type PageBorders,
   type PageColor,
   setDefaultParagraphSpacing,
+  setDocumentSettingOnOff,
   setPageColor,
   setSectionProperties,
   setTheme,
@@ -142,17 +143,40 @@ export const pageColorCommand: Command<{ color: PageColor | undefined }> = {
   },
 };
 
+/** The document-wide page border options of Word's Border and Shading Options dialog. */
+export interface PageBorderOptions {
+  /** Align paragraph borders and table edges with the page border (`w:alignBordersAndEdges`). */
+  readonly alignBordersAndEdges?: boolean;
+  /** Surround the header (the inverse of `w:bordersDoNotSurroundHeader`). */
+  readonly surroundHeader?: boolean;
+  /** Surround the footer (the inverse of `w:bordersDoNotSurroundFooter`). */
+  readonly surroundFooter?: boolean;
+}
+
 /** Borders and Shading ▸ Page Border; `null` borders is the None setting. */
-export const pageBordersCommand: Command<{ borders: PageBorders | null; target: SectionTarget }> = {
+export const pageBordersCommand: Command<{
+  borders: PageBorders | null;
+  target: SectionTarget;
+  options?: PageBorderOptions;
+}> = {
   id: "design.pageBorders",
   group: "design",
   label: "Page Borders",
-  run(model, { borders, target }) {
+  run(model, { borders, target, options = {} }) {
     setSectionProperties(
       model.doc,
       { pageBorders: borders },
       sectionScopeFor(model, target, "nextPage"),
     );
+    if (options.alignBordersAndEdges !== undefined) {
+      setDocumentSettingOnOff(model.doc, "alignBordersAndEdges", options.alignBordersAndEdges);
+    }
+    if (options.surroundHeader !== undefined) {
+      setDocumentSettingOnOff(model.doc, "bordersDoNotSurroundHeader", !options.surroundHeader);
+    }
+    if (options.surroundFooter !== undefined) {
+      setDocumentSettingOnOff(model.doc, "bordersDoNotSurroundFooter", !options.surroundFooter);
+    }
   },
 };
 
