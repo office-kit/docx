@@ -91,7 +91,7 @@ const LIGHT_THRESHOLD = 0.8;
  * Word's theme colour grid: a row of the ten theme colours, then five rows
  * of lighter / darker variants of each.
  */
-export function themePalette(colors: ThemeColorScheme): PaletteColor[][] {
+export function themeSchemePalette(colors: ThemeColorScheme): PaletteColor[][] {
   const base = THEME_PALETTE_COLUMNS.map((themeColor) => ({
     themeColor,
     rgb: themeColorValue(colors, themeColor) ?? "000000",

@@ -96,3 +96,4 @@ export type { QName, XmlAttr, XmlElement, XmlNode } from "../internal/xml/index.
 export { VERSION } from "./version.js";
 export * from "./table-tools.js";
 export * from "./table-styles.js";
+export * from "./text-format.js";

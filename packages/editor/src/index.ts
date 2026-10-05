@@ -75,11 +75,44 @@ export {
   type PaletteThemeColor,
   resolveTheme,
   THEME_PALETTE_COLUMNS,
-  themePalette,
+  themeSchemePalette,
 } from "./theme.js";
 export * from "./insert-queries.js";
 export { renderMath } from "./render-math.js";
 export { symbolGlyph } from "./render-fields.js";
+export {
+  bodyParagraphs,
+  compileFind,
+  type FindFormat,
+  type FindMatch,
+  findMatches,
+  type FindOptions,
+  selectionOf,
+} from "./find.js";
+export {
+  BULLET_PRESETS,
+  type ListPreset,
+  MULTILEVEL_PRESETS,
+  NUMBERING_PRESETS,
+} from "./list-presets.js";
+export { bulletGlyph, formatListNumber } from "./list-numbering.js";
+export {
+  DEFAULT_THEME_COLORS,
+  type ThemePalette,
+  type ThemeSwatch,
+  themeColorGrid,
+  themePalette,
+} from "./theme-color.js";
+export { type CaseMode, changeCase } from "./text-case.js";
+export { type FontPatch, type ParagraphPatch } from "./commands/format-patch.js";
+export {
+  type ParagraphToggle,
+  readThemeFonts,
+  type ResolvedBorder,
+  type ResolvedShading,
+  type RunToggle,
+  type ThemeFonts,
+} from "./resolve.js";
 
 // Coverage / capability ledger — the completeness-guarantee surface.
 export {

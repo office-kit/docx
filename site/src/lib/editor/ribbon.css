@@ -113,20 +113,6 @@
 .wk-app .glyph.grow sup {
   font-size: 9px;
 }
-.wk-app .glyph.clear {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  position: relative;
-}
-.wk-app .glyph.clear .eraser {
-  position: absolute;
-  right: 3px;
-  bottom: 5px;
-  width: 7px;
-  height: 5px;
-  border-radius: 1px;
-  background: #d13438;
-  transform: rotate(-35deg);
-}
 
 .wk-app .split {
   position: relative;
@@ -232,22 +218,6 @@
   height: 14px;
   background: #000;
   border: 1px solid rgba(0, 0, 0, 0.2);
-}
-.wk-app .ul-sample {
-  text-decoration-line: underline;
-  text-underline-offset: 3px;
-}
-.wk-app .ul-double {
-  text-decoration-style: double;
-}
-.wk-app .ul-thick {
-  text-decoration-thickness: 2px;
-}
-.wk-app .ul-dotted {
-  text-decoration-style: dotted;
-}
-.wk-app .ul-wave {
-  text-decoration-style: wavy;
 }
 
 .wk-app .combo {
@@ -375,28 +345,6 @@
   max-width: 100%;
   color: #000;
   line-height: 1.1;
-}
-.wk-app .sample-Normal {
-  font-family: Calibri, Aptos, sans-serif;
-  font-size: 12px;
-}
-/* Scaled previews of the styles ensureHeadingStyles writes (20/16/14 pt). */
-.sample-Heading1 {
-  font-family: Calibri, Aptos, sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1f497d;
-}
-.wk-app .sample-Heading2 {
-  font-family: Calibri, Aptos, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f497d;
-}
-.wk-app .sample-Heading3 {
-  font-family: Calibri, Aptos, sans-serif;
-  font-size: 13px;
-  color: #4f81bd;
 }
 .wk-app .tile-name {
   font-size: 11px;
@@ -742,10 +690,175 @@
   color: var(--text);
   padding: 2px 6px;
 }
+/* --- Home tab ------------------------------------------------------------ */
+
+/* Hidden text (w:vanish) shows, dotted, while ¶ is on — as in Word. */
+.wk-app.marks {
+  --wk-hidden-display: inline;
+}
+/* Format Painter is armed: Word's paintbrush cursor. */
+.wk-app.painting .surface {
+  cursor: copy;
+}
+/* Find results highlighted in the page (CSS Custom Highlight API). */
+::highlight(wk-find) {
+  background-color: #ffe766;
+}
+.wk-app .font-list,
+.wk-app .size-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.wk-app .size-list {
+  min-width: 70px;
+}
+.wk-app .mi-note {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.wk-app .underline-list .mi {
+  min-width: 140px;
+}
+.wk-app .ul-line {
+  display: block;
+  width: 110px;
+  height: 8px;
+  border-bottom: 1.5px solid currentColor;
+}
+.wk-app .ul-double,
+.wk-app .ul-wavyDouble {
+  border-bottom-style: double;
+  border-bottom-width: 3px;
+}
+.wk-app .ul-thick,
+.wk-app .ul-dottedHeavy,
+.wk-app .ul-dashedHeavy,
+.wk-app .ul-dashLongHeavy,
+.wk-app .ul-dashDotHeavy,
+.wk-app .ul-dashDotDotHeavy,
+.wk-app .ul-wavyHeavy {
+  border-bottom-width: 3px;
+}
+.wk-app :is(.ul-dotted, .ul-dottedHeavy) {
+  border-bottom-style: dotted;
+}
+.wk-app
+  :is(
+    .ul-dash,
+    .ul-dashedHeavy,
+    .ul-dashLong,
+    .ul-dashLongHeavy,
+    .ul-dotDash,
+    .ul-dashDotHeavy,
+    .ul-dotDotDash,
+    .ul-dashDotDotHeavy
+  ) {
+  border-bottom-style: dashed;
+}
+.wk-app :is(.ul-wave, .ul-wavyHeavy, .ul-wavyDouble) {
+  border-bottom: none;
+  text-decoration: underline wavy;
+}
+.wk-app .none-chip {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  background: linear-gradient(to top right, transparent 46%, #d00 46% 54%, transparent 54%);
+}
+.wk-app .theme-grid {
+  display: flex;
+  flex-direction: column;
+}
+.wk-app .theme-grid .grid {
+  padding-top: 0;
+  padding-bottom: 0;
+  gap: 0 3px;
+}
+.wk-app .theme-grid .base-row {
+  padding-bottom: 6px;
+}
+.wk-app .list-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 64px);
+  gap: 6px;
+  padding: 4px;
+}
+.wk-app .list-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  height: 64px;
+  padding: 6px;
+  border: 1px solid #d6d6d6;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+}
+.wk-app .list-tile:hover {
+  outline: 2px solid var(--accent);
+}
+.wk-app .list-tile span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wk-app .list-tile i {
+  flex: 1;
+  border-bottom: 1px solid #9a9a9a;
+}
+.wk-app .list-tile.none {
+  align-items: center;
+  font-size: 12px;
+}
+.wk-app :is(.level-list, .scale-list) {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+}
+/* The gallery gives up tiles before pushing Styles Pane off the ribbon. */
+.wk-app .gallery-group,
+.wk-app .gallery-wrap,
+.wk-app .gallery-wrap .gallery {
+  min-width: 0;
+}
+.wk-app .gallery-group {
+  flex-shrink: 1;
+}
+.wk-app .gallery-wrap {
+  align-items: stretch;
+}
+.wk-app .gallery-wrap .gallery {
+  overflow: hidden;
+}
+.wk-app .gallery-wrap .tile {
+  flex-shrink: 0;
+}
+.wk-app .gallery-more {
+  align-self: stretch;
+  width: 18px;
+  border: none;
+  background: none;
+  color: var(--icon);
+  cursor: pointer;
+}
+.wk-app .gallery-more:hover {
+  background: var(--hover);
+}
+.wk-app .style-gallery {
+  width: 420px;
+}
+.wk-app .gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 72px);
+  gap: 6px;
+  padding: 4px;
+}
 .wk-app .dialog-tabs {
   display: flex;
   justify-content: center;
   gap: 0;
+  gap: 2px;
 }
 .wk-app .dialog-tabs button {
   padding: 3px 14px;
@@ -822,4 +935,146 @@
 .wk-app [data-table-tool="eraser"] .wk-canvas td,
 .wk-app [data-table-tool="painter"] .wk-canvas td {
   cursor: cell;
+}
+.wk-app .dialog-tabs button.active {
+  background: var(--pressed);
+}
+.wk-app .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.wk-app .check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 16px;
+}
+.wk-app .font-preview,
+.wk-app .bullet-preview,
+.wk-app .ruby-preview {
+  display: block;
+  min-height: 36px;
+  padding: 6px;
+  background: #fff;
+  font-size: 18px;
+  text-align: center;
+}
+.wk-app .dialog-error {
+  margin: 0;
+  color: #c00;
+}
+.wk-app .tab-stops {
+  display: flex;
+  gap: 12px;
+}
+.wk-app .stop-list {
+  width: 140px;
+  min-height: 100px;
+  border: 1px solid var(--control-line);
+  background: #fff;
+  overflow-y: auto;
+}
+.wk-app :is(.pane-search-row, .pane-buttons, .pane-results-head) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wk-app .pane-search-row .pane-search {
+  flex: 1;
+}
+.wk-app .pane-results-head {
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wk-app .pane-icon {
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--icon);
+  cursor: pointer;
+}
+.wk-app .pane-icon:hover:not(:disabled) {
+  background: var(--hover);
+}
+.wk-app .pane-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wk-app .pane-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+}
+.wk-app .pane-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--chrome-line);
+}
+.wk-app .pane-tabs button {
+  padding: 4px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+}
+.wk-app .pane-tabs button.active {
+  border-bottom-color: var(--accent);
+}
+.wk-app .pane-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wk-app .pane-list li {
+  position: relative;
+  display: flex;
+}
+.wk-app .pane-list button:first-child {
+  flex: 1;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.wk-app .pane-list button:first-child:hover {
+  background: var(--hover);
+}
+.wk-app .pane-list mark {
+  background: #ffe766;
+}
+.wk-app .styles-list li.current .style-apply {
+  outline: 1px solid var(--accent);
+}
+.wk-app .style-apply {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.wk-app .style-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wk-app .style-kind {
+  color: var(--muted);
+}
+.wk-app .style-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  padding: 4px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
 }

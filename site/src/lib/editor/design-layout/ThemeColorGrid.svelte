@@ -14,7 +14,7 @@
    * Standard Colors, plus a More Colors… picker. Used by Page Color and the
    * colour drop-downs of the Design dialogs.
    */
-  import { resolveTheme, themePalette } from '@office-kit/docx-editor';
+  import { resolveTheme, themeSchemePalette } from '@office-kit/docx-editor';
   import { getSession } from '../session.svelte';
   import { t } from '../i18n/index.svelte';
   import { STANDARD_COLORS } from './presets';
@@ -22,7 +22,7 @@
   type Props = { onpick: (color: PickedColor) => void };
   const { onpick }: Props = $props();
   const session = getSession();
-  const palette = $derived(session.tick >= 0 && session.model ? themePalette(resolveTheme(session.model.doc).colors) : []);
+  const palette = $derived(session.tick >= 0 && session.model ? themeSchemePalette(resolveTheme(session.model.doc).colors) : []);
 </script>
 
 <div class="menu-head">{t('dsn.color.theme')}</div>

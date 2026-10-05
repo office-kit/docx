@@ -187,7 +187,7 @@ const OPEN_DELIMS: Readonly<Record<string, string>> = {
   "|": "|",
   "‖": "‖",
 };
-const CLOSE_DELIMS = new Set(Object.values(OPEN_DELIMS));
+const CLOSE_DELIMS = /* @__PURE__ */ new Set(Object.values(OPEN_DELIMS));
 const GROUP_OPEN = "〖";
 const GROUP_CLOSE = "〗";
 const DELIM_SEPARATOR = "│";

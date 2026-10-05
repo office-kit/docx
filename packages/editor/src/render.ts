@@ -37,8 +37,15 @@ import {
   createStyleResolver,
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,
-  type StyleResolver,
 } from "./resolve.js";
+import {
+  paragraphBoxCss,
+  type RenderResolver,
+  renderResolver,
+  runEffectsCss,
+  specialRunHtml,
+  underlineStyleCss,
+} from "./render-format.js";
 import { WML_NS } from "./wml-ns.js";
 
 const ALIGN_TO_CSS: Record<string, string> = {
@@ -49,14 +56,6 @@ const ALIGN_TO_CSS: Record<string, string> = {
   end: "right",
   both: "justify",
   distribute: "justify",
-};
-
-const UNDERLINE_STYLE_CSS: Record<string, string> = {
-  double: "text-decoration-style:double",
-  dotted: "text-decoration-style:dotted",
-  dash: "text-decoration-style:dashed",
-  wave: "text-decoration-style:wavy",
-  thick: "text-decoration-thickness:2px",
 };
 
 const VERT_ALIGN_CSS: Record<string, string> = {
@@ -114,16 +113,19 @@ function runCss(fmt: ResolvedRunFormat): string {
   const decoration: string[] = [];
   const underlined = fmt.underline !== undefined && fmt.underline !== "none";
   if (underlined) decoration.push("underline");
-  if (fmt.strike) decoration.push("line-through");
+  const doubleStrike = fmt.toggles.has("dstrike");
+  if (fmt.strike || doubleStrike) decoration.push("line-through");
   parts.push(`text-decoration-line:${decoration.length ? decoration.join(" ") : "none"}`);
-  const underlineStyle = underlined ? UNDERLINE_STYLE_CSS[fmt.underline ?? ""] : undefined;
+  const underlineStyle = underlined ? underlineStyleCss(fmt.underline) : undefined;
   if (underlineStyle) parts.push(underlineStyle);
+  else if (doubleStrike) parts.push("text-decoration-style:double");
   if (fmt.color && HEX_COLOR.test(fmt.color)) parts.push(`color:#${fmt.color}`);
   const highlight = fmt.highlight === undefined ? undefined : highlightCss(fmt.highlight);
   if (highlight) parts.push(`background-color:${highlight}`);
   parts.push(...fontCss(fmt));
   const vertAlign = VERT_ALIGN_CSS[fmt.vertAlign ?? ""];
   if (vertAlign) parts.push(vertAlign);
+  parts.push(...runEffectsCss(fmt));
   return parts.join(";");
 }
 
@@ -155,6 +157,7 @@ function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): st
         : `line-height:${fmt.line / TWIPS_PER_POINT}pt`,
     );
   }
+  css.push(...paragraphBoxCss(fmt));
   return css.join(";");
 }
 
@@ -208,7 +211,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}" ${attrs}>${escapeHtml(text) || "​"}</span>${noteMarksHtml(run)}`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}" ${attrs}>${specialRunHtml(run) ?? (escapeHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
 }
 
 /**
@@ -247,11 +250,12 @@ function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
 
 function renderParagraph(
   para: WmlParagraph,
-  styles: StyleResolver,
+  styles: RenderResolver,
   block: number,
   cell?: CellAnchor,
   text?: CellTextFormat,
 ): string {
+  const label = styles.listLabel(para) ?? "";
   const styleAttr = ` style="${escapeHtml(paragraphCss(styles.paragraph(para, text), styles.run(para, undefined, text)))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
@@ -289,11 +293,17 @@ function renderParagraph(
     })
     .join("");
   if (runIndex === 0) inner = `​${inner}`;
+  inner = label + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
   return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
 }
 
-function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, block: number): string {
+function renderBlock(
+  blockNode: WmlBlock,
+  doc: Docx,
+  styles: RenderResolver,
+  block: number,
+): string {
   switch (blockNode.kind) {
     case "paragraph":
       return renderParagraph(blockNode, styles, block);
@@ -320,7 +330,7 @@ export function renderDocumentHtml(doc: Docx): string {
  * block, each tagged with its `data-wk-block` index.
  */
 export function renderBlocksHtml(doc: Docx, blocks: readonly WmlBlock[]): string {
-  const styles = createStyleResolver(doc);
+  const styles = renderResolver(doc, createStyleResolver(doc));
   return blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
 }
 

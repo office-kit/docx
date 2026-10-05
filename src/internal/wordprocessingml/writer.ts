@@ -1,6 +1,7 @@
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { XML_NAMESPACE } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { inSchemaOrder } from "./schema-normalize.js";
 import type {
   PassThrough,
   WmlBlock,
@@ -152,7 +153,7 @@ function tableCellToElement(cell: WmlTableCell): XmlElement {
  */
 export function paragraphToElement(p: WmlParagraph): XmlElement {
   const recognized: XmlNode[] = [];
-  if (p.pPr) recognized.push(p.pPr);
+  if (p.pPr) recognized.push(inSchemaOrder(p.pPr));
   for (const inline of p.children) {
     recognized.push(inlineToElement(inline));
   }
@@ -174,7 +175,7 @@ function inlineToElement(inline: WmlInline): XmlElement {
 
 function runToElement(run: WmlRun): XmlElement {
   const recognized: XmlNode[] = [];
-  if (run.rPr) recognized.push(run.rPr);
+  if (run.rPr) recognized.push(inSchemaOrder(run.rPr));
   for (const piece of run.pieces) {
     recognized.push(runPieceToElement(piece));
   }

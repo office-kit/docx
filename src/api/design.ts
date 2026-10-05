@@ -597,7 +597,7 @@ const STYLE_SET_META: Readonly<
   Heading3: { name: "heading 3", uiPriority: 9, outline: 2 },
 };
 
-const STYLE_SET_IDS = Object.keys(STYLE_SET_META) as StyleSetStyleId[];
+const STYLE_SET_IDS = /* @__PURE__ */ Object.keys(STYLE_SET_META) as StyleSetStyleId[];
 
 function buildStyleSetStyle(id: StyleSetStyleId, s: StyleSetStyle): XmlElement {
   const meta = STYLE_SET_META[id];
