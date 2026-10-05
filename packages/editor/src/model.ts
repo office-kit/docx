@@ -9,7 +9,7 @@
  * do one thing").
  */
 
-import { clone, type Docx, storyView } from "@office-kit/docx";
+import { appendParagraph, clone, type Docx, storyView } from "@office-kit/docx";
 import type { DocPosition, Selection, StoryRef } from "./selection.js";
 
 export interface EditorSnapshot {
@@ -18,6 +18,15 @@ export interface EditorSnapshot {
 }
 
 export type ChangeListener = (model: EditorModel) => void;
+
+/**
+ * Word's body always ends with a paragraph: a document that ends with a table
+ * (or is empty) gets one on open, and an edit that leaves a table last gets
+ * one too. Without it there is nowhere to put the caret below the table.
+ */
+function ensureFinalParagraph(doc: Docx): void {
+  if (doc.document.body.blocks.at(-1)?.kind !== "paragraph") appendParagraph(doc, "");
+}
 
 /** How deep the undo/redo history is allowed to grow. */
 const DEFAULT_HISTORY_LIMIT = 200;
@@ -42,6 +51,7 @@ export class EditorModel {
   constructor(doc: Docx, options: { historyLimit?: number } = {}) {
     this.docState = doc;
     this.historyLimit = options.historyLimit ?? DEFAULT_HISTORY_LIMIT;
+    ensureFinalParagraph(doc);
   }
 
   /**
@@ -113,6 +123,7 @@ export class EditorModel {
     this.pending = null;
     if (nextSelection !== undefined) this.setSelectionQuietly(nextSelection);
     this.editStory = null;
+    ensureFinalParagraph(this.docState);
     this.docState.dirty = true;
     this.emit();
   }

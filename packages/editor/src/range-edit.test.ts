@@ -189,10 +189,11 @@ describe("table cells", () => {
 
   it("Enter splits the cell paragraph instead of adding one after the table", () => {
     const model = cellModel();
+    const blocks = model.doc.document.body.blocks.length;
     model.setSelection({ anchor: at(0, 3), focus: at(0, 3) });
     runCommand(model, commands.splitParagraphCommand, undefined);
     expect(cellTexts(model)).toEqual(["abc", "def"]);
-    expect(model.doc.document.body.blocks).toHaveLength(2);
+    expect(model.doc.document.body.blocks).toHaveLength(blocks);
     expect(model.selection?.focus).toMatchObject({ block: 1, cell: { row: 0, col: 0 }, para: 1 });
     expect(validate(openDocx(toUint8Array(model.doc)))).toHaveLength(0);
   });
