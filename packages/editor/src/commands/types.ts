@@ -24,7 +24,9 @@ export type FeatureGroup =
   | "headerFooter"
   | "references"
   | "review"
-  | "advanced";
+  | "advanced"
+  | "design"
+  | "layout";
 
 /**
  * A command definition. `run` receives the model plus command-specific params;

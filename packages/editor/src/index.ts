@@ -15,6 +15,7 @@ import { EditorModel } from "./model.js";
 
 export { EditorModel, type ChangeListener, type EditorSnapshot } from "./model.js";
 export { type Command, type FeatureGroup, runCommand } from "./commands/types.js";
+export type { SectionTarget } from "./commands/section.js";
 export { ALL_COMMANDS, COMMAND_IDS, commandsInGroup, getCommand } from "./commands/registry.js";
 // Named command objects + group arrays for typed UI wiring.
 export * as commands from "./commands/index.js";
@@ -46,6 +47,19 @@ export { runAtPath, setSimpleRunText } from "./text-edit.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
 export { type RunRef, runsInRange } from "./selection-runs.js";
+export {
+  type PageBackground,
+  type ResolvedSection,
+  resolvePageBackground,
+  resolveSectionLayout,
+} from "./section-layout.js";
+export {
+  type PaletteColor,
+  type PaletteThemeColor,
+  resolveTheme,
+  THEME_PALETTE_COLUMNS,
+  themePalette,
+} from "./theme.js";
 
 // Coverage / capability ledger — the completeness-guarantee surface.
 export {

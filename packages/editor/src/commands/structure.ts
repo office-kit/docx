@@ -388,7 +388,9 @@ export const insertPageBreakCommand: Command<void> = {
   },
 };
 
-export const insertLineBreakCommand: Command<{ kind?: "line" | "page" | "column" }> = {
+export const insertLineBreakCommand: Command<{
+  kind?: "line" | "page" | "column" | "textWrapping";
+}> = {
   id: "structure.insertLineBreak",
   group: "structure",
   label: "Line break",
