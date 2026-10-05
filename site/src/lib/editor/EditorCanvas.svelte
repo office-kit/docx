@@ -14,6 +14,7 @@
     runCommand,
     commands,
     orderSelection,
+    pageGeometry,
   } from '@office-kit/docx-editor';
 
   interface Props {
@@ -33,6 +34,23 @@
   let { model, version, zoom = 1, onselectionchange, onedit, onerror }: Props = $props();
 
   let canvas = $state<HTMLDivElement | null>(null);
+
+  const TWIPS_PER_POINT = 20;
+  // Page size and margins as CSS, re-read on every structural change (page
+  // setup commands bump `version`).
+  const pageCss = $derived.by(() => {
+    if (version < 0) return '';
+    const page = pageGeometry(model.doc);
+    const pt = (twips: number): string => `${twips / TWIPS_PER_POINT}pt`;
+    return [
+      `--page-w:${pt(page.width)}`,
+      `--page-h:${pt(page.height)}`,
+      `--m-top:${pt(page.top)}`,
+      `--m-right:${pt(page.right)}`,
+      `--m-bottom:${pt(page.bottom)}`,
+      `--m-left:${pt(page.left)}`,
+    ].join(';');
+  });
   // Bumped by structural edits made *inside* the canvas (Enter / Backspace /
   // undo / paste) to force a re-render + caret restore, without the parent
   // having to bump `version`. Plain typing does NOT bump this — the browser
@@ -400,7 +418,7 @@
   });
 </script>
 
-<div class="wk-page" style="--zoom: {zoom}">
+<div class="wk-page" style="zoom: {zoom}; {pageCss}">
   <div
     bind:this={canvas}
     class="wk-canvas"
@@ -425,30 +443,59 @@
   .wk-page {
     display: flex;
     justify-content: center;
-    transform: scale(var(--zoom));
-    transform-origin: top center;
   }
+  /*
+   * The page as Word draws it: the section's paper size and margins, a thin
+   * gray edge with a soft shadow, and the L-shaped crop marks Word puts at the
+   * corners of the text area.
+   */
   .wk-canvas {
-    background: #fff;
-    color: #111;
-    width: 100%;
-    max-width: 816px;
-    min-height: 1056px;
-    margin: 0 auto;
-    padding: 96px 96px;
-    box-shadow:
-      0 1px 4px rgba(0, 0, 0, 0.12),
-      0 8px 24px rgba(0, 0, 0, 0.08);
-    border-radius: 2px;
+    --mark: 13.5pt;
+    --mark-color: #a6a6a6;
+    box-sizing: border-box;
+    flex: none;
+    width: var(--page-w);
+    min-height: var(--page-h);
+    padding: var(--m-top) var(--m-right) var(--m-bottom) var(--m-left);
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-image:
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color)),
+      linear-gradient(var(--mark-color), var(--mark-color));
+    background-size:
+      var(--mark) 1px, 1px var(--mark),
+      var(--mark) 1px, 1px var(--mark),
+      var(--mark) 1px, 1px var(--mark),
+      var(--mark) 1px, 1px var(--mark);
+    background-position:
+      calc(var(--m-left) - var(--mark)) var(--m-top),
+      calc(var(--m-left) - 1px) calc(var(--m-top) - var(--mark)),
+      calc(100% - var(--m-right) + var(--mark)) var(--m-top),
+      calc(100% - var(--m-right) + 1px) calc(var(--m-top) - var(--mark)),
+      calc(var(--m-left) - var(--mark)) calc(100% - var(--m-bottom)),
+      calc(var(--m-left) - 1px) calc(100% - var(--m-bottom) + var(--mark)),
+      calc(100% - var(--m-right) + var(--mark)) calc(100% - var(--m-bottom)),
+      calc(100% - var(--m-right) + 1px) calc(100% - var(--m-bottom) + var(--mark));
+    border: 1px solid #c6c6c6;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
     outline: none;
-    font-family: 'Calibri', 'Segoe UI', system-ui, sans-serif;
+    color: #000;
+    /* Only for the caret in an empty document; every paragraph and run carries
+       its style-resolved font and size. */
+    font-family: Calibri, Carlito, 'Segoe UI', system-ui, sans-serif;
     font-size: 11pt;
-    line-height: 1.5;
+    line-height: 1.2;
   }
 
   .wk-canvas :global(.wk-p) {
-    margin: 0 0 8px;
-    min-height: 1.4em;
+    margin: 0;
+    min-height: 1.2em;
     /* Runs render tabs and <w:br/> as \t / \n; keep them visible. */
     white-space: pre-wrap;
   }
@@ -462,15 +509,14 @@
     background: #f3f4f6;
   }
 
+  /* Width, columns, borders and cell margins come from the document. */
   .wk-canvas :global(.wk-table) {
     border-collapse: collapse;
-    margin: 8px 0;
-    width: 100%;
+    table-layout: fixed;
+    margin: 0;
   }
 
   .wk-canvas :global(.wk-td) {
-    border: 1px solid #bbb;
-    padding: 4px 8px;
     vertical-align: top;
   }
 
