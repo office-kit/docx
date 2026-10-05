@@ -49,6 +49,7 @@ import {
   paragraphFlow,
   paragraphsFromXml,
   removeField,
+  replaceChildren,
   resultlessFieldRunsXml,
   scanFields,
   setBlockResult,
@@ -380,7 +381,11 @@ interface TocEntry {
   readonly paragraph: WmlParagraph;
 }
 
-function headingEntries(doc: Docx, flow: readonly ParagraphRef[], parsed: FieldInstruction): TocEntry[] {
+function headingEntries(
+  doc: Docx,
+  flow: readonly ParagraphRef[],
+  parsed: FieldInstruction,
+): TocEntry[] {
   const outline = fieldSwitch(parsed, "o");
   const useLevels = !!fieldSwitch(parsed, "u");
   const custom = fieldSwitch(parsed, "t")?.arg;
@@ -438,9 +443,7 @@ function figureEntries(
     const before = visibleInlinesText(paragraph.children.slice(0, f.begin.inline));
     const after = visibleInlinesText(paragraph.children.slice(f.end.inline + 1));
     const number = formatFieldNumber(numbers.get(f) ?? 1, f.parsed);
-    const text = withLabel
-      ? `${before}${number}${after}`
-      : after.replace(/^[\s:.\-–—]+/, "");
+    const text = withLabel ? `${before}${number}${after}` : after.replace(/^[\s:.\-–—]+/, "");
     out.push({ level: 1, text: text.replace(/\t/g, " ").trim(), paragraph });
   }
   return out;
@@ -484,7 +487,10 @@ function tocResult(
     const tabs = showPage && separator === undefined ? tabsXml(layout.leader, layout.width) : "";
     let content = textRunXml(entry.text, "<w:noProof/>");
     if (showPage && anchor) {
-      const sep = separator === undefined ? "<w:r><w:rPr><w:noProof/><w:webHidden/></w:rPr><w:tab/></w:r>" : textRunXml(separator, "<w:noProof/><w:webHidden/>");
+      const sep =
+        separator === undefined
+          ? "<w:r><w:rPr><w:noProof/><w:webHidden/></w:rPr><w:tab/></w:r>"
+          : textRunXml(separator, "<w:noProof/><w:webHidden/>");
       content += sep;
       content += fieldRunsXml(
         `PAGEREF ${anchor} \\h`,
@@ -529,9 +535,7 @@ export function insertTableOfContents(
   const leader = options.tabLeader ?? "dot";
   const instruction = tableOfContentsInstruction(options);
   blocks.push(
-    ...paragraphsFromXml(
-      blockFieldSkeletonXml(instruction, tabsXml(leader, textWidthTwips(doc))),
-    ),
+    ...paragraphsFromXml(blockFieldSkeletonXml(instruction, tabsXml(leader, textWidthTwips(doc)))),
   );
   insertBlocks(doc, at, blocks);
   updateTables(doc, { types: ["TOC"], ...(options.pageOf ? { pageOf: options.pageOf } : {}) });
@@ -643,7 +647,8 @@ export function updateTables(doc: Docx, options: UpdateTablesOptions = {}): numb
     const fields = scanFields(flow);
     const pageOf = pageLookup(doc, options.pageOf);
     const numbers = sequenceNumbers(doc, flow, fields);
-    const bibliography = types.has("BIBLIOGRAPHY") || types.has("CITATION") ? readBibliography(doc) : undefined;
+    const bibliography =
+      types.has("BIBLIOGRAPHY") || types.has("CITATION") ? readBibliography(doc) : undefined;
     const citationNumbers = citationOrder(fields);
     const targets = fields.filter(
       (f) => f.depth === 0 && types.has(f.parsed.type as TableFieldType),
@@ -652,8 +657,16 @@ export function updateTables(doc: Docx, options: UpdateTablesOptions = {}): numb
     for (const f of targets.toReversed()) {
       switch (f.parsed.type) {
         case "TOC": {
-          ensureBuiltInStyles(doc, fieldSwitch(f.parsed, "c") || fieldSwitch(f.parsed, "a") ? TABLE_OF_FIGURES_STYLES : TOC_STYLES);
-          const layout = { leader: existingLeader(f.begin.ref.paragraph), width: textWidthTwips(doc) };
+          ensureBuiltInStyles(
+            doc,
+            fieldSwitch(f.parsed, "c") || fieldSwitch(f.parsed, "a")
+              ? TABLE_OF_FIGURES_STYLES
+              : TOC_STYLES,
+          );
+          const layout = {
+            leader: existingLeader(f.begin.ref.paragraph),
+            width: textWidthTwips(doc),
+          };
           setBlockResult(f, tocResult(doc, flow, f, fields, numbers, pageOf, tocBookmarks, layout));
           break;
         }
@@ -728,7 +741,9 @@ export function insertCaption(
   }
   xml += fieldRunsXml(seq, textRunXml("1"));
   if (options.text) xml += textRunXml(options.text);
-  const [paragraph] = paragraphsFromXml(`<w:p><w:pPr><w:pStyle w:val="Caption"/></w:pPr>${xml}</w:p>`);
+  const [paragraph] = paragraphsFromXml(
+    `<w:p><w:pPr><w:pStyle w:val="Caption"/></w:pPr>${xml}</w:p>`,
+  );
   if (!paragraph) throw new Error("Failed to build the caption paragraph.");
   insertBlocks(doc, position === "above" ? blockIndex : blockIndex + 1, [paragraph]);
   withFlow(doc, (flow) => {
@@ -739,7 +754,10 @@ export function insertCaption(
       const sameLabel =
         f.parsed.type === "SEQ" && (f.parsed.args[0] ?? "").toLowerCase() === label.toLowerCase();
       if (sameLabel && f.begin.ref === f.end.ref) {
-        setInlineResult(f, inlinesFromXml(textRunXml(formatFieldNumber(numbers.get(f) ?? 1, f.parsed))));
+        setInlineResult(
+          f,
+          inlinesFromXml(textRunXml(formatFieldNumber(numbers.get(f) ?? 1, f.parsed))),
+        );
       } else if (f.parsed.type === "STYLEREF" && f.begin.ref.paragraph === paragraph && chapter) {
         setInlineResult(f, inlinesFromXml(textRunXml(String(chapters.get(paragraph) ?? 1))));
       }
@@ -787,7 +805,11 @@ export function addCaptionLabel(doc: Docx, name: string): void {
       .map((c) => elementXml(c))
       .join("");
     const caption = `<w:caption w:name="${escapeXml(label)}" w:pos="below"/>`;
-    setOrderedChild(root, elementFromXml(`<w:captions>${kept}${caption}</w:captions>`), SETTINGS_ORDER);
+    setOrderedChild(
+      root,
+      elementFromXml(`<w:captions>${kept}${caption}</w:captions>`),
+      SETTINGS_ORDER,
+    );
   });
 }
 
@@ -830,7 +852,11 @@ export function markIndexEntry(
   offset: number,
   entry: IndexEntryOptions,
 ): number {
-  const at = insertInlinesAt(paragraph, offset, inlinesFromXml(resultlessFieldRunsXml(indexEntryInstruction(entry))));
+  const at = insertInlinesAt(
+    paragraph,
+    offset,
+    inlinesFromXml(resultlessFieldRunsXml(indexEntryInstruction(entry))),
+  );
   doc.dirty = true;
   return at;
 }
@@ -852,12 +878,22 @@ export function markAllIndexEntries(doc: Docx, text: string, entry: IndexEntryOp
         if (c.kind !== "run") continue;
         for (const p of c.pieces) {
           if (p.kind === "text") runText += p.value;
-          else if (p.kind === "tab" || p.kind === "break" || p.kind === "noBreakHyphen" || p.kind === "softHyphen") runText += " ";
+          else if (
+            p.kind === "tab" ||
+            p.kind === "break" ||
+            p.kind === "noBreakHyphen" ||
+            p.kind === "softHyphen"
+          )
+            runText += " ";
         }
       }
       const found = runText.indexOf(text);
       if (found < 0) continue;
-      insertInlinesAt(paragraph, found + text.length, inlinesFromXml(resultlessFieldRunsXml(indexEntryInstruction(entry))));
+      insertInlinesAt(
+        paragraph,
+        found + text.length,
+        inlinesFromXml(resultlessFieldRunsXml(indexEntryInstruction(entry))),
+      );
       count++;
     }
     return count;
@@ -909,9 +945,7 @@ export function insertIndex(doc: Docx, at: number, options: IndexOptions = {}): 
   const instruction = indexInstruction(options);
   const leader = options.tabLeader ?? "dot";
   const tabs = options.rightAlignPageNumbers ? tabsXml(leader, columnWidth(doc, columns)) : "";
-  const blocks = paragraphsFromXml(
-    blockFieldSkeletonXml(instruction, tabs),
-  );
+  const blocks = paragraphsFromXml(blockFieldSkeletonXml(instruction, tabs));
   if (columns > 1) wrapInColumnSection(doc, at, blocks, columns);
   insertBlocks(doc, at, blocks);
   updateTables(doc, { types: ["INDEX"], ...(options.pageOf ? { pageOf: options.pageOf } : {}) });
@@ -943,13 +977,18 @@ function wrapInColumnSection(doc: Docx, at: number, blocks: WmlParagraph[], colu
   removeChild(section, "headerReference");
   removeChild(section, "footerReference");
   setOrderedChild(section, elementFromXml('<w:type w:val="continuous"/>'), SECT_PR_ORDER);
-  setOrderedChild(section, elementFromXml(`<w:cols w:num="${columns}" w:space="${COLUMN_GAP_TWIPS}"/>`), SECT_PR_ORDER);
+  setOrderedChild(
+    section,
+    elementFromXml(`<w:cols w:num="${columns}" w:space="${COLUMN_GAP_TWIPS}"/>`),
+    SECT_PR_ORDER,
+  );
   const last = blocks.at(-1);
   if (last) {
     last.pPr ??= elementFromXml("<w:pPr/>");
     setOrderedChild(last.pPr, section, P_PR_ORDER);
   }
-  if (following) setOrderedChild(following, elementFromXml('<w:type w:val="continuous"/>'), SECT_PR_ORDER);
+  if (following)
+    setOrderedChild(following, elementFromXml('<w:type w:val="continuous"/>'), SECT_PR_ORDER);
 }
 
 /** The sectPr of the section containing body block `at` (the next section break at or after it). */
@@ -1043,7 +1082,8 @@ function indexResult(
     const range = fieldSwitch(f.parsed, "r")?.arg;
     const span = range ? rangeOf(range) : undefined;
     const page = pageOf(f.begin.ref.paragraph);
-    const text = span && span[1] > span[0] ? `${span[0]}${rangeSep}${span[1]}` : String(span?.[0] ?? page);
+    const text =
+      span && span[1] > span[0] ? `${span[0]}${rangeSep}${span[1]}` : String(span?.[0] ?? page);
     if (node.pages.some((p) => p.text === text)) continue;
     node.pages.push({
       text,
@@ -1053,13 +1093,18 @@ function indexResult(
     });
   }
   if (root.size === 0) {
-    return paragraphsFromXml(`<w:p>${textRunXml("No index entries found.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`);
+    return paragraphsFromXml(
+      `<w:p>${textRunXml("No index entries found.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`,
+    );
   }
   const entrySep = fieldSwitch(field.parsed, "e")?.arg ?? ", ";
   const pageSep = fieldSwitch(field.parsed, "l")?.arg ?? ", ";
   const runIn = !!fieldSwitch(field.parsed, "r");
   const headings = fieldSwitch(field.parsed, "h");
-  const tabs = entrySep === "\t" ? `${tabsXml(existingLeaderOr(field, "dot"), columnWidth(doc, Number(fieldSwitch(field.parsed, "c")?.arg ?? 1) || 1))}` : "";
+  const tabs =
+    entrySep === "\t"
+      ? `${tabsXml(existingLeaderOr(field, "dot"), columnWidth(doc, Number(fieldSwitch(field.parsed, "c")?.arg ?? 1) || 1))}`
+      : "";
   const pagesXml = (node: IndexNode): string => {
     const pages = node.pages.toSorted((a, b) => a.sortKey - b.sortKey);
     const parts = pages.map((p) => {
@@ -1068,7 +1113,9 @@ function indexResult(
     });
     let xml = parts.join(textRunXml(pageSep));
     if (node.see.length) {
-      const see = node.see.map((s) => `${textRunXml("See ", "<w:i/><w:iCs/>")}${textRunXml(s)}`).join(textRunXml("; "));
+      const see = node.see
+        .map((s) => `${textRunXml("See ", "<w:i/><w:iCs/>")}${textRunXml(s)}`)
+        .join(textRunXml("; "));
       xml += (xml ? textRunXml(". ") : "") + see;
     }
     return xml ? textRunXml(node.pages.length || entrySep === "\t" ? entrySep : ". ") + xml : "";
@@ -1088,11 +1135,15 @@ function indexResult(
         .map((c) => `${textRunXml(c.name)}${pagesXml(c)}`)
         .join(textRunXml("; "));
       const sep = subs ? textRunXml(node.pages.length ? "; " : ": ") : "";
-      out.push(`<w:p><w:pPr><w:pStyle w:val="Index1"/>${tabs}</w:pPr>${textRunXml(node.name)}${pagesXml(node)}${sep}${subs}</w:p>`);
+      out.push(
+        `<w:p><w:pPr><w:pStyle w:val="Index1"/>${tabs}</w:pPr>${textRunXml(node.name)}${pagesXml(node)}${sep}${subs}</w:p>`,
+      );
       continue;
     }
     const emit = (n: IndexNode, level: number): void => {
-      out.push(`<w:p><w:pPr><w:pStyle w:val="Index${level}"/>${tabs}</w:pPr>${textRunXml(n.name)}${pagesXml(n)}</w:p>`);
+      out.push(
+        `<w:p><w:pPr><w:pStyle w:val="Index${level}"/>${tabs}</w:pPr>${textRunXml(n.name)}${pagesXml(n)}</w:p>`,
+      );
       for (const c of sortedNodes(n.children)) emit(c, Math.min(level + 1, MAX_LEVEL));
     };
     emit(node, 1);
@@ -1147,7 +1198,11 @@ export function markAuthorityCitation(
   }
   const short = options.shortCitation?.trim() || long;
   const instruction = `TA \\l ${quotedFieldArg(long)} \\s ${quotedFieldArg(short)} \\c ${options.category}`;
-  const at = insertInlinesAt(paragraph, offset, inlinesFromXml(resultlessFieldRunsXml(instruction)));
+  const at = insertInlinesAt(
+    paragraph,
+    offset,
+    inlinesFromXml(resultlessFieldRunsXml(instruction)),
+  );
   doc.dirty = true;
   return at;
 }
@@ -1165,7 +1220,11 @@ export interface TableOfAuthoritiesOptions {
 const PASSIM_THRESHOLD = 5;
 
 /** Insert a table of authorities (TOA field per category, with heading) before body block `at`. */
-export function insertTableOfAuthorities(doc: Docx, at: number, options: TableOfAuthoritiesOptions): void {
+export function insertTableOfAuthorities(
+  doc: Docx,
+  at: number,
+  options: TableOfAuthoritiesOptions,
+): void {
   ensureBuiltInStyles(doc, TOA_STYLES);
   let categories: number[];
   if (options.category === "all") {
@@ -1183,7 +1242,7 @@ export function insertTableOfAuthorities(doc: Docx, at: number, options: TableOf
   const leader = options.tabLeader ?? "dot";
   const xml = categories
     .map((c) => {
-      const instruction = `TOA \\h \\c "${c}"${options.passim ?? true ? " \\p" : ""}`;
+      const instruction = `TOA \\h \\c "${c}"${(options.passim ?? true) ? " \\p" : ""}`;
       return blockFieldSkeletonXml(instruction, tabsXml(leader, textWidthTwips(doc)));
     })
     .join("");
@@ -1206,13 +1265,20 @@ function toaResult(
     const long = fieldSwitch(f.parsed, "l")?.arg;
     const short = fieldSwitch(f.parsed, "s")?.arg ?? long;
     if (long && short) {
-      longOf.set(short.toLowerCase(), { long, category: Number(fieldSwitch(f.parsed, "c")?.arg ?? 0) });
+      longOf.set(short.toLowerCase(), {
+        long,
+        category: Number(fieldSwitch(f.parsed, "c")?.arg ?? 0),
+      });
     }
   }
   const pages = new Map<string, Set<number>>();
   for (const f of fields) {
     if (f.parsed.type !== "TA") continue;
-    const key = (fieldSwitch(f.parsed, "s")?.arg ?? fieldSwitch(f.parsed, "l")?.arg ?? "").toLowerCase();
+    const key = (
+      fieldSwitch(f.parsed, "s")?.arg ??
+      fieldSwitch(f.parsed, "l")?.arg ??
+      ""
+    ).toLowerCase();
     const authority = longOf.get(key);
     if (!authority || authority.category !== category) continue;
     const set = pages.get(key) ?? new Set<number>();
@@ -1225,17 +1291,23 @@ function toaResult(
     out.push(`<w:p><w:pPr><w:pStyle w:val="TOAHeading"/></w:pPr>${textRunXml(name)}</w:p>`);
   }
   const entries = [...pages.entries()].toSorted((a, b) =>
-    (longOf.get(a[0])?.long ?? "").localeCompare(longOf.get(b[0])?.long ?? "", undefined, { sensitivity: "base" }),
+    (longOf.get(a[0])?.long ?? "").localeCompare(longOf.get(b[0])?.long ?? "", undefined, {
+      sensitivity: "base",
+    }),
   );
   if (entries.length === 0) {
-    out.push(`<w:p>${textRunXml("No table of authorities entries found.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`);
+    out.push(
+      `<w:p>${textRunXml("No table of authorities entries found.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`,
+    );
     return paragraphsFromXml(out.join(""));
   }
   const tabs = tabsXml(existingLeaderOr(field, "dot"), textWidthTwips(doc));
   for (const [key, set] of entries) {
     const list = [...set].toSorted((a, b) => a - b);
     const pageText = passim && list.length >= PASSIM_THRESHOLD ? "passim" : list.join(", ");
-    out.push(`<w:p><w:pPr><w:pStyle w:val="TableofAuthorities"/>${tabs}</w:pPr>${textRunXml(longOf.get(key)?.long ?? key)}<w:r><w:tab/></w:r>${textRunXml(pageText)}</w:p>`);
+    out.push(
+      `<w:p><w:pPr><w:pStyle w:val="TableofAuthorities"/>${tabs}</w:pPr>${textRunXml(longOf.get(key)?.long ?? key)}<w:r><w:tab/></w:r>${textRunXml(pageText)}</w:p>`,
+    );
   }
   return paragraphsFromXml(out.join(""));
 }
@@ -1296,7 +1368,11 @@ function sectionList(doc: Docx): XmlElement[] {
 }
 
 /** The effective note properties of a section (its own, over the document's, over Word's defaults). */
-export function noteProperties(doc: Docx, kind: NoteKind, section?: number): Required<NoteProperties> {
+export function noteProperties(
+  doc: Docx,
+  kind: NoteKind,
+  section?: number,
+): Required<NoteProperties> {
   const docLevel = readNotePr(findChild(readSettings(doc), notePrLocal(kind)));
   const sections = sectionList(doc);
   const sect = sections[section ?? sections.length - 1];
@@ -1337,7 +1413,8 @@ export function setNoteProperties(
     editSettings(doc, (root) => {
       const existing = findChild(root, notePrLocal(kind));
       const separators = (existing?.children ?? []).filter(
-        (c): c is XmlElement => c.kind === "element" && (c.name.local === "footnote" || c.name.local === "endnote"),
+        (c): c is XmlElement =>
+          c.kind === "element" && (c.name.local === "footnote" || c.name.local === "endnote"),
       );
       const merged = { ...readNotePr(existing), ...props };
       const el = elementFromXml(notePrXml(kind, merged));
@@ -1371,7 +1448,10 @@ export interface NoteMark {
   readonly paragraph: WmlParagraph;
 }
 
-function referenceOf(inline: WmlInline, kind: NoteKind): { id: number; custom?: string } | undefined {
+function referenceOf(
+  inline: WmlInline,
+  kind: NoteKind,
+): { id: number; custom?: string } | undefined {
   const local = kind === "footnote" ? "footnoteReference" : "endnoteReference";
   if (inline.kind === "run") {
     const piece = inline.pieces.find((p) => p.kind === "raw" && p.node.name.local === local);
@@ -1380,7 +1460,13 @@ function referenceOf(inline: WmlInline, kind: NoteKind): { id: number; custom?: 
     const customFlag = wAttr(piece.node, "customMarkFollows");
     if (customFlag === "1" || customFlag === "true" || customFlag === "on") {
       const custom = inline.pieces
-        .map((p) => (p.kind === "text" ? p.value : p.kind === "symbol" ? String.fromCharCode(Number.parseInt(p.char, 16)) : ""))
+        .map((p) =>
+          p.kind === "text"
+            ? p.value
+            : p.kind === "symbol"
+              ? String.fromCharCode(Number.parseInt(p.char, 16))
+              : "",
+        )
         .join("");
       return { id, custom };
     }
@@ -1421,7 +1507,12 @@ export function noteMarks(doc: Docx, kind: NoteKind, pageOf?: PageNumberProvider
         out.push({ kind, id: r.id, mark: r.custom, paragraph: ref.paragraph });
         continue;
       }
-      out.push({ kind, id: r.id, mark: formatNumber(props.startAt + count, props.numberFormat), paragraph: ref.paragraph });
+      out.push({
+        kind,
+        id: r.id,
+        mark: formatNumber(props.startAt + count, props.numberFormat),
+        paragraph: ref.paragraph,
+      });
       count++;
     }
     if (ref.list === doc.document.body.blocks && childElement(ref.paragraph.pPr, "sectPr")) {
@@ -1465,7 +1556,9 @@ export function insertNote(
     : `<w:r><w:rPr><w:rStyle w:val="${refStyle}"/></w:rPr><w:${kind}Ref/></w:r>`;
   const body = textRunXml(` ${options.text ?? ""}`);
   part.footnotes.push(
-    elementFromXml(`<w:${kind} w:id="${id}"><w:p><w:pPr><w:pStyle w:val="${textStyle}"/></w:pPr>${refRunInNote}${body}</w:p></w:${kind}>`),
+    elementFromXml(
+      `<w:${kind} w:id="${id}"><w:p><w:pPr><w:pStyle w:val="${textStyle}"/></w:pPr>${refRunInNote}${body}</w:p></w:${kind}>`,
+    ),
   );
   markNotesDirty(doc, kind);
   const reference = custom
@@ -1474,6 +1567,71 @@ export function insertNote(
   insertInlinesAt(paragraph, offset, inlinesFromXml(reference));
   doc.dirty = true;
   return id;
+}
+
+function noteElement(doc: Docx, kind: NoteKind, id: number): XmlElement | undefined {
+  return notesPartOf(doc, kind)?.footnotes.find((n) => Number(wAttr(n, "id")) === id);
+}
+
+function elementText(el: XmlElement): string {
+  let out = "";
+  for (const c of el.children) {
+    if (c.kind === "text") {
+      if (el.name.local === "t") out += c.value;
+    } else if (c.kind === "element") {
+      if (c.name.local === "tab") out += "\t";
+      else if (c.name.local === "br") out += "\n";
+      else if (c.name.local !== "instrText" && c.name.local !== "delText") out += elementText(c);
+    }
+  }
+  return out;
+}
+
+/**
+ * The text of a footnote or endnote, paragraphs joined by `\n`, without the
+ * reference mark and the space Word puts after it.
+ */
+export function noteText(doc: Docx, kind: NoteKind, id: number): string | undefined {
+  const note = noteElement(doc, kind, id);
+  if (!note) return undefined;
+  const paragraphs = note.children.filter(
+    (c): c is XmlElement => c.kind === "element" && c.name.local === "p",
+  );
+  return paragraphs
+    .map((p) => elementText(p))
+    .join("\n")
+    .replace(/^ /, "");
+}
+
+/**
+ * Replace a footnote's or endnote's text, keeping its reference mark and
+ * paragraph properties. Lines (`\n`) become paragraphs.
+ */
+export function setNoteText(doc: Docx, kind: NoteKind, id: number, text: string): void {
+  const note = noteElement(doc, kind, id);
+  if (!note) throw new Error(`There is no ${kind} with id ${id}.`);
+  const first = note.children.find(
+    (c): c is XmlElement => c.kind === "element" && c.name.local === "p",
+  );
+  const pPr = first ? childElement(first, "pPr") : undefined;
+  const pPrXml = pPr ? elementXml(pPr) : "";
+  // The mark is the first run of the first paragraph (an automatic
+  // `w:footnoteRef` or a custom mark's text).
+  const markRun = first?.children.find(
+    (c): c is XmlElement => c.kind === "element" && c.name.local === "r",
+  );
+  const [head = "", ...rest] = text.split("\n");
+  const xml =
+    `<w:p>${pPrXml}${markRun ? elementXml(markRun) : ""}${textRunXml(` ${head}`)}</w:p>` +
+    rest.map((line) => `<w:p>${pPrXml}${line ? textRunXml(line) : ""}</w:p>`).join("");
+  replaceChildren(note, paragraphsFromXmlElements(xml));
+  markNotesDirty(doc, kind);
+  doc.dirty = true;
+}
+
+function paragraphsFromXmlElements(xml: string): XmlElement[] {
+  const wrapper = elementFromXml(`<w:body>${xml}</w:body>`);
+  return wrapper.children.filter((c): c is XmlElement => c.kind === "element");
 }
 
 export type NoteConversion = "footnotesToEndnotes" | "endnotesToFootnotes" | "swap";
@@ -1497,7 +1655,9 @@ export function convertNotes(doc: Docx, conversion: NoteConversion): number {
   // note twice.
   const moves = plan.map(([from, to]) => {
     const part = notesPartOf(doc, from);
-    const notes = (part?.footnotes ?? []).filter((n) => !wAttr(n, "type") || wAttr(n, "type") === "normal");
+    const notes = (part?.footnotes ?? []).filter(
+      (n) => !wAttr(n, "type") || wAttr(n, "type") === "normal",
+    );
     return { from, to, notes };
   });
   const remap = new Map<string, { kind: NoteKind; id: number }>();
@@ -1544,11 +1704,13 @@ function retargetNote(note: XmlElement, from: NoteKind, to: NoteKind, id: number
     [`${from}Ref`, `${to}Ref`],
   ]);
   const transform = (el: XmlElement, top: boolean): XmlElement => {
-    const local = el.name.uri === WML_NS ? (rename.get(el.name.local) ?? el.name.local) : el.name.local;
+    const local =
+      el.name.uri === WML_NS ? (rename.get(el.name.local) ?? el.name.local) : el.name.local;
     const isStyleRef = el.name.local === "pStyle" || el.name.local === "rStyle";
     const attrs = el.attrs.map((a) => {
       if (top && a.name.local === "id") return { ...a, value: String(id) };
-      if (isStyleRef && a.name.local === "val") return { ...a, value: styleFrom.get(a.value) ?? a.value };
+      if (isStyleRef && a.name.local === "val")
+        return { ...a, value: styleFrom.get(a.value) ?? a.value };
       return a;
     });
     return {
@@ -1582,8 +1744,10 @@ function retargetReference(
 
 // --- Citations and bibliography ------------------------------------------------------------
 
-const CUSTOM_XML_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
-const CUSTOM_XML_PROPS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps";
+const CUSTOM_XML_REL =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
+const CUSTOM_XML_PROPS_REL =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps";
 const CUSTOM_XML_PROPS_CT = "application/vnd.openxmlformats-officedocument.customXmlProperties+xml";
 const CUSTOM_XML_CT = "application/xml";
 
@@ -1641,7 +1805,9 @@ function writeBibliography(doc: Docx, state: BibliographyState): void {
     if (tags.has(s.tag)) throw new Error(`Duplicate source tag ${JSON.stringify(s.tag)}.`);
     tags.add(s.tag);
   }
-  const data = new TextEncoder().encode(writeSources({ style: state.style, sources: [...state.sources] }));
+  const data = new TextEncoder().encode(
+    writeSources({ style: state.style, sources: [...state.sources] }),
+  );
   const existing = bibliographyPartName(doc);
   const part = existing ? getPart(doc.opc, existing) : undefined;
   if (part) {
@@ -1650,7 +1816,11 @@ function writeBibliography(doc: Docx, state: BibliographyState): void {
     return;
   }
   let n = 1;
-  while (hasPart(doc.opc, `/customXml/item${n}.xml`) || hasPart(doc.opc, `/customXml/itemProps${n}.xml`)) n++;
+  while (
+    hasPart(doc.opc, `/customXml/item${n}.xml`) ||
+    hasPart(doc.opc, `/customXml/itemProps${n}.xml`)
+  )
+    n++;
   const itemName = `/customXml/item${n}.xml`;
   const propsName = `/customXml/itemProps${n}.xml`;
   addPart(doc.opc, { name: itemName, contentType: CUSTOM_XML_CT, data });
@@ -1661,8 +1831,14 @@ function writeBibliography(doc: Docx, state: BibliographyState): void {
       `<?xml version="1.0" encoding="UTF-8" standalone="no"?><ds:datastoreItem ds:itemID="{${newGuid()}}" xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml"><ds:schemaRefs><ds:schemaRef ds:uri="${BIBLIOGRAPHY_NS}"/></ds:schemaRefs></ds:datastoreItem>`,
     ),
   });
-  addRelationship(partRelationships(doc.opc, itemName), { type: CUSTOM_XML_PROPS_REL, target: `itemProps${n}.xml` });
-  addRelationship(partRelationships(doc.opc, doc.partName), { type: CUSTOM_XML_REL, target: `../customXml/item${n}.xml` });
+  addRelationship(partRelationships(doc.opc, itemName), {
+    type: CUSTOM_XML_PROPS_REL,
+    target: `itemProps${n}.xml`,
+  });
+  addRelationship(partRelationships(doc.opc, doc.partName), {
+    type: CUSTOM_XML_REL,
+    target: `../customXml/item${n}.xml`,
+  });
   doc.dirty = true;
 }
 
@@ -1687,7 +1863,10 @@ export function setBibliographyStyle(doc: Docx, style: CitationStyle): void {
 }
 
 /** Word's tag for a new source: three letters of the first author (or title) and a two-digit year, made unique. */
-export function suggestSourceTag(existing: readonly BibliographySource[], source: Omit<BibliographySource, "tag">): string {
+export function suggestSourceTag(
+  existing: readonly BibliographySource[],
+  source: Omit<BibliographySource, "tag">,
+): string {
   const lead = source.corporateAuthor ?? source.authors?.[0]?.last ?? source.fields?.Title ?? "Src";
   const stem = lead.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 3) || "Src";
   const year = (source.fields?.Year ?? "").replace(/\D/g, "").slice(-2);
@@ -1703,7 +1882,10 @@ export function suggestSourceTag(existing: readonly BibliographySource[], source
 const CITATION_LCID = 1033;
 
 /** The CITATION instruction for one or more sources (`\m` adds further sources). */
-export function citationInstruction(tags: readonly string[], options: CitationOptions = {}): string {
+export function citationInstruction(
+  tags: readonly string[],
+  options: CitationOptions = {},
+): string {
   const [first, ...more] = tags;
   if (!first) throw new Error("A citation needs a source tag.");
   const parts = ["CITATION", quoteFieldArg(first), "\\l", String(CITATION_LCID)];
@@ -1733,7 +1915,11 @@ export function insertCitation(
   if (!bibliographySources(doc).some((s) => s.tag === tag)) {
     throw new Error(`No source with tag ${JSON.stringify(tag)} in the document.`);
   }
-  insertInlinesAt(paragraph, offset, inlinesFromXml(fieldRunsXml(citationInstruction([tag], options), textRunXml(`(${tag})`))));
+  insertInlinesAt(
+    paragraph,
+    offset,
+    inlinesFromXml(fieldRunsXml(citationInstruction([tag], options), textRunXml(`(${tag})`))),
+  );
   doc.dirty = true;
   updateTables(doc, { types: ["CITATION", "BIBLIOGRAPHY"] });
 }
@@ -1745,7 +1931,11 @@ export const BIBLIOGRAPHY_TITLES = ["Bibliography", "References", "Works Cited"]
  * Insert a bibliography before body block `at`: a Heading 1 title (omit for
  * Word's "Insert Bibliography") and the BIBLIOGRAPHY field with its entries.
  */
-export function insertBibliography(doc: Docx, at: number, options: { readonly title?: string } = {}): void {
+export function insertBibliography(
+  doc: Docx,
+  at: number,
+  options: { readonly title?: string } = {},
+): void {
   ensureBuiltInStyles(doc, BIBLIOGRAPHY_STYLES);
   let xml = "";
   if (options.title) {
@@ -1762,7 +1952,10 @@ function citationOrder(fields: readonly FlowField[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const f of fields) {
     if (f.parsed.type !== "CITATION") continue;
-    const tags = [f.parsed.args[0], ...f.parsed.switches.filter((s) => s.name.toLowerCase() === "m").map((s) => s.arg)];
+    const tags = [
+      f.parsed.args[0],
+      ...f.parsed.switches.filter((s) => s.name.toLowerCase() === "m").map((s) => s.arg),
+    ];
     for (const tag of tags) if (tag && !out.has(tag)) out.set(tag, out.size + 1);
   }
   return out;
@@ -1795,7 +1988,10 @@ function citationResult(
   numbers: ReadonlyMap<string, number>,
 ): WmlInline[] {
   const bySource = new Map((state?.sources ?? []).map((s) => [s.tag, s]));
-  const tags = [parsed.args[0], ...parsed.switches.filter((s) => s.name.toLowerCase() === "m").map((s) => s.arg)];
+  const tags = [
+    parsed.args[0],
+    ...parsed.switches.filter((s) => s.name.toLowerCase() === "m").map((s) => s.arg),
+  ];
   const options = citationOptionsOf(parsed);
   const cited: CitedSource[] = [];
   for (const tag of tags) {
@@ -1813,7 +2009,9 @@ function bibliographyResult(
 ): WmlParagraph[] {
   const sources = state?.sources ?? [];
   if (sources.length === 0) {
-    return paragraphsFromXml(`<w:p>${textRunXml("There are no sources in the current document.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`);
+    return paragraphsFromXml(
+      `<w:p>${textRunXml("There are no sources in the current document.", "<w:b/><w:bCs/><w:noProof/>")}</w:p>`,
+    );
   }
   const entries = formatBibliography(sources, state?.style ?? "APA", numbers);
   return paragraphsFromXml(

@@ -326,7 +326,8 @@ export function formatCitation(cited: readonly CitedSource[], style: CitationSty
   const kind = CITATION_STYLES[style].kind;
   const parts = cited.map((c) => {
     let body: string;
-    if (kind === "numeric") body = String(c.number) + (c.options.pages ? `, ${c.options.pages}` : "");
+    if (kind === "numeric")
+      body = String(c.number) + (c.options.pages ? `, ${c.options.pages}` : "");
     else if (kind === "authorPage") body = mlaCitation(c);
     else body = authorDateCitation(c, style);
     return `${c.options.prefix ?? ""}${body}${c.options.suffix ?? ""}`;
@@ -464,13 +465,17 @@ function mlaEntry(source: BibliographySource): StyledText[] {
     const issue = field(source, "Issue");
     const pages = field(source, "Pages");
     const vi = [volume, issue].filter(Boolean).join(".");
-    out.push({ text: `${vi ? ` ${vi}` : ""}${year ? ` (${year})` : ""}${pages ? `: ${pages}` : ""}. ` });
+    out.push({
+      text: `${vi ? ` ${vi}` : ""}${year ? ` (${year})` : ""}${pages ? `: ${pages}` : ""}. `,
+    });
   } else {
     const where = place(source);
     const pub = [where, year].filter(Boolean).join(", ");
     if (pub) out.push({ text: `${pub}. ` });
   }
-  out.push({ text: WEB_TYPES.has(source.type) ? "Web." : (field(source, "Medium") ?? "Print") + "." });
+  out.push({
+    text: WEB_TYPES.has(source.type) ? "Web." : (field(source, "Medium") ?? "Print") + ".",
+  });
   const url = field(source, "URL");
   if (url) out.push({ text: ` <${url}>.` });
   return trimEnd(out);
@@ -505,9 +510,16 @@ function chicagoEntry(source: BibliographySource): StyledText[] {
   return trimEnd(out);
 }
 
-function numericEntry(source: BibliographySource, number: number, style: CitationStyle): StyledText[] {
+function numericEntry(
+  source: BibliographySource,
+  number: number,
+  style: CitationStyle,
+): StyledText[] {
   const out: StyledText[] = [];
-  const label = style === "ISO 690 - Numerical Reference" || style === "SIST02" ? `${number}. ` : `[${number}] `;
+  const label =
+    style === "ISO 690 - Numerical Reference" || style === "SIST02"
+      ? `${number}. `
+      : `[${number}] `;
   out.push({ text: label });
   const authors = style === "IEEE" ? ieeeAuthors(source) : chicagoAuthors(source);
   if (authors) out.push({ text: `${authors}, ` });

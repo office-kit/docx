@@ -28,10 +28,12 @@ import {
   markIndexEntry,
   noteMarks,
   noteProperties,
+  noteText,
   removeTableOfContents,
   setBibliographySources,
   setBibliographyStyle,
   setNoteProperties,
+  setNoteText,
   setTocLevel,
   suggestSourceTag,
   tableOfContentsInstruction,
@@ -53,7 +55,11 @@ function bodyXml(doc: Docx): string {
 /** The visible text of each paragraph (field codes dropped), one string per paragraph. */
 function paragraphTexts(xml: string): string[] {
   return [...xml.matchAll(/<w:p[ >].*?<\/w:p>/g)].map((m) =>
-    [...m[0].replace(/<w:instrText[^>]*>.*?<\/w:instrText>/g, "").matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>|<w:tab\/>/g)]
+    [
+      ...m[0]
+        .replace(/<w:instrText[^>]*>.*?<\/w:instrText>/g, "")
+        .matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>|<w:tab\/>/g),
+    ]
       .map((t) => (t[1] ?? "\t").replace(/&quot;/g, '"').replace(/&amp;/g, "&"))
       .join(""),
   );
@@ -81,7 +87,11 @@ describe("table of contents", () => {
   it("builds the Word instruction from the dialog options", () => {
     expect(tableOfContentsInstruction()).toBe('TOC \\o "1-3" \\h \\z \\u');
     expect(
-      tableOfContentsInstruction({ levels: { from: 1, to: 2 }, pageNumbers: false, hyperlinks: false }),
+      tableOfContentsInstruction({
+        levels: { from: 1, to: 2 },
+        pageNumbers: false,
+        hyperlinks: false,
+      }),
     ).toBe('TOC \\o "1-2" \\z \\u \\n');
     expect(tableOfContentsInstruction({ captionLabel: "Figure" })).toBe('TOC \\h \\z \\c "Figure"');
     expect(() => tableOfContentsInstruction({ levels: { from: 3, to: 1 } })).toThrow(/Invalid TOC/);
@@ -171,7 +181,7 @@ describe("captions and table of figures", () => {
     insertCaption(doc, 2, "below", { label: "Figure", text: ": Last" });
     insertCaption(doc, 0, "below", { label: "Figure", text: ": First" });
     const xml = bodyXml(roundTrip(doc));
-    expect(xml).toContain('SEQ Figure \\* ARABIC');
+    expect(xml).toContain("SEQ Figure \\* ARABIC");
     const first = xml.indexOf(": First");
     const last = xml.indexOf(": Last");
     expect(xml.slice(xml.lastIndexOf("SEQ", first), first)).toContain("<w:t>1</w:t>");
@@ -216,7 +226,9 @@ describe("captions and table of figures", () => {
     addCaptionLabel(doc, "Photo");
     addCaptionLabel(doc, "photo");
     expect(captionLabels(doc)).toEqual(["Figure", "Table", "Equation", "Photo"]);
-    expect(partXml(roundTrip(doc), "/word/settings.xml")).toContain('<w:caption w:name="Photo" w:pos="below"/>');
+    expect(partXml(roundTrip(doc), "/word/settings.xml")).toContain(
+      '<w:caption w:name="Photo" w:pos="below"/>',
+    );
   });
 });
 
@@ -239,7 +251,14 @@ describe("index", () => {
     expect(xml).toContain('INDEX \\h "A" \\c "2" \\z "1033"');
     const texts = paragraphTexts(xml);
     const start = texts.indexOf("A");
-    expect(texts.slice(start, start + 6)).toEqual(["A", "Apple, 1, 2", "red, 1", "F", "Fruit. See Apple", "P"]);
+    expect(texts.slice(start, start + 6)).toEqual([
+      "A",
+      "Apple, 1, 2",
+      "red, 1",
+      "F",
+      "Fruit. See Apple",
+      "P",
+    ]);
     expect(xml).toMatch(/<w:r><w:rPr><w:b\/><w:bCs\/><\/w:rPr><w:t>1<\/w:t>/);
     expect(xml).toContain('<w:cols w:num="2" w:space="720"/>');
     expect(xml).toContain('<w:type w:val="continuous"/>');
@@ -263,7 +282,11 @@ describe("table of authorities", () => {
     const doc = createDocx({ paragraphs: ["See Roe.", "Again."] });
     const [p1, p2] = paragraphs(doc);
     if (!p1 || !p2) throw new Error("fixture");
-    markAuthorityCitation(doc, p1, 3, { longCitation: "Roe v. Wade, 410 U.S. 113 (1973)", shortCitation: "Roe", category: 1 });
+    markAuthorityCitation(doc, p1, 3, {
+      longCitation: "Roe v. Wade, 410 U.S. 113 (1973)",
+      shortCitation: "Roe",
+      category: 1,
+    });
     markAuthorityCitation(doc, p2, 0, { longCitation: "U.S. Const. art. I", category: 7 });
     insertTableOfAuthorities(doc, 2, { category: "all" });
     const xml = bodyXml(roundTrip(doc));
@@ -292,11 +315,29 @@ describe("footnotes and endnotes", () => {
     insertNote(doc, p, 0, "endnote", { text: "End." });
     const reopened = roundTrip(doc);
     const xml = bodyXml(reopened);
-    expect(xml).toMatch(/<w:t>Hello<\/w:t><\/w:r><w:r><w:rPr><w:rStyle w:val="FootnoteReference"\/><\/w:rPr><w:footnoteReference w:id="1"\/>/);
+    expect(xml).toMatch(
+      /<w:t>Hello<\/w:t><\/w:r><w:r><w:rPr><w:rStyle w:val="FootnoteReference"\/><\/w:rPr><w:footnoteReference w:id="1"\/>/,
+    );
     expect(xml).toContain('<w:footnoteReference w:customMarkFollows="1" w:id="2"/><w:t>*</w:t>');
     expect(partXml(reopened, "/word/endnotes.xml")).toContain('<w:pStyle w:val="EndnoteText"/>');
     expect(noteMarks(reopened, "footnote").map((m) => m.mark)).toEqual(["1", "*"]);
     expect(noteMarks(reopened, "endnote").map((m) => m.mark)).toEqual(["i"]);
+  });
+
+  it("reads and replaces a note's text, keeping its mark", () => {
+    const doc = createDocx({ paragraphs: ["Hello"] });
+    const [p] = paragraphs(doc);
+    if (!p) throw new Error("fixture");
+    const id = insertNote(doc, p, 5, "footnote", { text: "Draft." });
+    expect(noteText(doc, "footnote", id)).toBe("Draft.");
+    setNoteText(doc, "footnote", id, "Final line one.\nLine two.");
+    const reopened = roundTrip(doc);
+    expect(noteText(reopened, "footnote", id)).toBe("Final line one.\nLine two.");
+    const notes = partXml(reopened, "/word/footnotes.xml");
+    expect(notes).toContain(
+      '<w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> Final line one.</w:t></w:r></w:p>',
+    );
+    expect(notes.match(/<w:pStyle w:val="FootnoteText"\/>/g)).toHaveLength(2);
   });
 
   it("writes footnotePr to settings and sections and honours it in marks", () => {
@@ -305,7 +346,11 @@ describe("footnotes and endnotes", () => {
     if (!p) throw new Error("fixture");
     insertNote(doc, p, 1, "footnote");
     insertNote(doc, p, 1, "footnote");
-    setNoteProperties(doc, "footnote", { numberFormat: "upperRoman", startAt: 3, position: "beneathText" });
+    setNoteProperties(doc, "footnote", {
+      numberFormat: "upperRoman",
+      startAt: 3,
+      position: "beneathText",
+    });
     expect(noteProperties(doc, "footnote")).toEqual({
       position: "beneathText",
       numberFormat: "upperRoman",
@@ -317,7 +362,9 @@ describe("footnotes and endnotes", () => {
     expect(partXml(reopened, "/word/settings.xml")).toContain(
       '<w:footnotePr><w:pos w:val="beneathText"/><w:numFmt w:val="upperRoman"/><w:numStart w:val="3"/></w:footnotePr>',
     );
-    expect(bodyXml(reopened)).toMatch(/<w:sectPr><w:footnotePr><w:pos w:val="beneathText"\/><w:numFmt w:val="upperRoman"\/><w:numStart w:val="3"\/><\/w:footnotePr><w:pgSz/);
+    expect(bodyXml(reopened)).toMatch(
+      /<w:sectPr><w:footnotePr><w:pos w:val="beneathText"\/><w:numFmt w:val="upperRoman"\/><w:numStart w:val="3"\/><\/w:footnotePr><w:pgSz/,
+    );
     expect(() => setNoteProperties(doc, "endnote", { position: "pageBottom" })).toThrow();
   });
 
@@ -329,7 +376,9 @@ describe("footnotes and endnotes", () => {
     expect(convertNotes(doc, "footnotesToEndnotes")).toBe(1);
     let reopened = roundTrip(doc);
     expect(bodyXml(reopened)).toContain('<w:endnoteReference w:id="1"/>');
-    expect(partXml(reopened, "/word/endnotes.xml")).toMatch(/<w:endnote w:id="1"><w:p><w:pPr><w:pStyle w:val="EndnoteText"\/><\/w:pPr><w:r><w:rPr><w:rStyle w:val="EndnoteReference"\/><\/w:rPr><w:endnoteRef\/>/);
+    expect(partXml(reopened, "/word/endnotes.xml")).toMatch(
+      /<w:endnote w:id="1"><w:p><w:pPr><w:pStyle w:val="EndnoteText"\/><\/w:pPr><w:r><w:rPr><w:rStyle w:val="EndnoteReference"\/><\/w:rPr><w:endnoteRef\/>/,
+    );
     insertNote(reopened, paragraphs(reopened)[0] as never, 0, "footnote", { text: "other" });
     expect(convertNotes(reopened, "swap")).toBe(2);
     reopened = roundTrip(reopened);
@@ -352,7 +401,14 @@ const ARTICLE: BibliographySource = {
     { last: "Doe", first: "Jane" },
     { last: "Roe", first: "Rick" },
   ],
-  fields: { Title: "An Article", Year: "2019", JournalName: "Journal", Volume: "3", Issue: "2", Pages: "1-9" },
+  fields: {
+    Title: "An Article",
+    Year: "2019",
+    JournalName: "Journal",
+    Volume: "3",
+    Issue: "2",
+    Pages: "1-9",
+  },
 };
 
 describe("citations and bibliography", () => {
@@ -403,11 +459,19 @@ describe("citations and bibliography", () => {
     setBibliographyStyle(doc, "IEEE");
     xml = bodyXml(doc);
     expect(paragraphTexts(xml).slice(0, 2)).toEqual(["Claim one[1, 12].", "Claim two[2]."]);
-    expect(partXml(doc, "/customXml/item1.xml")).toContain('SelectedStyle="\\IEEE2006OfficeOnline.xsl"');
+    expect(partXml(doc, "/customXml/item1.xml")).toContain(
+      'SelectedStyle="\\IEEE2006OfficeOnline.xsl"',
+    );
   });
 
   it("suggests Word-style tags", () => {
-    expect(suggestSourceTag([BOOK], { type: "Book", authors: [{ last: "Smith" }], fields: { Year: "2020" } })).toBe("Smi201");
+    expect(
+      suggestSourceTag([BOOK], {
+        type: "Book",
+        authors: [{ last: "Smith" }],
+        fields: { Year: "2020" },
+      }),
+    ).toBe("Smi201");
     expect(suggestSourceTag([], { type: "Misc" })).toBe("Src");
   });
 });

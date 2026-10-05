@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createDocx,
-  type Docx,
-  openDocx,
-  paragraphs,
-  toUint8Array,
-} from "./docx.js";
+import { createDocx, type Docx, openDocx, paragraphs, toUint8Array } from "./docx.js";
 import {
   addEnvelope,
   addressBlockInstruction,
@@ -53,19 +47,37 @@ function texts(doc: Docx): string[] {
       ...ref.paragraph,
       children: ref.paragraph.children.map((c) =>
         c.kind === "run"
-          ? { ...c, pieces: c.pieces.map((piece) => (piece.kind === "break" ? { kind: "text" as const, value: "\n", preserveSpace: true } : piece)) }
+          ? {
+              ...c,
+              pieces: c.pieces.map((piece) =>
+                piece.kind === "break"
+                  ? { kind: "text" as const, value: "\n", preserveSpace: true }
+                  : piece,
+              ),
+            }
           : c,
       ),
     }),
   );
 }
 
-const CSV = 'First Name,Last Name,Title,Company,Address,City,State,ZIP,Country\r\nAda,Lovelace,Ms.,"Analytical, Ltd",1 Engine St,London,,N1,United Kingdom\r\nAlan,Turing,Mr.,,2 Bletchley Rd,Bletchley,Bucks,MK3,United States\r\n"Grace ""Amazing""",Hopper,,Navy,3 Cobol Ave,Arlington,VA,22201,United States\r\n';
+const CSV =
+  'First Name,Last Name,Title,Company,Address,City,State,ZIP,Country\r\nAda,Lovelace,Ms.,"Analytical, Ltd",1 Engine St,London,,N1,United Kingdom\r\nAlan,Turing,Mr.,,2 Bletchley Rd,Bletchley,Bucks,MK3,United States\r\n"Grace ""Amazing""",Hopper,,Navy,3 Cobol Ave,Arlington,VA,22201,United States\r\n';
 
 describe("recipient lists", () => {
   it("parses RFC 4180 CSV and writes it back", () => {
     const list = parseRecipientCsv(CSV);
-    expect(list.columns).toEqual(["First Name", "Last Name", "Title", "Company", "Address", "City", "State", "ZIP", "Country"]);
+    expect(list.columns).toEqual([
+      "First Name",
+      "Last Name",
+      "Title",
+      "Company",
+      "Address",
+      "City",
+      "State",
+      "ZIP",
+      "Country",
+    ]);
     expect(list.records).toHaveLength(3);
     expect(list.records[0]?.Company).toBe("Analytical, Ltd");
     expect(list.records[2]?.["First Name"]).toBe('Grace "Amazing"');
@@ -98,8 +110,12 @@ describe("recipient lists", () => {
       preview: false,
     });
     const settings = partXml(reopened, "/word/settings.xml");
-    expect(settings).toMatch(/<w:mailMerge><w:mainDocumentType w:val="formLetters"\/><w:linkToQuery\/><w:dataType w:val="textFile"\/><w:connectString w:val=""\/><w:query w:val="SELECT \* FROM \/Users\/me\/Recipients\.csv"\/><w:dataSource r:id="rId\d+"\/><w:odso><w:udl w:val=""\/><w:table w:val="Recipients\.csv"\/><w:src r:id="rId\d+"\/><w:colDelim w:val="44"\/><w:fHdr\/><w:fieldMapData>/);
-    expect(settings).toContain('<w:fieldMapData><w:type w:val="dbColumn"/><w:name w:val="ZIP"/><w:mappedName w:val="Postal Code"/><w:column w:val="7"/><w:lid w:val="en-US"/></w:fieldMapData>');
+    expect(settings).toMatch(
+      /<w:mailMerge><w:mainDocumentType w:val="formLetters"\/><w:linkToQuery\/><w:dataType w:val="textFile"\/><w:connectString w:val=""\/><w:query w:val="SELECT \* FROM \/Users\/me\/Recipients\.csv"\/><w:dataSource r:id="rId\d+"\/><w:odso><w:udl w:val=""\/><w:table w:val="Recipients\.csv"\/><w:src r:id="rId\d+"\/><w:colDelim w:val="44"\/><w:fHdr\/><w:fieldMapData>/,
+    );
+    expect(settings).toContain(
+      '<w:fieldMapData><w:type w:val="dbColumn"/><w:name w:val="ZIP"/><w:mappedName w:val="Postal Code"/><w:column w:val="7"/><w:lid w:val="en-US"/></w:fieldMapData>',
+    );
     expect(settings).toMatch(/<w:recipientData r:id="rId\d+"\/><\/w:odso><\/w:mailMerge>/);
     const rels = partXml(reopened, "/word/_rels/settings.xml.rels");
     expect(rels).toContain('Target="file:///Users/me/Recipients.csv" TargetMode="External"');
@@ -132,9 +148,21 @@ describe("merge fields", () => {
     insertAddressBlock(doc, p0, 0);
     insertGreetingLine(doc, p1, 0);
     insertMergeField(doc, p2, 3, "First Name");
-    insertMergeRule(doc, p3, 0, { kind: "if", field: "Country", comparison: "=", value: "United States", trueText: "Domestic", falseText: "International" });
+    insertMergeRule(doc, p3, 0, {
+      kind: "if",
+      field: "Country",
+      comparison: "=",
+      value: "United States",
+      trueText: "Domestic",
+      falseText: "International",
+    });
     insertMergeRule(doc, p3, 0, { kind: "mergeRecord" });
-    expect(texts(doc)).toEqual(["«AddressBlock»", "«GreetingLine»", "Hi «First Name»", "«Merge Record #»International"]);
+    expect(texts(doc)).toEqual([
+      "«AddressBlock»",
+      "«GreetingLine»",
+      "Hi «First Name»",
+      "«Merge Record #»International",
+    ]);
     previewMailMerge(doc, list, 0);
     expect(texts(doc)).toEqual([
       "Ms. Ada Lovelace\nAnalytical, Ltd\n1 Engine St\nLondon N1\nUnited Kingdom",
@@ -145,7 +173,7 @@ describe("merge fields", () => {
     expect(mailMergeSettings(doc)).toMatchObject({ preview: true, activeRecord: 1 });
     previewMailMerge(doc, list, 2);
     expect(texts(doc)).toEqual([
-      "Grace \"Amazing\" Hopper\nNavy\n3 Cobol Ave\nArlington, VA 22201",
+      'Grace "Amazing" Hopper\nNavy\n3 Cobol Ave\nArlington, VA 22201',
       "Dear Hopper,",
       'Hi Grace "Amazing"',
       "3Domestic",
@@ -170,13 +198,24 @@ describe("merge fields", () => {
     const doc = createDocx({ paragraphs: [""] });
     const [p] = paragraphs(doc);
     if (!p) throw new Error("fixture");
-    insertMergeRule(doc, p, 0, { kind: "ask", bookmark: "Rate", prompt: "Rate?", defaultText: "5", askOnce: true });
+    insertMergeRule(doc, p, 0, {
+      kind: "ask",
+      bookmark: "Rate",
+      prompt: "Rate?",
+      defaultText: "5",
+      askOnce: true,
+    });
     insertMergeRule(doc, p, 0, { kind: "fillIn", prompt: "Note?" });
     insertMergeRule(doc, p, 0, { kind: "mergeSequence" });
     insertMergeRule(doc, p, 0, { kind: "nextRecord" });
     insertMergeRule(doc, p, 0, { kind: "nextRecordIf", field: "City", comparison: "isBlank" });
     insertMergeRule(doc, p, 0, { kind: "setBookmark", bookmark: "Fee", value: "10" });
-    insertMergeRule(doc, p, 0, { kind: "skipRecordIf", field: "State", comparison: "<>", value: "VA" });
+    insertMergeRule(doc, p, 0, {
+      kind: "skipRecordIf",
+      field: "State",
+      comparison: "<>",
+      value: "VA",
+    });
     const xml = partXml(roundTrip(doc), "/word/document.xml");
     expect(xml).toContain('ASK Rate "Rate?" \\d "5" \\o');
     expect(xml).toContain('FILLIN "Note?"');
@@ -185,7 +224,9 @@ describe("merge fields", () => {
     expect(xml).toMatch(/NEXTIF <\/w:instrText>.*?MERGEFIELD City.*? = "" /);
     expect(xml).toContain('SET Fee "10"');
     expect(xml).toMatch(/SKIPIF <\/w:instrText>.*?MERGEFIELD State.*? &lt;> "VA" /);
-    expect(() => insertMergeRule(doc, p, 0, { kind: "setBookmark", bookmark: "1 bad", value: "" })).toThrow();
+    expect(() =>
+      insertMergeRule(doc, p, 0, { kind: "setBookmark", bookmark: "1 bad", value: "" }),
+    ).toThrow();
   });
 });
 
@@ -197,7 +238,12 @@ describe("finish and merge", () => {
     const [p] = paragraphs(doc);
     if (!p) throw new Error("fixture");
     insertMergeField(doc, p, 5, "Last Name");
-    insertMergeRule(doc, p, 0, { kind: "skipRecordIf", field: "City", comparison: "=", value: "Bletchley" });
+    insertMergeRule(doc, p, 0, {
+      kind: "skipRecordIf",
+      field: "City",
+      comparison: "=",
+      value: "Bletchley",
+    });
     const merged = mergeToNewDocument(doc, list);
     expect(texts(merged).filter((t) => t !== "")).toEqual(["Dear Lovelace", "Dear Hopper"]);
     const xml = partXml(roundTrip(merged), "/word/document.xml");
@@ -219,18 +265,28 @@ describe("finish and merge", () => {
     insertMergeField(labels, first, 0, "First Name");
     expect(updateLabels(labels)).toBe(5);
     const merged = mergeToNewDocument(labels, parseRecipientCsv(CSV));
-    expect(texts(merged).filter((t) => t !== "")).toEqual(["Ada", "Alan", "Grace \"Amazing\""]);
+    expect(texts(merged).filter((t) => t !== "")).toEqual(["Ada", "Alan", 'Grace "Amazing"']);
   });
 });
 
 describe("envelopes and labels", () => {
   it("adds and replaces an envelope section", () => {
     const doc = createDocx({ paragraphs: ["Letter body"] });
-    addEnvelope(doc, { deliveryAddress: "Ada Lovelace\n1 Engine St", returnAddress: "Me\nHere", size: "DL" });
-    addEnvelope(doc, { deliveryAddress: "Alan Turing", returnAddress: "Me", omitReturnAddress: true });
+    addEnvelope(doc, {
+      deliveryAddress: "Ada Lovelace\n1 Engine St",
+      returnAddress: "Me\nHere",
+      size: "DL",
+    });
+    addEnvelope(doc, {
+      deliveryAddress: "Alan Turing",
+      returnAddress: "Me",
+      omitReturnAddress: true,
+    });
     const reopened = roundTrip(doc);
     const xml = partXml(reopened, "/word/document.xml");
-    expect(xml).toMatch(/^.*<w:body><w:p><w:pPr><w:pStyle w:val="EnvelopeAddress"\/><\/w:pPr><w:r><w:t>Alan Turing<\/w:t><\/w:r><\/w:p><w:p><w:pPr><w:sectPr><w:pgSz w:w="13680" w:h="5940" w:orient="landscape"\/>/s);
+    expect(xml).toMatch(
+      /^.*<w:body><w:p><w:pPr><w:pStyle w:val="EnvelopeAddress"\/><\/w:pPr><w:r><w:t>Alan Turing<\/w:t><\/w:r><\/w:p><w:p><w:pPr><w:sectPr><w:pgSz w:w="13680" w:h="5940" w:orient="landscape"\/>/s,
+    );
     expect(xml).not.toContain("Ada Lovelace");
     expect(partXml(reopened, "/word/styles.xml")).toContain('<w:framePr w:w="7920" w:h="1980"');
     expect(removeEnvelope(reopened)).toBe(true);
@@ -244,10 +300,19 @@ describe("envelopes and labels", () => {
     expect((xml.match(/<w:trHeight w:val="1440" w:hRule="exact"\/>/g) ?? []).length).toBe(10);
     expect((xml.match(/<w:t>Ada<\/w:t>/g) ?? []).length).toBe(30);
     expect(xml).toContain('<w:pgMar w:top="720" w:right="270" w:bottom="0" w:left="270"');
-    const single = createLabelDocument({ text: "One", product: LABEL_PRODUCTS[0]!, single: { row: 2, column: 3 } });
+    const single = createLabelDocument({
+      text: "One",
+      product: LABEL_PRODUCTS[0]!,
+      single: { row: 2, column: 3 },
+    });
     const singleXml = partXml(roundTrip(single), "/word/document.xml");
     expect((singleXml.match(/<w:t>One<\/w:t>/g) ?? []).length).toBe(1);
-    expect(() => createLabelDocument({ text: "x", product: LABEL_PRODUCTS[0]!, single: { row: 11, column: 1 } })).toThrow();
+    expect(() =>
+      createLabelDocument({
+        text: "x",
+        product: LABEL_PRODUCTS[0]!,
+        single: { row: 11, column: 1 },
+      }),
+    ).toThrow();
   });
 });
-

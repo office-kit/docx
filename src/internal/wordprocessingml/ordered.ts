@@ -223,7 +223,11 @@ export function findChild(parent: XmlElement | undefined, local: string): XmlEle
  * Put `el` into `parent` at its schema position, replacing every existing
  * child of the same name. Children not in `order` keep their place.
  */
-export function setOrderedChild(parent: XmlElement, el: XmlElement, order: readonly string[]): void {
+export function setOrderedChild(
+  parent: XmlElement,
+  el: XmlElement,
+  order: readonly string[],
+): void {
   const children = parent.children as XmlNode[];
   for (let i = children.length - 1; i >= 0; i--) {
     if (isWml(children[i] as XmlNode, el.name.local)) children.splice(i, 1);

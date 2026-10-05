@@ -39,6 +39,7 @@ import {
   setBibliographySources,
   setBibliographyStyle,
   setNoteProperties,
+  setNoteText,
   setTocLevel,
   type TableFieldType,
   type TableOfAuthoritiesOptions,
@@ -66,12 +67,41 @@ function caretParagraph(model: EditorModel) {
  * selected range (Word marks index entries and citations after the
  * selection), else the caret.
  */
-function insertionPoint(model: EditorModel): { paragraph: WmlParagraph; offset: number } | undefined {
+function insertionPoint(
+  model: EditorModel,
+): { paragraph: WmlParagraph; offset: number } | undefined {
   const sel = model.selection;
   if (!sel) return undefined;
   const at = orderSelection(sel).end;
   const paragraph = paragraphAt(model.doc, at);
   return paragraph ? { paragraph, offset: absoluteOffset(paragraph, at) } : undefined;
+}
+
+// One character per piece, in `runTextLength` units, so offsets line up.
+const PIECE_TEXT: Readonly<Record<string, string>> = {
+  tab: "\t",
+  break: "\n",
+  noBreakHyphen: "-",
+  softHyphen: "­",
+};
+
+/**
+ * The selected text when the selection lies within one paragraph (what Mark
+ * Entry and Mark Citation prefill), else "".
+ */
+export function selectedText(model: EditorModel): string {
+  const sel = model.selection;
+  if (!sel) return "";
+  const { start, end, collapsed } = orderSelection(sel);
+  const paragraph = paragraphAt(model.doc, start);
+  if (collapsed || !paragraph || paragraph !== paragraphAt(model.doc, end)) return "";
+  const text = paragraph.children
+    .filter((c): c is WmlRun => c.kind === "run")
+    .flatMap((run) =>
+      run.pieces.map((p) => (p.kind === "text" ? p.value : (PIECE_TEXT[p.kind] ?? ""))),
+    )
+    .join("");
+  return text.slice(absoluteOffset(paragraph, start), absoluteOffset(paragraph, end));
 }
 
 function requirePoint(model: EditorModel): { paragraph: WmlParagraph; offset: number } {
@@ -193,16 +223,24 @@ export const addTextCommand: Command<{ level: TocLevel }> = {
 };
 
 /** Update Table / Update Index / Update Table of Authorities. */
-export const updateTablesCommand: Command<{ types: readonly TableFieldType[]; pageOf?: PageNumberProvider }, number> = {
+export const updateTablesCommand: Command<
+  { types: readonly TableFieldType[]; pageOf?: PageNumberProvider },
+  number
+> = {
   id: "references.updateTables",
   group: "references",
   label: "Update Table",
-  run: (model, { types, pageOf }) => updateTables(model.doc, { types, ...(pageOf ? { pageOf } : {}) }),
+  run: (model, { types, pageOf }) =>
+    updateTables(model.doc, { types, ...(pageOf ? { pageOf } : {}) }),
 };
 
 // --- Footnotes ------------------------------------------------------------------
 
-function noteCommand(kind: NoteKind, id: string, label: string): Command<InsertNoteOptions, number> {
+function noteCommand(
+  kind: NoteKind,
+  id: string,
+  label: string,
+): Command<InsertNoteOptions, number> {
   return {
     id,
     group: "references",
@@ -232,6 +270,16 @@ export const noteOptionsCommand: Command<{
   },
 };
 
+/** Edit a note's text (Show Notes). */
+export const noteTextCommand: Command<{ kind: NoteKind; id: number; text: string }> = {
+  id: "references.noteText",
+  group: "references",
+  label: "Note Text",
+  run(model, { kind, id, text }) {
+    setNoteText(model.doc, kind, id, text);
+  },
+};
+
 export const convertNotesCommand: Command<{ conversion: NoteConversion }, number> = {
   id: "references.convertNotes",
   group: "references",
@@ -256,7 +304,9 @@ function noteReferencePositions(doc: Docx, kind: NoteKind): DocPosition[] {
     else if (block.kind === "table") {
       block.rows.forEach((row, r) =>
         row.cells.forEach((cell, c) =>
-          cell.paragraphs.forEach((p, para) => visit(p, { block: i, cell: { row: r, col: c }, para })),
+          cell.paragraphs.forEach((p, para) =>
+            visit(p, { block: i, cell: { row: r, col: c }, para }),
+          ),
         ),
       );
     }
@@ -330,7 +380,10 @@ export const insertBibliographyCommand: Command<{ title?: string }> = {
 
 // --- Captions --------------------------------------------------------------------------
 
-export const insertCaptionCommand: Command<{ position: "above" | "below"; options: CaptionOptions }> = {
+export const insertCaptionCommand: Command<{
+  position: "above" | "below";
+  options: CaptionOptions;
+}> = {
   id: "references.caption",
   group: "references",
   label: "Insert Caption",
@@ -352,7 +405,10 @@ export const addCaptionLabelCommand: Command<{ name: string }> = {
 // --- Index ------------------------------------------------------------------------------
 
 /** Mark Entry ▸ Mark (or Mark All, which marks every occurrence of `markAll`). */
-export const markIndexEntryCommand: Command<{ entry: IndexEntryOptions; markAll?: string }, number> = {
+export const markIndexEntryCommand: Command<
+  { entry: IndexEntryOptions; markAll?: string },
+  number
+> = {
   id: "references.markEntry",
   group: "references",
   label: "Mark Entry",
@@ -408,6 +464,7 @@ export const referencesCommands = [
   addFootnoteCommand,
   addEndnoteCommand,
   noteOptionsCommand,
+  noteTextCommand,
   convertNotesCommand,
   setSourcesCommand,
   citationStyleCommand,

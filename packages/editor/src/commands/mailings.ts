@@ -73,7 +73,10 @@ export const selectRecipientsCommand: Command<{
 };
 
 /** Match Fields ▸ OK. */
-export const matchFieldsCommand: Command<{ columns: readonly string[]; map: Readonly<Record<string, string>> }> = {
+export const matchFieldsCommand: Command<{
+  columns: readonly string[];
+  map: Readonly<Record<string, string>>;
+}> = {
   id: "mailings.matchFields",
   group: "mailings",
   label: "Match Fields",
@@ -83,7 +86,10 @@ export const matchFieldsCommand: Command<{ columns: readonly string[]; map: Read
 };
 
 /** Edit Recipient List ▸ OK: the include check boxes. */
-export const recipientInclusionCommand: Command<{ list: RecipientList; included: readonly boolean[] }> = {
+export const recipientInclusionCommand: Command<{
+  list: RecipientList;
+  included: readonly boolean[];
+}> = {
   id: "mailings.recipientInclusion",
   group: "mailings",
   label: "Edit Recipient List",

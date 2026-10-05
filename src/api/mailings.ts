@@ -128,10 +128,7 @@ export function mailMergeSettings(doc: Docx): MailMergeSettings | undefined {
  * normal Word document again with `"normal"` (which drops the merge settings
  * and the recipient list link).
  */
-export function setMailMergeDocumentType(
-  doc: Docx,
-  type: MailMergeDocumentType | "normal",
-): void {
+export function setMailMergeDocumentType(doc: Docx, type: MailMergeDocumentType | "normal"): void {
   if (type === "normal") {
     editSettings(doc, (root) => {
       const children = root.children as XmlElement[];
@@ -226,16 +223,17 @@ export function parseRecipientCsv(text: string, delimiter = ","): RecipientList 
   }
   const nonEmpty = rows.filter((r) => r.some((c) => c.trim() !== ""));
   const header = nonEmpty[0]?.map((c) => c.trim());
-  if (!header || header.every((c) => c === "")) throw new Error("The recipient list has no header row.");
+  if (!header || header.every((c) => c === ""))
+    throw new Error("The recipient list has no header row.");
   const seen = new Set<string>();
   for (const name of header) {
     if (!name) throw new Error("Every column of the recipient list needs a name.");
     if (seen.has(name.toLowerCase())) throw new Error(`Duplicate column ${JSON.stringify(name)}.`);
     seen.add(name.toLowerCase());
   }
-  const records = nonEmpty.slice(1).map((r) =>
-    Object.fromEntries(header.map((name, i) => [name, r[i] ?? ""])),
-  );
+  const records = nonEmpty
+    .slice(1)
+    .map((r) => Object.fromEntries(header.map((name, i) => [name, r[i] ?? ""])));
   return { columns: header, records };
 }
 
@@ -398,7 +396,8 @@ export function setMailMergeFieldMap(
   const entries = ADDRESS_FIELDS.map((field) => {
     const column = map[field];
     const index = column === undefined ? -1 : columns.indexOf(column);
-    if (index < 0) return '<w:fieldMapData><w:column w:val="0"/><w:lid w:val="en-US"/></w:fieldMapData>';
+    if (index < 0)
+      return '<w:fieldMapData><w:column w:val="0"/><w:lid w:val="en-US"/></w:fieldMapData>';
     return `<w:fieldMapData><w:type w:val="dbColumn"/><w:name w:val="${escapeXml(column as string)}"/><w:mappedName w:val="${escapeXml(field)}"/><w:column w:val="${index}"/><w:lid w:val="en-US"/></w:fieldMapData>`;
   });
   editMailMerge(doc, (mm) => {
@@ -435,7 +434,11 @@ export function mailMergeFieldMap(doc: Docx): Record<string, string> {
  * its first column, as a base64 `w:uniqueTag`. Pass every record's inclusion
  * flag in list order.
  */
-export function setRecipientInclusion(doc: Docx, list: RecipientList, included: readonly boolean[]): void {
+export function setRecipientInclusion(
+  doc: Docx,
+  list: RecipientList,
+  included: readonly boolean[],
+): void {
   const keyColumn = list.columns[0];
   if (keyColumn === undefined) throw new Error("The recipient list has no columns.");
   const entries = list.records.map((r, i) => {
@@ -503,7 +506,12 @@ export function mergeFieldInstruction(name: string): string {
  * Insert Merge Field: a MERGEFIELD at a character offset, showing «Name»
  * until results are previewed.
  */
-export function insertMergeField(doc: Docx, paragraph: WmlParagraph, offset: number, name: string): void {
+export function insertMergeField(
+  doc: Docx,
+  paragraph: WmlParagraph,
+  offset: number,
+  name: string,
+): void {
   insertInlinesAt(
     paragraph,
     offset,
@@ -552,8 +560,17 @@ export function addressBlockInstruction(options: AddressBlockOptions = {}): stri
   }
   const country = options.country ?? "ifDifferent";
   const code = country === "never" ? 0 : country === "always" ? 1 : 2;
-  const parts = ["ADDRESSBLOCK", "\\f", quotedFieldArg(format), "\\l", String(LCID_EN_US), "\\c", String(code)];
-  if (country === "ifDifferent") parts.push("\\e", quotedFieldArg(options.excludedCountry ?? DEFAULT_COUNTRY));
+  const parts = [
+    "ADDRESSBLOCK",
+    "\\f",
+    quotedFieldArg(format),
+    "\\l",
+    String(LCID_EN_US),
+    "\\c",
+    String(code),
+  ];
+  if (country === "ifDifferent")
+    parts.push("\\e", quotedFieldArg(options.excludedCountry ?? DEFAULT_COUNTRY));
   if (options.formatByCountry ?? true) parts.push("\\d");
   return parts.join(" ");
 }
@@ -633,8 +650,19 @@ export type MergeComparison = "=" | "<>" | "<" | "<=" | ">" | ">=" | "isBlank" |
 
 /** Rules ▸ … : one Word mail merge rule. */
 export type MergeRule =
-  | { readonly kind: "ask"; readonly bookmark: string; readonly prompt: string; readonly defaultText?: string; readonly askOnce?: boolean }
-  | { readonly kind: "fillIn"; readonly prompt: string; readonly defaultText?: string; readonly askOnce?: boolean }
+  | {
+      readonly kind: "ask";
+      readonly bookmark: string;
+      readonly prompt: string;
+      readonly defaultText?: string;
+      readonly askOnce?: boolean;
+    }
+  | {
+      readonly kind: "fillIn";
+      readonly prompt: string;
+      readonly defaultText?: string;
+      readonly askOnce?: boolean;
+    }
   | {
       readonly kind: "if";
       readonly field: string;
@@ -646,13 +674,27 @@ export type MergeRule =
   | { readonly kind: "mergeRecord" }
   | { readonly kind: "mergeSequence" }
   | { readonly kind: "nextRecord" }
-  | { readonly kind: "nextRecordIf"; readonly field: string; readonly comparison: MergeComparison; readonly value?: string }
+  | {
+      readonly kind: "nextRecordIf";
+      readonly field: string;
+      readonly comparison: MergeComparison;
+      readonly value?: string;
+    }
   | { readonly kind: "setBookmark"; readonly bookmark: string; readonly value: string }
-  | { readonly kind: "skipRecordIf"; readonly field: string; readonly comparison: MergeComparison; readonly value?: string };
+  | {
+      readonly kind: "skipRecordIf";
+      readonly field: string;
+      readonly comparison: MergeComparison;
+      readonly value?: string;
+    };
 
 const BOOKMARK_NAME = /^[\p{L}_][\p{L}\p{N}_]{0,39}$/u;
 
-function comparisonXml(field: string, comparison: MergeComparison, value: string | undefined): string {
+function comparisonXml(
+  field: string,
+  comparison: MergeComparison,
+  value: string | undefined,
+): string {
   const op = comparison === "isBlank" ? "=" : comparison === "isNotBlank" ? "<>" : comparison;
   const right = comparison === "isBlank" || comparison === "isNotBlank" ? "" : (value ?? "");
   // The compared field is nested, so its current value takes part in the test.
@@ -673,7 +715,9 @@ function nestedFieldXml(head: string, middleXml: string, tail: string, resultXml
 
 function checkBookmark(name: string): void {
   if (!BOOKMARK_NAME.test(name)) {
-    throw new Error(`${JSON.stringify(name)} is not a valid bookmark name (letters, digits, underscores; up to 40).`);
+    throw new Error(
+      `${JSON.stringify(name)} is not a valid bookmark name (letters, digits, underscores; up to 40).`,
+    );
   }
 }
 
@@ -707,17 +751,32 @@ function ruleXml(rule: MergeRule): string {
     case "nextRecord":
       return fieldRunsXml("NEXT", "");
     case "nextRecordIf":
-      return nestedFieldXml("NEXTIF", comparisonXml(rule.field, rule.comparison, rule.value), "", "");
+      return nestedFieldXml(
+        "NEXTIF",
+        comparisonXml(rule.field, rule.comparison, rule.value),
+        "",
+        "",
+      );
     case "setBookmark":
       checkBookmark(rule.bookmark);
       return fieldRunsXml(`SET ${rule.bookmark} ${quotedFieldArg(rule.value)}`, "");
     case "skipRecordIf":
-      return nestedFieldXml("SKIPIF", comparisonXml(rule.field, rule.comparison, rule.value), "", "");
+      return nestedFieldXml(
+        "SKIPIF",
+        comparisonXml(rule.field, rule.comparison, rule.value),
+        "",
+        "",
+      );
   }
 }
 
 /** Insert a mail merge rule (Rules menu) at a character offset. */
-export function insertMergeRule(doc: Docx, paragraph: WmlParagraph, offset: number, rule: MergeRule): void {
+export function insertMergeRule(
+  doc: Docx,
+  paragraph: WmlParagraph,
+  offset: number,
+  rule: MergeRule,
+): void {
   insertInlinesAt(paragraph, offset, inlinesFromXml(ruleXml(rule)));
   doc.dirty = true;
 }
@@ -788,7 +847,11 @@ function addressValue(state: MergeState, field: AddressField): string {
   const record = state.records[state.cursor];
   if (!record) return "";
   const column = state.fieldMap[field];
-  return (column !== undefined ? lookup(record.values, column) : undefined) ?? lookup(record.values, field) ?? "";
+  return (
+    (column !== undefined ? lookup(record.values, column) : undefined) ??
+    lookup(record.values, field) ??
+    ""
+  );
 }
 
 /**
@@ -796,7 +859,10 @@ function addressValue(state: MergeState, field: AddressField): string {
  * group prints only when its token has a value; `_BEFORE_` / `_AFTER_` groups
  * print when the name in between printed anything.
  */
-function expandFormat(format: string, value: (token: string) => string | undefined): { text: string; named: boolean } {
+function expandFormat(
+  format: string,
+  value: (token: string) => string | undefined,
+): { text: string; named: boolean } {
   let named = false;
   const groups = [...format.matchAll(/<<(.*?)>>|([^<]+|<)/gs)];
   const pieces: Array<{ text: string; kind: "before" | "after" | "plain" }> = [];
@@ -814,13 +880,23 @@ function expandFormat(format: string, value: (token: string) => string | undefin
     }
     const v = value(token);
     if (v) {
-      if (token in TOKEN_FIELDS && /^(TITLE0|FIRST0|MIDDLE0|LAST0|SUFFIX0|NICK0)$/.test(token)) named = true;
+      if (token in TOKEN_FIELDS && /^(TITLE0|FIRST0|MIDDLE0|LAST0|SUFFIX0|NICK0)$/.test(token))
+        named = true;
       pieces.push({ text: `${m[1]}${v}${m[3]}`, kind: "plain" });
     }
   }
-  const before = pieces.filter((p) => p.kind === "before").map((p) => p.text).join(" ");
-  const after = pieces.filter((p) => p.kind === "after").map((p) => p.text).join("");
-  const body = pieces.filter((p) => p.kind === "plain").map((p) => p.text).join("");
+  const before = pieces
+    .filter((p) => p.kind === "before")
+    .map((p) => p.text)
+    .join(" ");
+  const after = pieces
+    .filter((p) => p.kind === "after")
+    .map((p) => p.text)
+    .join("");
+  const body = pieces
+    .filter((p) => p.kind === "plain")
+    .map((p) => p.text)
+    .join("");
   const text = `${before ? `${before} ` : ""}${body}${after}`;
   return { text: text.replace(/\n+$/, ""), named };
 }
@@ -830,7 +906,13 @@ const NUMERIC = /^-?\d+(\.\d+)?$/;
 /** Word's IF comparison; `=` / `<>` with a quoted pattern accept `?` and `*` wildcards. */
 function compare(left: string, op: string, right: string): boolean {
   if ((op === "=" || op === "<>") && /[?*]/.test(right)) {
-    const re = new RegExp(`^${right.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\?/g, ".").replace(/\*/g, ".*")}$`, "s");
+    const re = new RegExp(
+      `^${right
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\?/g, ".")
+        .replace(/\*/g, ".*")}$`,
+      "s",
+    );
     return op === "=" ? re.test(left) : !re.test(left);
   }
   const numeric = NUMERIC.test(left.trim()) && NUMERIC.test(right.trim());
@@ -886,7 +968,9 @@ function evaluate(field: FlowField, state: MergeState | undefined): string | und
       if (!state) return `«${name}»`;
       // Past the last recipient (a label sheet with records left over) fields are blank.
       if (!record) return "";
-      const value = lookup(record.values, name) ?? (name in state.fieldMap ? addressValue(state, name as AddressField) : "");
+      const value =
+        lookup(record.values, name) ??
+        (name in state.fieldMap ? addressValue(state, name as AddressField) : "");
       if (!value) return "";
       return `${fieldSwitch(p, "b")?.arg ?? ""}${applyTextFormat(value, p)}${fieldSwitch(p, "f")?.arg ?? ""}`;
     }
@@ -1024,12 +1108,19 @@ export function previewMailMerge(
     editMailMerge(doc, (mm) => {
       if (state) {
         setOrderedChild(mm, elementFromXml("<w:viewMergedData/>"), MAIL_MERGE_ORDER);
-        setOrderedChild(mm, elementFromXml(`<w:activeRecord w:val="${state.cursor + 1}"/>`), MAIL_MERGE_ORDER);
+        setOrderedChild(
+          mm,
+          elementFromXml(`<w:activeRecord w:val="${state.cursor + 1}"/>`),
+          MAIL_MERGE_ORDER,
+        );
       } else {
         const children = mm.children as XmlElement[];
         for (let i = children.length - 1; i >= 0; i--) {
           const c = children[i];
-          if (c?.kind === "element" && (c.name.local === "viewMergedData" || c.name.local === "activeRecord")) {
+          if (
+            c?.kind === "element" &&
+            (c.name.local === "viewMergedData" || c.name.local === "activeRecord")
+          ) {
             children.splice(i, 1);
           }
         }
@@ -1105,7 +1196,11 @@ export interface MergeOptions extends PreviewOptions {
  * section starting on a new page. A Directory (`catalog`) runs the copies on
  * without breaks. Records a SKIPIF rule skips are left out.
  */
-export function mergeToNewDocument(doc: Docx, list: RecipientList, options: MergeOptions = {}): Docx {
+export function mergeToNewDocument(
+  doc: Docx,
+  list: RecipientList,
+  options: MergeOptions = {},
+): Docx {
   const from = Math.max(1, options.from ?? 1);
   const to = Math.min(list.records.length, options.to ?? list.records.length);
   const records: MergeRecord[] = [];
@@ -1130,7 +1225,10 @@ export function mergeToNewDocument(doc: Docx, list: RecipientList, options: Merg
   const out: WmlBlock[] = [];
   while (state.cursor < records.length) {
     const start = state.cursor;
-    const body = { ...template.document.body, blocks: structuredClone(template.document.body.blocks) };
+    const body = {
+      ...template.document.body,
+      blocks: structuredClone(template.document.body.blocks),
+    };
     state.skip = false;
     state.copyStart = start;
     evaluateMergeFields(body, state);
@@ -1207,9 +1305,14 @@ export function addEnvelope(doc: Docx, options: EnvelopeOptions): void {
       .split(/\r?\n/)
       .map((line) => `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>${textRunXml(line)}</w:p>`)
       .join("");
-  const returnXml = options.omitReturnAddress || !options.returnAddress?.trim() ? "" : lines(options.returnAddress.trim(), "EnvelopeReturn");
+  const returnXml =
+    options.omitReturnAddress || !options.returnAddress?.trim()
+      ? ""
+      : lines(options.returnAddress.trim(), "EnvelopeReturn");
   const sectPr = `<w:sectPr><w:pgSz w:w="${size.height}" w:h="${size.width}" w:orient="landscape"/>${ENVELOPE_MARGINS}<w:cols w:space="720"/></w:sectPr>`;
-  const blocks = paragraphsFromXml(`${returnXml}${lines(delivery, "EnvelopeAddress")}<w:p><w:pPr>${sectPr}</w:pPr></w:p>`);
+  const blocks = paragraphsFromXml(
+    `${returnXml}${lines(delivery, "EnvelopeAddress")}<w:p><w:pPr>${sectPr}</w:pPr></w:p>`,
+  );
   doc.document.body.blocks.unshift(...blocks);
   doc.dirty = true;
 }
@@ -1221,7 +1324,8 @@ export function removeEnvelope(doc: Docx): boolean {
   if (end < 0) return false;
   const first = blocks.slice(0, end + 1);
   const isEnvelope = first.some(
-    (b) => b.kind === "paragraph" && wAttr(childElement(b.pPr, "pStyle"), "val") === "EnvelopeAddress",
+    (b) =>
+      b.kind === "paragraph" && wAttr(childElement(b.pPr, "pStyle"), "val") === "EnvelopeAddress",
   );
   if (!isEnvelope) return false;
   blocks.splice(0, end + 1);
@@ -1252,17 +1356,138 @@ const inch = (v: number) => Math.round(v * 1440);
 
 /** Common label products (Avery US Letter and A4 sheets). */
 export const LABEL_PRODUCTS: readonly LabelProduct[] = [
-  { name: "Avery 5160 Address Labels", page: LETTER, across: 3, down: 10, labelWidth: inch(2.625), labelHeight: inch(1), horizontalPitch: inch(2.75), verticalPitch: inch(1), topMargin: inch(0.5), sideMargin: inch(0.1875) },
-  { name: "Avery 5161 Address Labels", page: LETTER, across: 2, down: 10, labelWidth: inch(4), labelHeight: inch(1), horizontalPitch: inch(4.1875), verticalPitch: inch(1), topMargin: inch(0.5), sideMargin: inch(0.15625) },
-  { name: "Avery 5162 Address Labels", page: LETTER, across: 2, down: 7, labelWidth: inch(4), labelHeight: 1920, horizontalPitch: inch(4.1875), verticalPitch: 1920, topMargin: 1200, sideMargin: inch(0.15625) },
-  { name: "Avery 5163 Shipping Labels", page: LETTER, across: 2, down: 5, labelWidth: inch(4), labelHeight: inch(2), horizontalPitch: inch(4.1875), verticalPitch: inch(2), topMargin: inch(0.5), sideMargin: inch(0.15625) },
-  { name: "Avery 5164 Shipping Labels", page: LETTER, across: 2, down: 3, labelWidth: inch(4), labelHeight: 4800, horizontalPitch: inch(4.1875), verticalPitch: 4800, topMargin: inch(0.5), sideMargin: inch(0.15625) },
-  { name: "Avery 5167 Return Address Labels", page: LETTER, across: 4, down: 20, labelWidth: inch(1.75), labelHeight: inch(0.5), horizontalPitch: inch(2.0625), verticalPitch: inch(0.5), topMargin: inch(0.5), sideMargin: inch(0.28125) },
-  { name: "Avery L7160 Address Labels", page: A4, across: 3, down: 7, labelWidth: mm(63.5), labelHeight: mm(38.1), horizontalPitch: mm(66.04), verticalPitch: mm(38.1), topMargin: mm(15.15), sideMargin: mm(7.25) },
-  { name: "Avery L7161 Address Labels", page: A4, across: 3, down: 6, labelWidth: mm(63.5), labelHeight: mm(46.6), horizontalPitch: mm(66.04), verticalPitch: mm(46.6), topMargin: mm(8.8), sideMargin: mm(7.25) },
-  { name: "Avery L7163 Address Labels", page: A4, across: 2, down: 7, labelWidth: mm(99.1), labelHeight: mm(38.1), horizontalPitch: mm(101.6), verticalPitch: mm(38.1), topMargin: mm(15.15), sideMargin: mm(4.65) },
-  { name: "Avery L7173 Shipping Labels", page: A4, across: 2, down: 5, labelWidth: mm(99.1), labelHeight: mm(57), horizontalPitch: mm(101.6), verticalPitch: mm(57), topMargin: mm(6), sideMargin: mm(4.65) },
-  { name: "Avery L7651 Mini Labels", page: A4, across: 5, down: 13, labelWidth: mm(38.1), labelHeight: mm(21.2), horizontalPitch: mm(40.6), verticalPitch: mm(21.2), topMargin: mm(10.7), sideMargin: mm(4.75) },
+  {
+    name: "Avery 5160 Address Labels",
+    page: LETTER,
+    across: 3,
+    down: 10,
+    labelWidth: inch(2.625),
+    labelHeight: inch(1),
+    horizontalPitch: inch(2.75),
+    verticalPitch: inch(1),
+    topMargin: inch(0.5),
+    sideMargin: inch(0.1875),
+  },
+  {
+    name: "Avery 5161 Address Labels",
+    page: LETTER,
+    across: 2,
+    down: 10,
+    labelWidth: inch(4),
+    labelHeight: inch(1),
+    horizontalPitch: inch(4.1875),
+    verticalPitch: inch(1),
+    topMargin: inch(0.5),
+    sideMargin: inch(0.15625),
+  },
+  {
+    name: "Avery 5162 Address Labels",
+    page: LETTER,
+    across: 2,
+    down: 7,
+    labelWidth: inch(4),
+    labelHeight: 1920,
+    horizontalPitch: inch(4.1875),
+    verticalPitch: 1920,
+    topMargin: 1200,
+    sideMargin: inch(0.15625),
+  },
+  {
+    name: "Avery 5163 Shipping Labels",
+    page: LETTER,
+    across: 2,
+    down: 5,
+    labelWidth: inch(4),
+    labelHeight: inch(2),
+    horizontalPitch: inch(4.1875),
+    verticalPitch: inch(2),
+    topMargin: inch(0.5),
+    sideMargin: inch(0.15625),
+  },
+  {
+    name: "Avery 5164 Shipping Labels",
+    page: LETTER,
+    across: 2,
+    down: 3,
+    labelWidth: inch(4),
+    labelHeight: 4800,
+    horizontalPitch: inch(4.1875),
+    verticalPitch: 4800,
+    topMargin: inch(0.5),
+    sideMargin: inch(0.15625),
+  },
+  {
+    name: "Avery 5167 Return Address Labels",
+    page: LETTER,
+    across: 4,
+    down: 20,
+    labelWidth: inch(1.75),
+    labelHeight: inch(0.5),
+    horizontalPitch: inch(2.0625),
+    verticalPitch: inch(0.5),
+    topMargin: inch(0.5),
+    sideMargin: inch(0.28125),
+  },
+  {
+    name: "Avery L7160 Address Labels",
+    page: A4,
+    across: 3,
+    down: 7,
+    labelWidth: mm(63.5),
+    labelHeight: mm(38.1),
+    horizontalPitch: mm(66.04),
+    verticalPitch: mm(38.1),
+    topMargin: mm(15.15),
+    sideMargin: mm(7.25),
+  },
+  {
+    name: "Avery L7161 Address Labels",
+    page: A4,
+    across: 3,
+    down: 6,
+    labelWidth: mm(63.5),
+    labelHeight: mm(46.6),
+    horizontalPitch: mm(66.04),
+    verticalPitch: mm(46.6),
+    topMargin: mm(8.8),
+    sideMargin: mm(7.25),
+  },
+  {
+    name: "Avery L7163 Address Labels",
+    page: A4,
+    across: 2,
+    down: 7,
+    labelWidth: mm(99.1),
+    labelHeight: mm(38.1),
+    horizontalPitch: mm(101.6),
+    verticalPitch: mm(38.1),
+    topMargin: mm(15.15),
+    sideMargin: mm(4.65),
+  },
+  {
+    name: "Avery L7173 Shipping Labels",
+    page: A4,
+    across: 2,
+    down: 5,
+    labelWidth: mm(99.1),
+    labelHeight: mm(57),
+    horizontalPitch: mm(101.6),
+    verticalPitch: mm(57),
+    topMargin: mm(6),
+    sideMargin: mm(4.65),
+  },
+  {
+    name: "Avery L7651 Mini Labels",
+    page: A4,
+    across: 5,
+    down: 13,
+    labelWidth: mm(38.1),
+    labelHeight: mm(21.2),
+    horizontalPitch: mm(40.6),
+    verticalPitch: mm(21.2),
+    topMargin: mm(10.7),
+    sideMargin: mm(4.75),
+  },
 ];
 
 export interface LabelOptions {
@@ -1289,13 +1514,22 @@ const LABEL_TEXT_INDENT = 95;
 export function createLabelDocument(options: LabelOptions): Docx {
   const p = options.product;
   if (p.across < 1 || p.down < 1) throw new Error("A label sheet needs at least one label.");
-  if (options.single && (options.single.row < 1 || options.single.row > p.down || options.single.column < 1 || options.single.column > p.across)) {
+  if (
+    options.single &&
+    (options.single.row < 1 ||
+      options.single.row > p.down ||
+      options.single.column < 1 ||
+      options.single.column > p.across)
+  ) {
     throw new Error(`Label position must be within ${p.down} rows and ${p.across} columns.`);
   }
   const doc = createDocx({ paragraphs: [] });
   const gap = Math.max(0, p.horizontalPitch - p.labelWidth);
   const vGap = Math.max(0, p.verticalPitch - p.labelHeight);
-  const right = Math.max(0, p.page.width - p.sideMargin - (p.across - 1) * p.horizontalPitch - p.labelWidth);
+  const right = Math.max(
+    0,
+    p.page.width - p.sideMargin - (p.across - 1) * p.horizontalPitch - p.labelWidth,
+  );
   const grid: number[] = [];
   for (let c = 0; c < p.across; c++) {
     grid.push(p.labelWidth);
@@ -1304,7 +1538,10 @@ export function createLabelDocument(options: LabelOptions): Docx {
   const textXml = (lines: string): string =>
     lines
       .split(/\r?\n/)
-      .map((line) => `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:ind w:left="${LABEL_TEXT_INDENT}" w:right="${LABEL_TEXT_INDENT}"/></w:pPr>${textRunXml(line)}</w:p>`)
+      .map(
+        (line) =>
+          `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:ind w:left="${LABEL_TEXT_INDENT}" w:right="${LABEL_TEXT_INDENT}"/></w:pPr>${textRunXml(line)}</w:p>`,
+      )
       .join("");
   const emptyP = '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>';
   const rows: string[] = [];
@@ -1314,25 +1551,37 @@ export function createLabelDocument(options: LabelOptions): Docx {
       const first = r === 1 && c === 1;
       let content: string;
       if (options.mailMerge) {
-        content = first ? textXml(options.text) : `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:ind w:left="${LABEL_TEXT_INDENT}" w:right="${LABEL_TEXT_INDENT}"/></w:pPr>${resultlessFieldRunsXml("NEXT")}</w:p>`;
+        content = first
+          ? textXml(options.text)
+          : `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:ind w:left="${LABEL_TEXT_INDENT}" w:right="${LABEL_TEXT_INDENT}"/></w:pPr>${resultlessFieldRunsXml("NEXT")}</w:p>`;
       } else if (!options.single || (options.single.row === r && options.single.column === c)) {
         content = textXml(options.text);
       } else {
         content = emptyP;
       }
-      cells.push(`<w:tc><w:tcPr><w:tcW w:w="${p.labelWidth}" w:type="dxa"/></w:tcPr>${content}</w:tc>`);
+      cells.push(
+        `<w:tc><w:tcPr><w:tcW w:w="${p.labelWidth}" w:type="dxa"/></w:tcPr>${content}</w:tc>`,
+      );
       if (c < p.across && gap > 0) {
         cells.push(`<w:tc><w:tcPr><w:tcW w:w="${gap}" w:type="dxa"/></w:tcPr>${emptyP}</w:tc>`);
       }
     }
-    rows.push(`<w:tr><w:trPr><w:trHeight w:val="${p.labelHeight}" w:hRule="exact"/></w:trPr>${cells.join("")}</w:tr>`);
+    rows.push(
+      `<w:tr><w:trPr><w:trHeight w:val="${p.labelHeight}" w:hRule="exact"/></w:trPr>${cells.join("")}</w:tr>`,
+    );
     if (r < p.down && vGap > 0) {
-      const spacer = grid.map((w) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>${emptyP}</w:tc>`).join("");
-      rows.push(`<w:tr><w:trPr><w:trHeight w:val="${vGap}" w:hRule="exact"/></w:trPr>${spacer}</w:tr>`);
+      const spacer = grid
+        .map((w) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>${emptyP}</w:tc>`)
+        .join("");
+      rows.push(
+        `<w:tr><w:trPr><w:trHeight w:val="${vGap}" w:hRule="exact"/></w:trPr>${spacer}</w:tr>`,
+      );
     }
   }
   const table = `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="15" w:type="dxa"/><w:right w:w="15" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid>${grid.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.join("")}</w:tbl>`;
-  doc.document.body.blocks = blocksFromXml(`${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`);
+  doc.document.body.blocks = blocksFromXml(
+    `${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`,
+  );
   doc.document.body.sectPr = elementFromXml(
     `<w:sectPr><w:pgSz w:w="${p.page.width}" w:h="${p.page.height}"/><w:pgMar w:top="${p.topMargin}" w:right="${right}" w:bottom="0" w:left="${p.sideMargin}" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/></w:sectPr>`,
   );
@@ -1379,7 +1628,10 @@ function isSpacerRow(trPr: XmlElement | undefined, labelRow: XmlElement | undefi
 
 function stripNext(inlines: readonly WmlInline[]): WmlInline[] {
   const p: WmlParagraph = { kind: "paragraph", children: [...inlines], extras: [] };
-  const fields = scanFields([{ list: [p], index: 0, paragraph: p }]).filter((f) => f.parsed.type === "NEXT");
-  for (const f of fields.toReversed()) p.children.splice(f.begin.inline, f.end.inline - f.begin.inline + 1);
+  const fields = scanFields([{ list: [p], index: 0, paragraph: p }]).filter(
+    (f) => f.parsed.type === "NEXT",
+  );
+  for (const f of fields.toReversed())
+    p.children.splice(f.begin.inline, f.end.inline - f.begin.inline + 1);
   return p.children;
 }

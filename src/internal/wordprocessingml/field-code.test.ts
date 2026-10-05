@@ -6,13 +6,24 @@ import {
   parseFieldInstruction,
   quoteFieldArg,
 } from "./field-code.js";
-import { blocksFromXml, estimatePages, paragraphFlow, scanFields, withOpenContentControls } from "./field-flow.js";
+import {
+  blocksFromXml,
+  estimatePages,
+  paragraphFlow,
+  scanFields,
+  withOpenContentControls,
+} from "./field-flow.js";
 
 describe("parseFieldInstruction", () => {
   it("splits type, arguments and switches", () => {
     const f = parseFieldInstruction(' TOC \\o "1-3" \\h \\z \\u ');
     expect(f.type).toBe("TOC");
-    expect(f.switches).toEqual([{ name: "o", arg: "1-3" }, { name: "h" }, { name: "z" }, { name: "u" }]);
+    expect(f.switches).toEqual([
+      { name: "o", arg: "1-3" },
+      { name: "h" },
+      { name: "z" },
+      { name: "u" },
+    ]);
     const xe = parseFieldInstruction('XE "Main\\:x:Sub" \\b \\t "See \\"A\\""');
     expect(xe.args).toEqual(["Main\\:x:Sub"]);
     expect(fieldSwitch(xe, "t")?.arg).toBe('See "A"');

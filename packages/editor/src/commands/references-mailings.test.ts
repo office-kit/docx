@@ -73,7 +73,12 @@ describe("references commands", () => {
     const model = editorWith(["Claim."], { block: 0, inline: 0, offset: 6 });
     runCommand(model, setSourcesCommand, {
       sources: [
-        { tag: "Lov43", type: "Book", authors: [{ last: "Lovelace", first: "Ada" }], fields: { Year: "1843" } },
+        {
+          tag: "Lov43",
+          type: "Book",
+          authors: [{ last: "Lovelace", first: "Ada" }],
+          fields: { Year: "1843" },
+        },
       ],
     });
     runCommand(model, insertCitationCommand, { tag: "Lov43" });

@@ -96,9 +96,7 @@ export function paragraphsFromXml(xml: string): WmlParagraph[] {
 
 /** Parse body content (paragraphs and tables, as XML text) into typed blocks. */
 export function blocksFromXml(xml: string): WmlBlock[] {
-  const doc = parseXml(
-    `<w:document ${W_DECL} ${R_DECL}><w:body>${xml}</w:body></w:document>`,
-  );
+  const doc = parseXml(`<w:document ${W_DECL} ${R_DECL}><w:body>${xml}</w:body></w:document>`);
   return parseWmlDocument(doc).body.blocks;
 }
 
@@ -363,7 +361,8 @@ export function scanFields(flow: readonly ParagraphRef[]): FlowField[] {
               // A nested result is one operand even when it contains spaces
               // (`IF { MERGEFIELD Country } = "United States" …`), so it is
               // quoted unless it already sits inside a quoted argument.
-              const insideQuotes = (parent.instruction.replace(/\\./g, "").match(/"/g) ?? []).length % 2 === 1;
+              const insideQuotes =
+                (parent.instruction.replace(/\\./g, "").match(/"/g) ?? []).length % 2 === 1;
               parent.instruction += insideQuotes ? top.result : quotedFieldArg(top.result);
             }
             if (top) {
@@ -514,7 +513,10 @@ function isSectPr(node: { kind: string }): boolean {
 }
 
 /** Look up a child element of a properties element by local name. */
-export function childElement(parent: XmlElement | undefined, local: string): XmlElement | undefined {
+export function childElement(
+  parent: XmlElement | undefined,
+  local: string,
+): XmlElement | undefined {
   return parent?.children.find(
     (c): c is XmlElement => c.kind === "element" && c.name.uri === WML_NS && c.name.local === local,
   );
@@ -566,7 +568,10 @@ export function estimatePages(body: WmlBody): Map<WmlParagraph, number> {
     };
     for (const inline of ref.paragraph.children) {
       if (inline.kind !== "run") {
-        if (inline.node.name.local !== "bookmarkStart" && inline.node.name.local !== "bookmarkEnd") {
+        if (
+          inline.node.name.local !== "bookmarkStart" &&
+          inline.node.name.local !== "bookmarkEnd"
+        ) {
           place();
           fresh = false;
         }
