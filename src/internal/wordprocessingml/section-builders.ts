@@ -1,5 +1,6 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { insertOrderedChild, SECT_PR_ORDER, upsertOrderedChild } from "./schema-order.js";
 
 export type HeaderFooterType = "default" | "first" | "even";
 
@@ -42,6 +43,11 @@ export interface PageSize {
   readonly heightTwips: number;
   /** Orientation. Defaults to `"portrait"`. */
   readonly orientation?: "portrait" | "landscape";
+  /**
+   * Printer paper code (`w:code`, §17.6.13): an application-defined value
+   * Word writes for its named sizes (1 = Letter, 9 = A4, …).
+   */
+  readonly paperCode?: number;
 }
 
 export interface PageMargins {
@@ -60,6 +66,7 @@ export function buildPgSz(size: PageSize): XmlElement {
   if (size.orientation === "landscape") {
     attrs.push(wmlAttr("orient", "landscape"));
   }
+  if (size.paperCode !== undefined) attrs.push(wmlAttr("code", String(size.paperCode)));
   return {
     kind: "element",
     name: { uri: WML_NS, local: "pgSz", prefix: "w" },
@@ -121,30 +128,12 @@ export function buildSectPr(opts: {
  * Mutates the input element.
  */
 export function setSectPrPageSize(sectPr: XmlElement, size: PageSize): void {
-  const newEl = buildPgSz(size);
-  const idx = sectPr.children.findIndex(
-    (c) => c.kind === "element" && c.name.uri === WML_NS && c.name.local === "pgSz",
-  );
-  const children = sectPr.children as XmlElement["children"][number][];
-  if (idx >= 0) {
-    (children as XmlElement[])[idx] = newEl;
-  } else {
-    (children as XmlElement[]).push(newEl);
-  }
+  upsertOrderedChild(sectPr, buildPgSz(size), SECT_PR_ORDER);
 }
 
 /** Replace or add the `<w:pgMar>` child of a `<w:sectPr>`. */
 export function setSectPrPageMargins(sectPr: XmlElement, margins: PageMargins): void {
-  const newEl = buildPgMar(margins);
-  const idx = sectPr.children.findIndex(
-    (c) => c.kind === "element" && c.name.uri === WML_NS && c.name.local === "pgMar",
-  );
-  const children = sectPr.children as XmlElement[];
-  if (idx >= 0) {
-    children[idx] = newEl;
-  } else {
-    children.push(newEl);
-  }
+  upsertOrderedChild(sectPr, buildPgMar(margins), SECT_PR_ORDER);
 }
 
 /** Append a header/footer reference to a `<w:sectPr>`. */
@@ -153,7 +142,7 @@ export function addSectPrHeaderRef(
   type: HeaderFooterType,
   relId: string,
 ): void {
-  (sectPr.children as XmlElement[]).push(buildHeaderReference(type, relId));
+  insertOrderedChild(sectPr, buildHeaderReference(type, relId), SECT_PR_ORDER);
 }
 
 /** Append a footer reference to a `<w:sectPr>`. */
@@ -162,7 +151,7 @@ export function addSectPrFooterRef(
   type: HeaderFooterType,
   relId: string,
 ): void {
-  (sectPr.children as XmlElement[]).push(buildFooterReference(type, relId));
+  insertOrderedChild(sectPr, buildFooterReference(type, relId), SECT_PR_ORDER);
 }
 
 /** Minimal `header1.xml` body containing a single paragraph with text. */

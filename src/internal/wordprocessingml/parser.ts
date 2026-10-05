@@ -1,4 +1,4 @@
-import type { XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
+import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
 import type {
   PassThrough,
@@ -36,7 +36,11 @@ export function parseWmlDocument(xmlDoc: XmlDocument): WmlDocumentType {
   };
 }
 
-function parseBody(body: XmlElement): WmlBody {
+/**
+ * Parse any element whose children are block-level content (`<w:body>`,
+ * `<w:hdr>`, `<w:ftr>`, `<w:footnote>`, `<w:comment>`, `<w:txbxContent>` …).
+ */
+export function parseBody(body: XmlElement): WmlBody {
   const blocks: WmlBlock[] = [];
   const extras: PassThrough[] = [];
   let sectPr: XmlElement | undefined;
@@ -55,7 +59,7 @@ function parseBody(body: XmlElement): WmlBody {
       continue;
     }
     if (isWmlElement(child, "tbl")) {
-      blocks.push(parseTable(child));
+      blocks.push(parseTableElement(child));
       continue;
     }
     if (isWmlElement(child, "sectPr") && i === lastChildIdx) {
@@ -67,6 +71,7 @@ function parseBody(body: XmlElement): WmlBody {
   }
 
   return {
+    ...ownAttrs(body),
     blocks,
     ...(sectPr ? { sectPr } : {}),
     extras,
@@ -98,6 +103,11 @@ export function parseParagraph(p: XmlElement): WmlParagraph {
       children.push(parseRun(child));
       continue;
     }
+    const revised = parseRevisionRuns(child);
+    if (revised) {
+      children.push(...revised);
+      continue;
+    }
     // Anything else under <w:p> (hyperlink, sdt, bookmarkStart/End, ins, del…)
     // is kept verbatim until later milestones structure it.
     children.push({ kind: "raw", node: child });
@@ -105,10 +115,31 @@ export function parseParagraph(p: XmlElement): WmlParagraph {
 
   return {
     kind: "paragraph",
+    ...ownAttrs(p),
     ...(pPr ? { pPr } : {}),
     children,
     extras,
   };
+}
+
+/**
+ * The runs of a `<w:ins>` / `<w:del>` wrapper, each carrying the wrapper as its
+ * `revision`, or `undefined` when the wrapper holds anything but runs (nested
+ * revisions, bookmarks, smart tags …), which stays a raw inline. Whitespace
+ * between the runs is formatting only and is not kept.
+ */
+function parseRevisionRuns(el: XmlElement): WmlRun[] | undefined {
+  if (!isWmlElement(el, "ins") && !isWmlElement(el, "del")) return undefined;
+  const runs: WmlRun[] = [];
+  for (const child of el.children) {
+    if (child.kind === "text" && child.value.trim() === "") continue;
+    if (child.kind !== "element" || !isWmlElement(child, "r")) return undefined;
+    runs.push(parseRun(child));
+  }
+  if (runs.length === 0) return undefined;
+  const revision = { kind: el.name.local === "ins" ? "ins" : "del", attrs: el.attrs } as const;
+  for (const run of runs) run.revision = revision;
+  return runs;
 }
 
 function parseRun(r: XmlElement): WmlRun {
@@ -137,6 +168,7 @@ function parseRun(r: XmlElement): WmlRun {
 
   return {
     kind: "run",
+    ...ownAttrs(r),
     ...(rPr ? { rPr } : {}),
     pieces,
     extras,
@@ -211,7 +243,8 @@ function parseRunPiece(el: XmlElement): WmlRunPiece | undefined {
   }
 }
 
-function parseTable(tbl: XmlElement): WmlTable {
+/** Parse a `<w:tbl>` element (also used for tables nested in cells). */
+export function parseTableElement(tbl: XmlElement): WmlTable {
   let tblPr: XmlElement | undefined;
   let tblGrid: XmlElement | undefined;
   const rows: WmlTableRow[] = [];
@@ -239,6 +272,7 @@ function parseTable(tbl: XmlElement): WmlTable {
   }
   return {
     kind: "table",
+    ...ownAttrs(tbl),
     ...(tblPr ? { tblPr } : {}),
     ...(tblGrid ? { tblGrid } : {}),
     rows,
@@ -268,6 +302,7 @@ function parseTableRow(tr: XmlElement): WmlTableRow {
     extras.push({ slot: i, node: child });
   }
   return {
+    ...ownAttrs(tr),
     ...(trPr ? { trPr } : {}),
     cells,
     extras,
@@ -297,10 +332,16 @@ function parseTableCell(tc: XmlElement): WmlTableCell {
     extras.push({ slot: i, node: child });
   }
   return {
+    ...ownAttrs(tc),
     ...(tcPr ? { tcPr } : {}),
     paragraphs,
     extras,
   };
+}
+
+/** `{ attrs }` when the element has attributes, so attribute-less nodes stay unchanged. */
+function ownAttrs(el: XmlElement): { attrs?: readonly XmlAttr[] } {
+  return el.attrs.length > 0 ? { attrs: el.attrs } : {};
 }
 
 function textContent(el: XmlElement): string {

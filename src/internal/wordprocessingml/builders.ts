@@ -1,5 +1,7 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { normalizeVerticalMerges } from "./table-grid.js";
+import { TBL_PR_ORDER, TC_PR_ORDER, TR_PR_ORDER, upsertWChild } from "./table-xml.js";
 import type {
   WmlParagraph,
   WmlRun,
@@ -242,11 +244,7 @@ export function setTableBorders(table: WmlTable, options: TableBordersOptions = 
     xmlSpace: "default",
     selfClosing: false,
   };
-  // tblBorders must appear after tblW per the spec; we insert as the first
-  // child after tblW if it's present, else just push to the end.
-  const tblWIdx = children.findIndex((c) => c.kind === "element" && c.name.local === "tblW");
-  if (tblWIdx >= 0) children.splice(tblWIdx + 1, 0, bordersEl);
-  else children.unshift(bordersEl);
+  upsertWChild(tblPr, bordersEl, TBL_PR_ORDER);
 
   if (!table.tblPr) table.tblPr = tblPr;
 }
@@ -305,8 +303,10 @@ export function setTableCellShading(cell: WmlTableCell, options: TableCellShadin
       children.splice(i, 1);
     }
   }
-  children.push(
+  upsertWChild(
+    tcPr,
     wmlEmpty("shd", [wmlAttr("val", pattern), wmlAttr("color", color), wmlAttr("fill", fill)]),
+    TC_PR_ORDER,
   );
   if (!cell.tcPr) cell.tcPr = tcPr;
 }
@@ -333,7 +333,7 @@ export function setTableCellVerticalAlign(cell: WmlTableCell, align: TableCellVe
       children.splice(i, 1);
     }
   }
-  children.push(wmlEmpty("vAlign", [wmlAttr("val", align)]));
+  upsertWChild(tcPr, wmlEmpty("vAlign", [wmlAttr("val", align)]), TC_PR_ORDER);
   if (!cell.tcPr) cell.tcPr = tcPr;
 }
 
@@ -365,8 +365,10 @@ export function setTableRowHeight(
       children.splice(i, 1);
     }
   }
-  children.push(
+  upsertWChild(
+    trPr,
     wmlEmpty("trHeight", [wmlAttr("val", String(heightTwips)), wmlAttr("hRule", rule)]),
+    TR_PR_ORDER,
   );
   if (!row.trPr) row.trPr = trPr;
 }
@@ -394,8 +396,73 @@ export function setTableRowAsHeader(row: WmlTableRow, isHeader = true): void {
       children.splice(i, 1);
     }
   }
-  if (isHeader) children.push(wmlEmpty("tblHeader", []));
+  if (isHeader) upsertWChild(trPr, wmlEmpty("tblHeader", []), TR_PR_ORDER);
   if (!row.trPr) row.trPr = trPr;
+}
+
+/**
+ * Every value `<w:highlight w:val>` accepts: ST_HighlightColor (ECMA-376
+ * Part 1 §17.18.40), in Word's palette order. The list is closed and has no
+ * RGB form; an arbitrary color behind text is run shading (`<w:shd>`).
+ * `"none"` is an explicit "no highlight" that also overrides a highlight
+ * inherited from a style.
+ */
+export const HIGHLIGHT_COLORS = [
+  "yellow",
+  "green",
+  "cyan",
+  "magenta",
+  "blue",
+  "red",
+  "darkBlue",
+  "darkCyan",
+  "darkGreen",
+  "darkMagenta",
+  "darkRed",
+  "darkYellow",
+  "darkGray",
+  "lightGray",
+  "black",
+  "white",
+  "none",
+] as const;
+
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
+
+const HIGHLIGHT_COLOR_SET: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS);
+
+// ST_HexColor (wml.xsd): `auto`, or ST_HexColorRGB — hexBinary of length 3,
+// i.e. six hex digits in either case.
+const HEX_COLOR = /^(?:auto|[0-9A-Fa-f]{6})$/;
+
+/**
+ * Throw if `formatting` would write invalid OOXML. Every writer calls this
+ * before touching the document, so a rejected call changes nothing. Only
+ * schema rules are enforced; application limits (Word's 1–1638 pt font-size
+ * box) are not, since other values are valid files.
+ */
+function assertWritableRunFormatting(formatting: RunFormatting): void {
+  if (formatting.highlight !== undefined && !HIGHLIGHT_COLOR_SET.has(formatting.highlight)) {
+    throw new RangeError(
+      `highlight must be one of ${HIGHLIGHT_COLORS.join(", ")} (ST_HighlightColor), got ${JSON.stringify(formatting.highlight)}.`,
+    );
+  }
+  // `typeof` first: RegExp#test stringifies, so a JS caller's 123456 would pass.
+  const color: unknown = formatting.color;
+  if (color !== undefined && !(typeof color === "string" && HEX_COLOR.test(color))) {
+    throw new RangeError(
+      `color must be six hex digits (no "#") or "auto" (ST_HexColor), got ${typeof color === "string" ? JSON.stringify(color) : typeof color}.`,
+    );
+  }
+  // ST_HpsMeasure (wml.xsd) as a number is ST_UnsignedDecimalNumber: a
+  // non-negative integer, 0 included. Beyond MAX_SAFE_INTEGER a JS number
+  // stops being an exact integer, so that is the practical upper bound.
+  const size = formatting.fontSizeHalfPoints;
+  if (size !== undefined && !(Number.isSafeInteger(size) && size >= 0)) {
+    throw new RangeError(
+      `fontSizeHalfPoints must be a non-negative integer (ST_HpsMeasure), got ${typeof size === "number" ? String(size) : typeof size}.`,
+    );
+  }
 }
 
 export interface RunFormatting {
@@ -403,11 +470,26 @@ export interface RunFormatting {
   readonly italic?: boolean;
   readonly strike?: boolean;
   readonly underline?: "single" | "double" | "thick" | "dotted" | "wave" | "none";
-  /** Hex RGB without leading `#`. */
+  /**
+   * Six hex digits without a leading `#` (e.g. `"FF0000"`), or `"auto"`.
+   * Writers throw a `RangeError` for anything else, before changing anything;
+   * `getRunFormat` returns the file's value unvalidated.
+   */
   readonly color?: string;
-  /** Hex RGB highlight color. */
+  /**
+   * Text highlight. Writers (`appendTextRun`, `setRunFormat`,
+   * `setParagraphText`, `setTableCellText`) accept only a
+   * {@link HighlightColor} and throw a `RangeError` otherwise, before changing
+   * anything. `getRunFormat` returns whatever the file holds, so a value
+   * written by another tool is read back unvalidated (the same holds for
+   * `color` and `fontSizeHalfPoints`).
+   */
   readonly highlight?: string;
-  /** Font size in half-points (e.g. 24 = 12pt). */
+  /**
+   * Font size in half-points (e.g. 24 = 12pt). Writers accept a non-negative
+   * integer (0 is schema-valid) and throw a `RangeError` otherwise, before
+   * changing anything.
+   */
   readonly fontSizeHalfPoints?: number;
   /** Font family applied to ASCII / hAnsi runs. */
   readonly font?: string;
@@ -421,6 +503,7 @@ export function appendTextRun(
   text: string,
   formatting: RunFormatting = {},
 ): WmlRun {
+  assertWritableRunFormatting(formatting);
   const pieces = splitTextIntoPieces(text);
   const rPrChildren: XmlElement[] = [];
   if (formatting.font || formatting.fontEastAsia) {
@@ -475,6 +558,7 @@ export function appendTextRun(
  * doesn't yet model.
  */
 export function setRunFormat(run: WmlRun, formatting: RunFormatting): void {
+  assertWritableRunFormatting(formatting);
   if (
     formatting.bold === undefined &&
     formatting.italic === undefined &&
@@ -573,10 +657,240 @@ export function clearRunFormat(run: WmlRun): void {
   delete run.rPr;
 }
 
+// --- Generic run/paragraph property access ------------------------------------
+//
+// `setRunFormat` / `setParagraphAlignment` cover the common formatting. These
+// generic helpers reach *any* on-off (`<w:x/>`) or single-value (`<w:x
+// w:val="…"/>`) child of `<w:rPr>` / `<w:pPr>`, so callers (e.g. the editor's
+// property commands) can toggle the long tail of WordprocessingML formatting
+// (caps, smallCaps, vanish, keepNext, widowControl, outlineLvl, …) without a
+// bespoke function per element. Complex children (rFonts, ind, spacing, borders,
+// shading, tabs, numPr, framePr) keep their dedicated builders.
+
+function ensureRPr(run: WmlRun): XmlElement {
+  if (!run.rPr) {
+    run.rPr = {
+      kind: "element",
+      name: { uri: WML_NS, local: "rPr", prefix: "w" },
+      attrs: [],
+      children: [],
+      xmlSpace: "default",
+      selfClosing: false,
+    };
+  }
+  return run.rPr;
+}
+
+/** Remove every direct child named `local` from a properties element. */
+function removePropChild(container: XmlElement, local: string): void {
+  const children = container.children as XmlElement[];
+  for (let i = children.length - 1; i >= 0; i--) {
+    const c = children[i];
+    if (c && c.kind === "element" && c.name.uri === WML_NS && c.name.local === local) {
+      children.splice(i, 1);
+    }
+  }
+}
+
+// Table property containers are xsd:sequences; a child appended at the end
+// can land out of schema order, which Word may reject as corrupt.
+const ORDERED_CONTAINERS: Readonly<Record<string, readonly string[]>> = {
+  tblPr: TBL_PR_ORDER,
+  trPr: TR_PR_ORDER,
+  tcPr: TC_PR_ORDER,
+};
+
+function putPropChild(container: XmlElement, child: XmlElement): void {
+  const order =
+    container.name.uri === WML_NS ? ORDERED_CONTAINERS[container.name.local] : undefined;
+  if (order) upsertWChild(container, child, order);
+  else (container.children as XmlElement[]).push(child);
+}
+
+/** Add or remove an on-off property element (`<w:b/>`, `<w:caps/>`, …). */
+function setOnOffChild(container: XmlElement, local: string, on: boolean): void {
+  removePropChild(container, local);
+  if (on) putPropChild(container, wmlEmpty(local, []));
+}
+
+/** Set a single-value property element (`<w:x w:val="…"/>`); undefined removes it. */
+function setValChild(container: XmlElement, local: string, val: string | undefined): void {
+  removePropChild(container, local);
+  if (val !== undefined) putPropChild(container, wmlEmpty(local, [wmlAttr("val", val)]));
+}
+
+/** Read whether a property element is present and its `w:val`, if any. */
+function readProp(
+  container: XmlElement | undefined,
+  local: string,
+): { present: boolean; val?: string } {
+  if (!container) return { present: false };
+  for (const c of container.children) {
+    if (c.kind === "element" && c.name.uri === WML_NS && c.name.local === local) {
+      const val = c.attrs.find((a) => a.name.uri === WML_NS && a.name.local === "val")?.value;
+      return val !== undefined ? { present: true, val } : { present: true };
+    }
+  }
+  return { present: false };
+}
+
+/** Toggle an on-off `<w:rPr>` child (creates `<w:rPr>` if absent). */
+export function setRunOnOff(run: WmlRun, local: string, on: boolean): void {
+  setOnOffChild(ensureRPr(run), local, on);
+}
+
+/** Set a single-value `<w:rPr>` child; `undefined` removes it. */
+export function setRunValProp(run: WmlRun, local: string, val: string | undefined): void {
+  setValChild(ensureRPr(run), local, val);
+}
+
+/** Read an `<w:rPr>` child's presence / value. */
+export function getRunProp(run: WmlRun, local: string): { present: boolean; val?: string } {
+  return readProp(run.rPr, local);
+}
+
+/** Toggle an on-off `<w:pPr>` child (creates `<w:pPr>` if absent). */
+export function setParagraphOnOff(p: WmlParagraph, local: string, on: boolean): void {
+  setOnOffChild(ensurePPr(p), local, on);
+}
+
+/** Set a single-value `<w:pPr>` child; `undefined` removes it. */
+export function setParagraphValProp(p: WmlParagraph, local: string, val: string | undefined): void {
+  setValChild(ensurePPr(p), local, val);
+}
+
+/** Read a `<w:pPr>` child's presence / value. */
+export function getParagraphProp(
+  p: WmlParagraph,
+  local: string,
+): { present: boolean; val?: string } {
+  return readProp(p.pPr, local);
+}
+
+// --- Container-level generic property access ----------------------------------
+//
+// The same on-off / single-value machinery, but operating on an arbitrary
+// properties element (`<w:tcPr>`, `<w:trPr>`, `<w:tblPr>`, `<w:sectPr>`, `<w:lvl>`
+// …) passed in by the caller. The editor uses these for the long tail of table,
+// row, cell, and section formatting, ensuring the container exists first.
+
+/** Toggle an on-off child on any properties element. */
+export function setElementOnOff(container: XmlElement, local: string, on: boolean): void {
+  setOnOffChild(container, local, on);
+}
+
+/** Set a single-value child on any properties element; `undefined` removes it. */
+export function setElementValProp(
+  container: XmlElement,
+  local: string,
+  val: string | undefined,
+): void {
+  setValChild(container, local, val);
+}
+
+/** Read a child's presence / value from any properties element. */
+export function getElementProp(
+  container: XmlElement | undefined,
+  local: string,
+): { present: boolean; val?: string } {
+  return readProp(container, local);
+}
+
+/** Build an empty properties element (`<w:tcPr/>`, `<w:sectPr/>`, …). */
+export function makePropsElement(local: string): XmlElement {
+  return {
+    kind: "element",
+    name: { uri: WML_NS, local, prefix: "w" },
+    attrs: [],
+    children: [],
+    xmlSpace: "default",
+    selfClosing: false,
+  };
+}
+
+// --- Raw XML node editing -----------------------------------------------------
+//
+// The universal escape hatch: set/read any attribute or child on any element in
+// the AST. The editor's raw-XML inspector uses these to make every element —
+// including DrawingML / OMML / VML that live inline in document.xml — editable,
+// without a bespoke command per OOXML element.
+
+/** Set (or, with `undefined`, remove) an attribute by local name on any element. */
+export function setElementAttr(el: XmlElement, local: string, value: string | undefined): void {
+  const attrs = el.attrs as XmlAttr[];
+  const index = attrs.findIndex((a) => a.name.local === local);
+  if (value === undefined) {
+    if (index >= 0) attrs.splice(index, 1);
+    return;
+  }
+  if (index >= 0) {
+    (attrs[index] as { value: string }).value = value;
+  } else {
+    attrs.push({ name: { uri: "", local, prefix: "" }, value, isNamespaceDecl: false });
+  }
+}
+
+/** Read an attribute value by local name from any element. */
+export function getElementAttr(el: XmlElement, local: string): string | undefined {
+  return el.attrs.find((a) => a.name.local === local)?.value;
+}
+
+/** The direct child elements of an element (text/comment nodes filtered out). */
+export function childElementsOf(el: XmlElement): XmlElement[] {
+  return el.children.filter((c): c is XmlElement => c.kind === "element");
+}
+
+/** Append a child element (`<w:local/>` in the WML namespace) and return it. */
+export function appendChildElement(parent: XmlElement, local: string): XmlElement {
+  const child = makePropsElement(local);
+  (parent.children as XmlElement[]).push(child);
+  return child;
+}
+
+// Half-points per unit of ST_PositiveUniversalMeasure, as exact fractions
+// [numerator, denominator]: 1pt = 2, 1pc = 1pi = 12pt, 1in = 72pt,
+// 1cm = 72 / 2.54 pt, 1mm = 72 / 25.4 pt.
+const HALF_POINTS_PER_UNIT: Readonly<Record<string, readonly [bigint, bigint]>> = {
+  pt: [2n, 1n],
+  pc: [24n, 1n],
+  pi: [24n, 1n],
+  in: [144n, 1n],
+  cm: [7200n, 127n],
+  mm: [720n, 127n],
+};
+const HALF_POINT_COUNT = /^\+?[0-9]+$/;
+const UNIVERSAL_MEASURE = /^([0-9]+)(?:\.([0-9]+))?(mm|cm|in|pt|pc|pi)$/;
+
+/**
+ * An ST_HpsMeasure value as half-points: a plain count, or a universal measure
+ * ("12pt", "1in", …) converted exactly. `undefined` when the value is invalid
+ * or is not a whole number of half-points ("3mm"); the XML keeps it as is.
+ */
+function halfPointsOf(val: string): number | undefined {
+  let exact: bigint | undefined;
+  if (HALF_POINT_COUNT.test(val)) exact = BigInt(val);
+  else {
+    const m = UNIVERSAL_MEASURE.exec(val);
+    const unit = m && HALF_POINTS_PER_UNIT[m[3]!];
+    if (!m || !unit) return undefined;
+    const fraction = m[2] ?? "";
+    const numerator = BigInt(m[1]! + fraction) * unit[0];
+    const denominator = 10n ** BigInt(fraction.length) * unit[1];
+    if (numerator % denominator !== 0n) return undefined;
+    exact = numerator / denominator;
+  }
+  return exact <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(exact) : undefined;
+}
+
 /**
  * Read back the formatting a run currently has on its `<w:rPr>`. Returns a
  * `RunFormatting` with only the keys that are actually present, so callers
- * can round-trip via `setRunFormat(other, getRunFormat(run))`.
+ * can round-trip via `setRunFormat(other, getRunFormat(run))`. Values are
+ * returned as the file holds them, unvalidated: a `highlight` outside
+ * {@link HIGHLIGHT_COLORS} or a malformed `color` (written by another tool) is
+ * read back as-is, and that copy is rejected by `setRunFormat` rather than
+ * spread further. A font size given in units (`w:sz="12pt"`) is converted to
+ * half-points; one that is not a whole number of half-points is left out.
  */
 export function getRunFormat(run: WmlRun): RunFormatting {
   // Build a writable scratch object; only keys we actually observe will
@@ -609,8 +923,8 @@ export function getRunFormat(run: WmlRun): RunFormatting {
       if (v !== undefined) out.highlight = v;
     } else if (local === "sz") {
       const v = child.attrs.find((a) => a.name.local === "val")?.value;
-      const n = v !== undefined ? Number.parseInt(v, 10) : NaN;
-      if (Number.isFinite(n)) out.fontSizeHalfPoints = n;
+      const n = v !== undefined ? halfPointsOf(v) : undefined;
+      if (n !== undefined) out.fontSizeHalfPoints = n;
     } else if (local === "rFonts") {
       const ascii = child.attrs.find((a) => a.name.local === "ascii")?.value;
       const east = child.attrs.find((a) => a.name.local === "eastAsia")?.value;
@@ -646,6 +960,7 @@ export function mergeAdjacentRuns(paragraph: WmlParagraph): number {
       prev.kind === "run" &&
       isMergeableRun(child) &&
       isMergeableRun(prev) &&
+      prev.revision === child.revision &&
       sameRPr(prev, child)
     ) {
       prev.pieces.push(...child.pieces);
@@ -845,45 +1160,144 @@ export function setParagraphBorders(
   children.splice(insertAt, 0, pBdr);
 }
 
-export interface ParagraphShadingOptions {
-  /** Hex RGB fill colour. Defaults to `"auto"`. */
+/** Every `w:shd/@w:val` pattern: ST_Shd (ECMA-376 Part 1 §17.18.78). */
+export const SHADING_PATTERNS = [
+  "nil",
+  "clear",
+  "solid",
+  "horzStripe",
+  "vertStripe",
+  "reverseDiagStripe",
+  "diagStripe",
+  "horzCross",
+  "diagCross",
+  "thinHorzStripe",
+  "thinVertStripe",
+  "thinReverseDiagStripe",
+  "thinDiagStripe",
+  "thinHorzCross",
+  "thinDiagCross",
+  "pct5",
+  "pct10",
+  "pct12",
+  "pct15",
+  "pct20",
+  "pct25",
+  "pct30",
+  "pct35",
+  "pct37",
+  "pct40",
+  "pct45",
+  "pct50",
+  "pct55",
+  "pct60",
+  "pct62",
+  "pct65",
+  "pct70",
+  "pct75",
+  "pct80",
+  "pct85",
+  "pct87",
+  "pct90",
+  "pct95",
+] as const;
+
+export type ShadingPattern = (typeof SHADING_PATTERNS)[number];
+
+/** Every `w:themeColor` / `w:themeFill` value: ST_ThemeColor (§17.18.97). */
+export const THEME_COLORS = [
+  "dark1",
+  "light1",
+  "dark2",
+  "light2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hyperlink",
+  "followedHyperlink",
+  "none",
+  "background1",
+  "text1",
+  "background2",
+  "text2",
+] as const;
+
+export type ThemeColor = (typeof THEME_COLORS)[number];
+
+/** Shading of a paragraph or run (`<w:shd>`, §17.3.1.31 / §17.3.2.32). */
+export interface ShadingOptions {
+  /**
+   * Hex RGB fill colour, or `"auto"` (the default). With `themeFill` this is
+   * the theme colour's resolved value, which consumers without the theme use.
+   */
   readonly fill?: string;
-  /** Pattern overlaid on the fill. Defaults to `"clear"` (flat). */
-  readonly pattern?:
-    | "clear"
-    | "solid"
-    | "horzStripe"
-    | "vertStripe"
-    | "diagStripe"
-    | "diagCross"
-    | "thinHorzStripe"
-    | "thinVertStripe";
+  /** Pattern overlaid on the fill. Defaults to `"clear"` (flat fill). */
+  readonly pattern?: ShadingPattern;
   /** Pattern stroke colour. Defaults to `"auto"`. */
   readonly color?: string;
+  /** The theme colour the fill comes from (`w:themeFill`). */
+  readonly themeFill?: ThemeColor;
+  /** Tint applied to `themeFill`, 0–255 (`w:themeFillTint`). */
+  readonly themeFillTint?: number;
+  /** Shade applied to `themeFill`, 0–255 (`w:themeFillShade`). */
+  readonly themeFillShade?: number;
+}
+
+/** Shading of a paragraph; the same shape as run shading. */
+export type ParagraphShadingOptions = ShadingOptions;
+
+const THEME_COLOR_SET: ReadonlySet<string> = new Set(THEME_COLORS);
+
+/**
+ * A theme tint / shade as ST_UcharHexNumber: two hex digits. Throws a
+ * `RangeError` for anything that is not an integer in 0–255.
+ */
+export function ucharHex(value: number, what: string): string {
+  if (!Number.isInteger(value) || value < 0 || value > 255) {
+    throw new RangeError(`${what} must be an integer in 0–255, got ${String(value)}.`);
+  }
+  return value.toString(16).toUpperCase().padStart(2, "0");
+}
+
+/** Throw a `RangeError` unless `value` is an ST_ThemeColor. */
+export function assertThemeColor(value: string, what: string): void {
+  if (!THEME_COLOR_SET.has(value)) {
+    throw new RangeError(
+      `${what} must be one of ${THEME_COLORS.join(", ")}, got ${JSON.stringify(value)}.`,
+    );
+  }
+}
+
+/** Build a `<w:shd>` element; the theme attributes are validated. */
+export function buildShading(options: ShadingOptions): XmlElement {
+  const attrs = [
+    wmlAttr("val", options.pattern ?? "clear"),
+    wmlAttr("color", options.color ?? "auto"),
+    wmlAttr("fill", options.fill ?? "auto"),
+  ];
+  if (options.themeFill !== undefined) {
+    assertThemeColor(options.themeFill, "themeFill");
+    attrs.push(wmlAttr("themeFill", options.themeFill));
+  }
+  if (options.themeFillTint !== undefined)
+    attrs.push(wmlAttr("themeFillTint", ucharHex(options.themeFillTint, "themeFillTint")));
+  if (options.themeFillShade !== undefined)
+    attrs.push(wmlAttr("themeFillShade", ucharHex(options.themeFillShade, "themeFillShade")));
+  return wmlEmpty("shd", attrs);
 }
 
 /** Apply background shading to a paragraph (Word's "highlight" — but applied
  * to the whole paragraph rather than a run). Replaces any existing
  * `<w:shd>` on pPr.
  */
-export function setParagraphShading(
-  paragraph: WmlParagraph,
-  options: ParagraphShadingOptions = {},
-): void {
+export function setParagraphShading(paragraph: WmlParagraph, options: ShadingOptions = {}): void {
+  const shd = buildShading(options);
   const pPr = ensurePPr(paragraph);
-  const fill = options.fill ?? "auto";
-  const pattern = options.pattern ?? "clear";
-  const color = options.color ?? "auto";
-  const children = pPr.children as XmlElement[];
-  for (let i = children.length - 1; i >= 0; i--) {
-    const c = children[i];
-    if (c && c.kind === "element" && c.name.uri === WML_NS && c.name.local === "shd") {
-      children.splice(i, 1);
-    }
-  }
-  children.push(
-    wmlEmpty("shd", [wmlAttr("val", pattern), wmlAttr("color", color), wmlAttr("fill", fill)]),
-  );
+  removePropChild(pPr, "shd");
+  (pPr.children as XmlElement[]).push(shd);
 }
 
 function ensurePPr(p: WmlParagraph): XmlElement {
@@ -981,6 +1395,7 @@ export function setParagraphText(
   text: string,
   formatting: RunFormatting = {},
 ): void {
+  assertWritableRunFormatting(formatting);
   p.children = [];
   appendTextRun(p, text, formatting);
 }
@@ -1009,6 +1424,7 @@ export function setTableCellText(
   text: string,
   formatting: RunFormatting = {},
 ): void {
+  assertWritableRunFormatting(formatting);
   const tableRow = table.rows[row];
   if (!tableRow) {
     throw new Error(
@@ -1085,6 +1501,8 @@ export function appendTableRow(table: WmlTable, texts: readonly string[]): WmlTa
 export function removeTableRow(table: WmlTable, index: number): boolean {
   if (index < 0 || index >= table.rows.length) return false;
   table.rows.splice(index, 1);
+  // A vertical merge that started in the removed row must restart below it.
+  normalizeVerticalMerges(table);
   return true;
 }
 

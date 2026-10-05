@@ -1,6 +1,14 @@
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { inSchemaOrder, type SchemaSequences } from "./schema-normalize.js";
 import type { PassThrough } from "./types.js";
+
+// wml.xsd sequences of CT_AbstractNum and CT_Lvl. `w:num` / `w:lvlOverride`
+// are only ever built in order (restartList), so they need no sorting.
+const NUMBERING_SEQUENCES: SchemaSequences = {
+  abstractNum: "nsid multiLevelType tmpl name styleLink numStyleLink lvl",
+  lvl: "start numFmt lvlRestart pStyle isLgl suff lvlText lvlPicBulletId legacy lvlJc pPr rPr",
+};
 
 /**
  * In-memory model of `word/numbering.xml`. abstractNum and num entries are
@@ -47,7 +55,9 @@ export function parseNumberingPart(doc: XmlDocument): WmlNumberingPart {
 }
 
 export function writeNumberingPart(part: WmlNumberingPart): XmlDocument {
-  const recognized: XmlNode[] = [...part.abstractNums, ...part.nums];
+  const recognized: XmlNode[] = [...part.abstractNums, ...part.nums].map((el) =>
+    inSchemaOrder(el, NUMBERING_SEQUENCES),
+  );
   const children = spliceWithExtras(recognized, part.extras);
   const root: XmlElement = {
     kind: "element",

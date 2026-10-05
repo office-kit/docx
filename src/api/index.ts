@@ -5,15 +5,35 @@
  */
 
 export * from "./docx.js";
+export * from "./story.js";
+export * from "./layout.js";
+export * from "./design.js";
+export * from "./insert.js";
+export * from "./references.js";
+export * from "./mailings.js";
+export * from "./picture.js";
+export * from "./shape.js";
+export * from "./smartart.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,
   appendTextRun,
+  type BuildStyleOptions,
+  type BuildTableOptions,
+  appendChildElement,
+  childElementsOf,
   clearRunFormat,
+  type DocumentAppProperties,
+  type DocumentCoreProperties,
+  getElementAttr,
+  getElementProp,
   getParagraphAlignment,
   getParagraphNumbering,
+  getParagraphProp,
   getParagraphStyle,
   getRunFormat,
+  getRunProp,
+  makePropsElement,
   getTableCellText,
   mergeAdjacentRuns,
   type HeaderFooterType,
@@ -29,15 +49,24 @@ export {
   type ParagraphSpacing,
   paragraphText,
   removeTableRow,
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
   type RunFormatting,
+  setElementAttr,
+  setElementOnOff,
+  setElementValProp,
   setParagraphAlignment,
   setParagraphBorders,
   setParagraphIndent,
+  setParagraphOnOff,
   setParagraphShading,
   setParagraphSpacing,
   setParagraphStyle,
   setParagraphText,
+  setParagraphValProp,
   setRunFormat,
+  setRunOnOff,
+  setRunValProp,
   setTableBorders,
   setTableCellShading,
   setTableCellText,
@@ -61,8 +90,20 @@ export type {
   WmlParagraph,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
 } from "../internal/wordprocessingml/index.js";
+// Raw XML AST types — the low-level escape hatch. `WmlRun.rPr`, `WmlTableCell.tcPr`,
+// etc. are `XmlElement`, so consumers manipulating them (e.g. generic property
+// setters) need these names.
+export type { QName, XmlAttr, XmlElement, XmlNode } from "../internal/xml/index.js";
 export { VERSION } from "./version.js";
+export * from "./table-tools.js";
+export * from "./table-styles.js";
+export * from "./text-format.js";
+export * from "./review.js";
+export * from "./protection.js";
+export * from "./compare.js";
+export * from "./view.js";

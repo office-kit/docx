@@ -1,6 +1,7 @@
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { XML_NAMESPACE } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { inSchemaOrder } from "./schema-normalize.js";
 import type {
   PassThrough,
   WmlBlock,
@@ -10,6 +11,7 @@ import type {
   WmlParagraph,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
@@ -42,17 +44,22 @@ export function writeWmlDocument(wml: WmlDocumentType): XmlDocument {
   };
 }
 
-function writeBody(body: WmlBody): XmlElement {
+/** The child nodes of a block container written from its parsed content. */
+export function writeBodyChildren(body: WmlBody): XmlNode[] {
   const recognized: XmlNode[] = [];
   for (const block of body.blocks) {
     recognized.push(blockToElement(block));
   }
   if (body.sectPr) recognized.push(body.sectPr);
-  const children = spliceWithExtras(recognized, body.extras);
+  return spliceWithExtras(recognized, body.extras);
+}
+
+function writeBody(body: WmlBody): XmlElement {
+  const children = writeBodyChildren(body);
   return {
     kind: "element",
     name: { uri: WML_NS, local: "body", prefix: "w" },
-    attrs: [],
+    attrs: body.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -85,7 +92,7 @@ function tableToElement(t: WmlTable): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tbl", prefix: "w" },
-    attrs: [],
+    attrs: t.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -102,7 +109,7 @@ function tableRowToElement(row: WmlTableRow): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tr", prefix: "w" },
-    attrs: [],
+    attrs: row.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
@@ -133,7 +140,7 @@ function tableCellToElement(cell: WmlTableCell): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "tc", prefix: "w" },
-    attrs: [],
+    attrs: cell.attrs ?? [],
     children: ensured,
     xmlSpace: "default",
     selfClosing: false,
@@ -147,19 +154,49 @@ function tableCellToElement(cell: WmlTableCell): XmlElement {
  */
 export function paragraphToElement(p: WmlParagraph): XmlElement {
   const recognized: XmlNode[] = [];
-  if (p.pPr) recognized.push(p.pPr);
+  if (p.pPr) recognized.push(inSchemaOrder(p.pPr));
+  let wrapper: XmlNode[] | undefined;
+  let wrapperRevision: WmlRunRevision | undefined;
   for (const inline of p.children) {
-    recognized.push(inlineToElement(inline));
+    const revision = inline.kind === "run" ? inline.revision : undefined;
+    if (!revision) {
+      wrapper = undefined;
+      wrapperRevision = undefined;
+      recognized.push(inlineToElement(inline));
+      continue;
+    }
+    if (wrapper && wrapperRevision && sameRevision(wrapperRevision, revision)) {
+      wrapper.push(inlineToElement(inline));
+      continue;
+    }
+    wrapperRevision = revision;
+    wrapper = [inlineToElement(inline)];
+    recognized.push({
+      kind: "element",
+      name: { uri: WML_NS, local: revision.kind, prefix: "w" },
+      attrs: revision.attrs,
+      children: wrapper,
+      xmlSpace: "default",
+      selfClosing: false,
+    });
   }
   const children = spliceWithExtras(recognized, p.extras);
   return {
     kind: "element",
     name: { uri: WML_NS, local: "p", prefix: "w" },
-    attrs: [],
+    attrs: p.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,
   };
+}
+
+/** Runs of one `<w:ins>` / `<w:del>`: same kind and `w:id`. */
+function sameRevision(a: WmlRunRevision, b: WmlRunRevision): boolean {
+  if (a === b) return true;
+  const id = (r: WmlRunRevision): string | undefined =>
+    r.attrs.find((x) => x.name.uri === WML_NS && x.name.local === "id")?.value;
+  return a.kind === b.kind && id(a) !== undefined && id(a) === id(b);
 }
 
 function inlineToElement(inline: WmlInline): XmlElement {
@@ -169,7 +206,7 @@ function inlineToElement(inline: WmlInline): XmlElement {
 
 function runToElement(run: WmlRun): XmlElement {
   const recognized: XmlNode[] = [];
-  if (run.rPr) recognized.push(run.rPr);
+  if (run.rPr) recognized.push(inSchemaOrder(run.rPr));
   for (const piece of run.pieces) {
     recognized.push(runPieceToElement(piece));
   }
@@ -177,7 +214,7 @@ function runToElement(run: WmlRun): XmlElement {
   return {
     kind: "element",
     name: { uri: WML_NS, local: "r", prefix: "w" },
-    attrs: [],
+    attrs: run.attrs ?? [],
     children,
     xmlSpace: "default",
     selfClosing: children.length === 0,

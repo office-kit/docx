@@ -25,6 +25,8 @@ export interface WmlBody {
   sectPr?: XmlElement;
   /** Unknown body children, with their original child-list index. */
   extras: PassThrough[];
+  /** `<w:body>`'s own attributes, preserved verbatim. */
+  attrs?: readonly XmlAttr[];
 }
 
 export type WmlBlock = WmlParagraph | WmlTable | WmlRawBlock;
@@ -38,6 +40,12 @@ export interface WmlTable {
   rows: WmlTableRow[];
   /** Unknown children of `<w:tbl>`, with their original position. */
   extras: PassThrough[];
+  /**
+   * The element's own attributes (`w14:paraId`, `w:rsid*`, …), preserved
+   * verbatim. Absent on nodes built in memory. Code that *duplicates* a node
+   * must not copy `w14:paraId` / `w14:textId`: Word requires them unique.
+   */
+  attrs?: readonly XmlAttr[];
 }
 
 export interface WmlTableRow {
@@ -46,6 +54,12 @@ export interface WmlTableRow {
   cells: WmlTableCell[];
   /** Unknown children of `<w:tr>`, with their original position. */
   extras: PassThrough[];
+  /**
+   * The element's own attributes (`w14:paraId`, `w:rsid*`, …), preserved
+   * verbatim. Absent on nodes built in memory. Code that *duplicates* a node
+   * must not copy `w14:paraId` / `w14:textId`: Word requires them unique.
+   */
+  attrs?: readonly XmlAttr[];
 }
 
 export interface WmlTableCell {
@@ -55,6 +69,12 @@ export interface WmlTableCell {
   paragraphs: WmlParagraph[];
   /** Unknown children of `<w:tc>`, with their original position. */
   extras: PassThrough[];
+  /**
+   * The element's own attributes (`w14:paraId`, `w:rsid*`, …), preserved
+   * verbatim. Absent on nodes built in memory. Code that *duplicates* a node
+   * must not copy `w14:paraId` / `w14:textId`: Word requires them unique.
+   */
+  attrs?: readonly XmlAttr[];
 }
 
 export interface WmlParagraph {
@@ -67,6 +87,12 @@ export interface WmlParagraph {
   children: WmlInline[];
   /** Children of `<w:p>` that we don't recognize (with original position). */
   extras: PassThrough[];
+  /**
+   * The element's own attributes (`w14:paraId`, `w:rsid*`, …), preserved
+   * verbatim. Absent on nodes built in memory. Code that *duplicates* a node
+   * must not copy `w14:paraId` / `w14:textId`: Word requires them unique.
+   */
+  attrs?: readonly XmlAttr[];
 }
 
 export interface WmlRawBlock {
@@ -80,9 +106,32 @@ export type WmlInline = WmlRun | WmlRawInline;
 export interface WmlRun {
   readonly kind: "run";
   rPr?: XmlElement;
+  /**
+   * The tracked insertion or deletion this run belongs to. The parser lifts a
+   * `<w:ins>` / `<w:del>` wrapper that holds only runs onto those runs, and the
+   * writer wraps consecutive runs of the same revision again, so revised text
+   * stays an ordinary run that can be edited, split and formatted.
+   */
+  revision?: WmlRunRevision;
   pieces: WmlRunPiece[];
   /** Unknown children inside `<w:r>` (preserves original position). */
   extras: PassThrough[];
+  /**
+   * The element's own attributes (`w14:paraId`, `w:rsid*`, …), preserved
+   * verbatim. Absent on nodes built in memory. Code that *duplicates* a node
+   * must not copy `w14:paraId` / `w14:textId`: Word requires them unique.
+   */
+  attrs?: readonly XmlAttr[];
+}
+
+/**
+ * A run-level tracked change (§17.13.5.18 `<w:ins>`, §17.13.5.14 `<w:del>`).
+ * `attrs` are the wrapper's own attributes (`w:id`, `w:author`, `w:date`),
+ * kept verbatim; runs that share a `w:id` were one wrapper.
+ */
+export interface WmlRunRevision {
+  readonly kind: "ins" | "del";
+  readonly attrs: readonly XmlAttr[];
 }
 
 export interface WmlRawInline {

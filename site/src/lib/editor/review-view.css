@@ -1,0 +1,302 @@
+/*
+ * Review markup and document views, keyed on the editor root's data-*
+ * attributes (EditorSession.displayAttrs) and on the classes the renderer puts
+ * on revisions (render-revisions.ts). Switching Display for Review, Markup
+ * Options or the view restyles the page; nothing is re-rendered.
+ */
+
+/* Word's "By author" colours, in the order reviewers first appear. */
+.wk-app {
+  --wk-author-0: #b5082e;
+  --wk-author-1: #2e75b6;
+  --wk-author-2: #548235;
+  --wk-author-3: #7030a0;
+  --wk-author-4: #c55a11;
+  --wk-author-5: #00838f;
+  --wk-author-6: #9c6500;
+  --wk-author-7: #c2185b;
+  --wk-change-bar: #7f7f7f;
+  --wk-comment-bg: rgba(255, 213, 79, 0.45);
+}
+.wk-app .wk-author-0 {
+  --wk-rev: var(--wk-author-0);
+}
+.wk-app .wk-author-1 {
+  --wk-rev: var(--wk-author-1);
+}
+.wk-app .wk-author-2 {
+  --wk-rev: var(--wk-author-2);
+}
+.wk-app .wk-author-3 {
+  --wk-rev: var(--wk-author-3);
+}
+.wk-app .wk-author-4 {
+  --wk-rev: var(--wk-author-4);
+}
+.wk-app .wk-author-5 {
+  --wk-rev: var(--wk-author-5);
+}
+.wk-app .wk-author-6 {
+  --wk-rev: var(--wk-author-6);
+}
+.wk-app .wk-author-7 {
+  --wk-rev: var(--wk-author-7);
+}
+
+/* ---- All Markup: insertions and deletions inline, by author. ---- */
+.wk-app[data-markup="all"][data-show-insdel="true"] .wk-ins {
+  color: var(--wk-rev);
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-ins-mark="underline"] .wk-ins {
+  text-decoration: underline;
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-ins-mark="doubleUnderline"] .wk-ins {
+  text-decoration: underline double;
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-ins-mark="bold"] .wk-ins {
+  font-weight: bold;
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-ins-mark="italic"] .wk-ins {
+  font-style: italic;
+}
+.wk-app[data-markup="all"][data-show-insdel="true"] .wk-del-run {
+  color: var(--wk-rev);
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-del-mark="strikethrough"] .wk-del-run {
+  text-decoration: line-through;
+}
+.wk-app[data-markup="all"][data-show-insdel="true"][data-del-mark="doubleStrikethrough"]
+  .wk-del-run {
+  text-decoration: line-through double;
+}
+.wk-app[data-markup="all"][data-del-mark="hidden"] .wk-del-run {
+  display: none;
+}
+.wk-app[data-markup="all"][data-show-formatting="true"] .wk-fmt-change {
+  text-decoration: underline dotted var(--wk-rev, var(--wk-author-0));
+}
+
+/* Simple / No Markup show the document as if every change were accepted. */
+.wk-app[data-markup="simple"] .wk-del-run,
+.wk-app[data-markup="none"] .wk-del-run {
+  display: none;
+}
+
+/* Original: as if every change were rejected. */
+.wk-app[data-markup="original"] .wk-ins {
+  display: none;
+}
+
+/* Change bars beside changed paragraphs (All and Simple Markup). */
+.wk-app[data-markup="all"] .wk-changed,
+.wk-app[data-markup="simple"] .wk-changed {
+  position: relative;
+}
+.wk-app[data-markup="all"]:not([data-changed-lines="none"]) .wk-changed::before,
+.wk-app[data-markup="simple"]:not([data-changed-lines="none"]) .wk-changed::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -14px;
+  width: 1px;
+  background: var(--wk-change-bar);
+}
+/* Simple Markup draws the bar red, as Word does, to say "there is more here". */
+.wk-app[data-markup="simple"] .wk-changed::before {
+  background: #d13438;
+}
+.wk-app[data-changed-lines="right"] .wk-changed::before {
+  left: auto;
+  right: -14px;
+}
+
+/* Comment ranges. Simple Markup keeps only a light highlight. */
+.wk-app[data-markup="all"][data-show-comments="true"] .wk-commented {
+  background: var(--wk-comment-bg);
+}
+.wk-app[data-markup="simple"][data-show-comments="true"] .wk-commented {
+  background: rgba(255, 213, 79, 0.2);
+}
+
+/* Exceptions of a protected document (Restrict Editing ▸ Exceptions). */
+.wk-app .wk-perm {
+  background: rgba(255, 235, 156, 0.6);
+  outline: none;
+}
+
+/* ---- Views ---- */
+
+/* Web Layout: no page; text wraps to the window. */
+.wk-app[data-view="web"] .wk-canvas {
+  width: auto;
+  min-height: 100%;
+  padding: 24px 32px;
+  border: none;
+  box-shadow: none;
+  background-image: none;
+}
+
+/* Draft: one continuous column without page edges or margins. */
+.wk-app[data-view="draft"] .wk-canvas,
+.wk-app[data-view="outline"] .wk-canvas {
+  width: auto;
+  min-height: 100%;
+  padding: 12px 24px;
+  border: none;
+  box-shadow: none;
+  background-image: none;
+}
+.wk-app[data-view="draft"] .surface,
+.wk-app[data-view="outline"] .surface,
+.wk-app[data-view="web"] .surface {
+  padding: 0;
+  background: #fff;
+}
+
+/*
+ * Outline: every paragraph is an outline item with Word's symbols — a
+ * plus-in-circle for headings, a small circle for body text — indented by
+ * level. Paragraph indents are the document's, so the outline's own indent is
+ * a padding.
+ */
+.wk-app[data-view="outline"] .wk-p {
+  display: list-item;
+  list-style-position: outside;
+  list-style-type: "⊕  ";
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="10"] {
+  list-style-type: "◦  ";
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="2"] {
+  padding-left: 0.5in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="3"] {
+  padding-left: 1in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="4"] {
+  padding-left: 1.5in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="5"] {
+  padding-left: 2in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="6"] {
+  padding-left: 2.5in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="7"] {
+  padding-left: 3in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="8"] {
+  padding-left: 3.5in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="9"] {
+  padding-left: 4in;
+}
+.wk-app[data-view="outline"] .wk-p[data-wk-outline="10"] {
+  padding-left: 0.5in;
+}
+.wk-app[data-view="outline"] .wk-p::marker {
+  color: #6b6b6b;
+  font-size: 0.9em;
+}
+/* Show Level n hides every paragraph below it (10 = all levels). */
+.wk-app[data-view="outline"][data-outline-level="1"] .wk-p:not([data-wk-outline="1"]),
+.wk-app[data-view="outline"][data-outline-level="2"]
+  .wk-p:is(
+    [data-wk-outline="3"],
+    [data-wk-outline="4"],
+    [data-wk-outline="5"],
+    [data-wk-outline="6"],
+    [data-wk-outline="7"],
+    [data-wk-outline="8"],
+    [data-wk-outline="9"],
+    [data-wk-outline="10"]
+  ),
+.wk-app[data-view="outline"][data-outline-level="3"]
+  .wk-p:is(
+    [data-wk-outline="4"],
+    [data-wk-outline="5"],
+    [data-wk-outline="6"],
+    [data-wk-outline="7"],
+    [data-wk-outline="8"],
+    [data-wk-outline="9"],
+    [data-wk-outline="10"]
+  ),
+.wk-app[data-view="outline"][data-outline-level="4"]
+  .wk-p:is(
+    [data-wk-outline="5"],
+    [data-wk-outline="6"],
+    [data-wk-outline="7"],
+    [data-wk-outline="8"],
+    [data-wk-outline="9"],
+    [data-wk-outline="10"]
+  ),
+.wk-app[data-view="outline"][data-outline-level="5"]
+  .wk-p:is(
+    [data-wk-outline="6"],
+    [data-wk-outline="7"],
+    [data-wk-outline="8"],
+    [data-wk-outline="9"],
+    [data-wk-outline="10"]
+  ),
+.wk-app[data-view="outline"][data-outline-level="6"]
+  .wk-p:is(
+    [data-wk-outline="7"],
+    [data-wk-outline="8"],
+    [data-wk-outline="9"],
+    [data-wk-outline="10"]
+  ),
+.wk-app[data-view="outline"][data-outline-level="7"]
+  .wk-p:is([data-wk-outline="8"], [data-wk-outline="9"], [data-wk-outline="10"]),
+.wk-app[data-view="outline"][data-outline-level="8"]
+  .wk-p:is([data-wk-outline="9"], [data-wk-outline="10"]),
+.wk-app[data-view="outline"][data-outline-level="9"] .wk-p[data-wk-outline="10"] {
+  display: none;
+}
+.wk-app[data-view="outline"][data-outline-first-line="true"] .wk-p[data-wk-outline="10"] {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Show Text Formatting off: every item in one plain font. */
+.wk-app[data-view="outline"][data-outline-formatting="false"] .wk-p,
+.wk-app[data-view="outline"][data-outline-formatting="false"] .wk-run {
+  font:
+    11pt/1.3 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif !important;
+  color: #000 !important;
+}
+
+/* Focus: the page alone on a dark backdrop, chrome hidden. */
+.wk-app[data-focus="true"] > .titlebar,
+.wk-app[data-focus="true"] > .tabs,
+.wk-app[data-focus="true"] > .ribbon,
+.wk-app[data-focus="true"] > .statusbar,
+.wk-app[data-focus="true"] .pane {
+  display: none;
+}
+.wk-app[data-focus="true"] .workspace {
+  background: #3b3b3b;
+}
+
+/* Multiple Pages: the laid-out pages side by side. */
+.wk-app[data-pages-across="2"] .wk-pages {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* The vertical ruler is placed in the scrolling surface (Ruler.svelte). */
+.wk-app .surface {
+  position: relative;
+}
+
+/* Table cells are not outline items in Word's Outline view. */
+.wk-app[data-view="outline"] .wk-td .wk-p {
+  display: block;
+  padding-left: 0;
+}
