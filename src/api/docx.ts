@@ -127,6 +127,7 @@ import {
   separatorChar,
   type TableTextSeparator,
 } from "../internal/wordprocessingml/table-grid.js";
+import { settingsRoot } from "./settings-part.js";
 import { type ValidationIssue, validatePackage } from "./validator.js";
 
 const DOCUMENT_PART_FALLBACK = "/word/document.xml";
@@ -878,36 +879,6 @@ function ensureStylesPart(doc: Docx): WmlStylesPart {
 }
 
 const SETTINGS_PART_NAME = "/word/settings.xml";
-const EMPTY_SETTINGS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>`;
-
-/** Ensure `word/settings.xml` exists (part + relationship) and return its part. */
-function ensureSettingsPart(doc: Docx): Part {
-  const existing = getPart(doc.opc, SETTINGS_PART_NAME);
-  if (existing) return existing;
-  addPart(doc.opc, {
-    name: SETTINGS_PART_NAME,
-    contentType: WML_CONTENT_TYPES.settings,
-    data: new TextEncoder().encode(EMPTY_SETTINGS_XML),
-  });
-  const docRels = partRelationships(doc.opc, doc.partName);
-  if (relationshipsByType(docRels, WML_RELATIONSHIPS.settings).length === 0) {
-    addRelationship(docRels, { type: WML_RELATIONSHIPS.settings, target: "settings.xml" });
-  }
-  return getPart(doc.opc, SETTINGS_PART_NAME) as Part;
-}
-
-/**
- * The root of `word/settings.xml`, created if the document has none. Settings
- * go through the raw-part cache so every reader and writer (including the
- * raw-XML inspector) sees one tree.
- */
-function settingsRoot(doc: Docx): XmlElement {
-  ensureSettingsPart(doc);
-  const root = getRawPartRoot(doc, SETTINGS_PART_NAME);
-  if (!root) throw new Error("word/settings.xml could not be read");
-  return root;
-}
 
 /**
  * Toggle an on-off document setting in `word/settings.xml` (e.g.

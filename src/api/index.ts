@@ -9,6 +9,8 @@ export * from "./story.js";
 export * from "./layout.js";
 export * from "./design.js";
 export * from "./insert.js";
+export * from "./references.js";
+export * from "./mailings.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,

@@ -1,2 +1,40 @@
 /** Qualified element → the command id that creates or edits it (see ../ledger.ts). */
-export default {} satisfies Record<string, string>;
+export default {
+  // --- References: footnote / endnote properties (commands/references.ts) ---
+  "w:footnotePr": "references.noteOptions",
+  "w:endnotePr": "references.noteOptions",
+  "w:pos": "references.noteOptions",
+  "w:numStart": "references.noteOptions",
+  "w:numRestart": "references.noteOptions",
+  "w:footnoteRef": "references.footnote",
+  "w:endnoteRef": "references.endnote",
+  "w:separator": "references.footnote",
+  "w:continuationSeparator": "references.footnote",
+  "w:outlineLvl": "references.addText",
+  "w:captions": "references.captionLabel",
+  "w:caption": "references.captionLabel",
+
+  // --- Mailings (commands/mailings.ts) ---
+  "w:mailMerge": "mailings.start",
+  "w:mainDocumentType": "mailings.start",
+  "w:linkToQuery": "mailings.selectRecipients",
+  "w:dataType": "mailings.selectRecipients",
+  "w:connectString": "mailings.selectRecipients",
+  "w:query": "mailings.selectRecipients",
+  "w:dataSource": "mailings.selectRecipients",
+  "w:odso": "mailings.selectRecipients",
+  "w:udl": "mailings.selectRecipients",
+  "w:src": "mailings.selectRecipients",
+  "w:colDelim": "mailings.selectRecipients",
+  "w:fHdr": "mailings.selectRecipients",
+  "w:fieldMapData": "mailings.matchFields",
+  "w:mappedName": "mailings.matchFields",
+  "w:column": "mailings.matchFields",
+  "w:lid": "mailings.matchFields",
+  "w:viewMergedData": "mailings.preview",
+  "w:activeRecord": "mailings.preview",
+  "w:recipientData": "mailings.recipientInclusion",
+  "w:recipients": "mailings.recipientInclusion",
+  "w:active": "mailings.recipientInclusion",
+  "w:uniqueTag": "mailings.recipientInclusion",
+} satisfies Record<string, string>;

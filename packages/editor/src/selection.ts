@@ -65,7 +65,8 @@ export function storyKeyOf(pos: DocPosition): string {
   return pos.story ? storyKey(pos.story) : "";
 }
 
-function comparePositions(a: DocPosition, b: DocPosition): number {
+/** Document order of two positions (negative when `a` comes first). */
+export function comparePositions(a: DocPosition, b: DocPosition): number {
   // Selections never span stories; ordering them keeps the order total.
   const as = storyKeyOf(a);
   const bs = storyKeyOf(b);

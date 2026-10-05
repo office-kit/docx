@@ -25,6 +25,7 @@ export type FeatureGroup =
   | "headerFooter"
   | "insert"
   | "references"
+  | "mailings"
   | "review"
   | "advanced"
   | "design"

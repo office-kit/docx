@@ -226,3 +226,21 @@ export function setOrderedVal(
   if (val === undefined) removeOrderedChild(parent, local);
   else upsertOrderedChild(parent, wmlElement(local, val), order);
 }
+
+/**
+ * Stable-sort the WML children of `parent` into `order`. Children the list
+ * does not know (extensions, other namespaces) keep their place relative to
+ * the child before them.
+ */
+export function sortOrderedChildren(parent: XmlElement, order: readonly string[]): void {
+  const ranks = new Map(order.map((local, i) => [local, i]));
+  const children = parent.children as XmlNode[];
+  let lastRank = -1;
+  const keyed = children.map((node, index) => {
+    const rank = node.kind === "element" ? ranks.get(node.name.local) : undefined;
+    if (rank !== undefined) lastRank = rank;
+    return { node, index, rank: lastRank };
+  });
+  keyed.sort((a, b) => a.rank - b.rank || a.index - b.index);
+  children.splice(0, children.length, ...keyed.map((k) => k.node));
+}
