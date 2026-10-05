@@ -4,8 +4,8 @@
 > ECMA-376 schema universe. Regenerate with the coverage test (it writes this file).
 
 - **Total elements**: 1198
-- **Editable** (`edit`): 1190 (99.3%)
-- **Rendered** (`render`): 8 (0.7%)
+- **Editable** (`edit`): 1191 (99.4%)
+- **Rendered** (`render`): 7 (0.6%)
 - **Preserved** (`preserve`): 0 (0.0%)
 - **Unclassified**: 0 (must be 0)
 
@@ -20,18 +20,18 @@ Every element is round-tripped losslessly regardless of disposition;
 | drawing | 370 | 0 | 0 | 370 |
 | math | 124 | 0 | 0 | 124 |
 | vml | 61 | 0 | 0 | 61 |
-| wml | 605 | 8 | 0 | 613 |
+| wml | 606 | 7 | 0 | 613 |
 
 ## Editable elements
 
 | Element | Command |
 | ------- | ------- |
-| `a:accent1` | `raw.setChildVal` |
-| `a:accent2` | `raw.setChildVal` |
-| `a:accent3` | `raw.setChildVal` |
-| `a:accent4` | `raw.setChildVal` |
-| `a:accent5` | `raw.setChildVal` |
-| `a:accent6` | `raw.setChildVal` |
+| `a:accent1` | `design.colors` |
+| `a:accent2` | `design.colors` |
+| `a:accent3` | `design.colors` |
+| `a:accent4` | `design.colors` |
+| `a:accent5` | `design.colors` |
+| `a:accent6` | `design.colors` |
 | `a:ahLst` | `raw.setChildVal` |
 | `a:ahPolar` | `raw.setChildVal` |
 | `a:ahXY` | `raw.setChildVal` |
@@ -59,7 +59,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:bevelB` | `raw.setChildVal` |
 | `a:bevelT` | `raw.setChildVal` |
 | `a:bgClr` | `raw.setChildVal` |
-| `a:bgFillStyleLst` | `raw.setChildVal` |
+| `a:bgFillStyleLst` | `design.effects` |
 | `a:biLevel` | `raw.setChildVal` |
 | `a:bldChart` | `raw.setChildVal` |
 | `a:bldDgm` | `raw.setChildVal` |
@@ -94,7 +94,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:clrFrom` | `raw.setChildVal` |
 | `a:clrMap` | `raw.setChildVal` |
 | `a:clrRepl` | `raw.setChildVal` |
-| `a:clrScheme` | `raw.setChildVal` |
+| `a:clrScheme` | `design.colors` |
 | `a:clrTo` | `raw.setChildVal` |
 | `a:cNvCxnSpPr` | `raw.setChildVal` |
 | `a:cNvGraphicFramePr` | `raw.setChildVal` |
@@ -119,8 +119,8 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:defPPr` | `raw.setChildVal` |
 | `a:defRPr` | `raw.setChildVal` |
 | `a:dgm` | `raw.setChildVal` |
-| `a:dk1` | `raw.setChildVal` |
-| `a:dk2` | `raw.setChildVal` |
+| `a:dk1` | `design.colors` |
+| `a:dk2` | `design.colors` |
 | `a:ds` | `raw.setChildVal` |
 | `a:duotone` | `raw.setChildVal` |
 | `a:ea` | `raw.setChildVal` |
@@ -128,32 +128,32 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:effectDag` | `raw.setChildVal` |
 | `a:effectLst` | `raw.setChildVal` |
 | `a:effectRef` | `raw.setChildVal` |
-| `a:effectStyle` | `raw.setChildVal` |
-| `a:effectStyleLst` | `raw.setChildVal` |
+| `a:effectStyle` | `design.effects` |
+| `a:effectStyleLst` | `design.effects` |
 | `a:end` | `raw.setChildVal` |
 | `a:endCxn` | `raw.setChildVal` |
 | `a:endParaRPr` | `raw.setChildVal` |
 | `a:ext` | `image.resize` |
 | `a:extLst` | `raw.setChildVal` |
 | `a:extraClrScheme` | `raw.setChildVal` |
-| `a:extraClrSchemeLst` | `raw.setChildVal` |
+| `a:extraClrSchemeLst` | `design.theme` |
 | `a:extrusionClr` | `raw.setChildVal` |
 | `a:fgClr` | `raw.setChildVal` |
 | `a:fill` | `raw.setChildVal` |
 | `a:fillOverlay` | `raw.setChildVal` |
 | `a:fillRect` | `raw.setChildVal` |
 | `a:fillRef` | `raw.setChildVal` |
-| `a:fillStyleLst` | `raw.setChildVal` |
+| `a:fillStyleLst` | `design.effects` |
 | `a:fillToRect` | `raw.setChildVal` |
 | `a:firstCol` | `raw.setChildVal` |
 | `a:firstRow` | `raw.setChildVal` |
 | `a:flatTx` | `raw.setChildVal` |
 | `a:fld` | `raw.setChildVal` |
-| `a:fmtScheme` | `raw.setChildVal` |
-| `a:folHlink` | `raw.setChildVal` |
+| `a:fmtScheme` | `design.effects` |
+| `a:folHlink` | `design.colors` |
 | `a:font` | `raw.setChildVal` |
 | `a:fontRef` | `raw.setChildVal` |
-| `a:fontScheme` | `raw.setChildVal` |
+| `a:fontScheme` | `design.fonts` |
 | `a:gamma` | `raw.setChildVal` |
 | `a:gd` | `raw.setChildVal` |
 | `a:gdLst` | `raw.setChildVal` |
@@ -179,7 +179,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:header` | `raw.setChildVal` |
 | `a:headers` | `raw.setChildVal` |
 | `a:highlight` | `raw.setChildVal` |
-| `a:hlink` | `raw.setChildVal` |
+| `a:hlink` | `design.colors` |
 | `a:hlinkClick` | `raw.setChildVal` |
 | `a:hlinkHover` | `raw.setChildVal` |
 | `a:hlinkMouseOver` | `raw.setChildVal` |
@@ -207,13 +207,13 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:lnR` | `raw.setChildVal` |
 | `a:lnRef` | `raw.setChildVal` |
 | `a:lnSpc` | `raw.setChildVal` |
-| `a:lnStyleLst` | `raw.setChildVal` |
+| `a:lnStyleLst` | `design.effects` |
 | `a:lnT` | `raw.setChildVal` |
 | `a:lnTlToBr` | `raw.setChildVal` |
 | `a:lnTo` | `raw.setChildVal` |
 | `a:lstStyle` | `raw.setChildVal` |
-| `a:lt1` | `raw.setChildVal` |
-| `a:lt2` | `raw.setChildVal` |
+| `a:lt1` | `design.colors` |
+| `a:lt2` | `design.colors` |
 | `a:lum` | `raw.setChildVal` |
 | `a:lumMod` | `raw.setChildVal` |
 | `a:lumOff` | `raw.setChildVal` |
@@ -226,9 +226,9 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:lvl7pPr` | `raw.setChildVal` |
 | `a:lvl8pPr` | `raw.setChildVal` |
 | `a:lvl9pPr` | `raw.setChildVal` |
-| `a:majorFont` | `raw.setChildVal` |
+| `a:majorFont` | `design.fonts` |
 | `a:masterClrMapping` | `raw.setChildVal` |
-| `a:minorFont` | `raw.setChildVal` |
+| `a:minorFont` | `design.fonts` |
 | `a:miter` | `raw.setChildVal` |
 | `a:moveTo` | `raw.setChildVal` |
 | `a:neCell` | `raw.setChildVal` |
@@ -242,7 +242,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:nvPicPr` | `raw.setChildVal` |
 | `a:nvSpPr` | `raw.setChildVal` |
 | `a:nwCell` | `raw.setChildVal` |
-| `a:objectDefaults` | `raw.setChildVal` |
+| `a:objectDefaults` | `design.theme` |
 | `a:off` | `image.resize` |
 | `a:outerShdw` | `raw.setChildVal` |
 | `a:overrideClrMapping` | `raw.setChildVal` |
@@ -323,8 +323,8 @@ Every element is round-tripped losslessly regardless of disposition;
 | `a:tcPr` | `raw.setChildVal` |
 | `a:tcStyle` | `raw.setChildVal` |
 | `a:tcTxStyle` | `raw.setChildVal` |
-| `a:theme` | `raw.setChildVal` |
-| `a:themeElements` | `raw.setChildVal` |
+| `a:theme` | `design.theme` |
+| `a:themeElements` | `design.theme` |
 | `a:themeManager` | `raw.setChildVal` |
 | `a:themeOverride` | `raw.setChildVal` |
 | `a:tile` | `raw.setChildVal` |
@@ -540,7 +540,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `pic:pic` | `image.insert` |
 | `pic:spPr` | `image.insert` |
 | `v:arc` | `raw.setChildVal` |
-| `v:background` | `raw.setChildVal` |
+| `v:background` | `design.pageColor` |
 | `v:curve` | `raw.setChildVal` |
 | `v:f` | `raw.setChildVal` |
 | `v:fill` | `raw.setChildVal` |
@@ -558,10 +558,10 @@ Every element is round-tripped losslessly regardless of disposition;
 | `v:roundrect` | `raw.setChildVal` |
 | `v:shadow` | `raw.setChildVal` |
 | `v:shape` | `raw.setChildVal` |
-| `v:shapetype` | `raw.setChildVal` |
+| `v:shapetype` | `design.watermark` |
 | `v:stroke` | `raw.setChildVal` |
 | `v:textbox` | `raw.setChildVal` |
-| `v:textpath` | `raw.setChildVal` |
+| `v:textpath` | `design.watermark` |
 | `w:abstractNum` | `list.apply` |
 | `w:abstractNumId` | `rawpart.setChildVal` |
 | `w:active` | `rawpart.setChildVal` |
@@ -590,13 +590,13 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:autoCaptions` | `rawpart.setChildVal` |
 | `w:autofitToFirstFixedWidthCell` | `rawpart.setChildVal` |
 | `w:autoFormatOverride` | `settings.autoFormatOverride` |
-| `w:autoHyphenation` | `settings.autoHyphenation` |
+| `w:autoHyphenation` | `layout.hyphenation` |
 | `w:autoRedefine` | `style.autoRedefine` |
 | `w:autoSpaceDE` | `paragraph.autoSpaceDE` |
 | `w:autoSpaceDN` | `paragraph.autoSpaceDN` |
 | `w:autoSpaceLikeWord95` | `rawpart.setChildVal` |
 | `w:b` | `text.bold` |
-| `w:background` | `rawpart.setChildVal` |
+| `w:background` | `design.pageColor` |
 | `w:balanceSingleByteDoubleByteWidth` | `rawpart.setChildVal` |
 | `w:bar` | `rawpart.setChildVal` |
 | `w:basedOn` | `style.add` |
@@ -611,8 +611,8 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:bidiVisual` | `table.bidiVisual` |
 | `w:blockQuote` | `rawpart.setChildVal` |
 | `w:bodyDiv` | `rawpart.setChildVal` |
-| `w:bookFoldPrinting` | `settings.bookFoldPrinting` |
-| `w:bookFoldPrintingSheets` | `settings.bookFoldPrintingSheets` |
+| `w:bookFoldPrinting` | `layout.pageSetup` |
+| `w:bookFoldPrintingSheets` | `layout.pageSetup` |
 | `w:bookFoldRevPrinting` | `settings.bookFoldRevPrinting` |
 | `w:bookmarkEnd` | `references.bookmark` |
 | `w:bookmarkStart` | `references.bookmark` |
@@ -640,9 +640,10 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:clickAndTypeStyle` | `settings.clickAndTypeStyle` |
 | `w:clrSchemeMapping` | `rawpart.setChildVal` |
 | `w:cnfStyle` | `rawpart.setChildVal` |
-| `w:col` | `rawpart.setChildVal` |
+| `w:col` | `layout.columns` |
 | `w:colDelim` | `rawpart.setChildVal` |
 | `w:color` | `text.color` |
+| `w:cols` | `layout.columns` |
 | `w:column` | `rawpart.setChildVal` |
 | `w:comboBox` | `rawpart.setChildVal` |
 | `w:comment` | `review.addComment` |
@@ -653,7 +654,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:compat` | `rawpart.setChildVal` |
 | `w:compatSetting` | `rawpart.setChildVal` |
 | `w:connectString` | `rawpart.setChildVal` |
-| `w:consecutiveHyphenLimit` | `settings.consecutiveHyphenLimit` |
+| `w:consecutiveHyphenLimit` | `layout.hyphenation` |
 | `w:contentPart` | `rawpart.setChildVal` |
 | `w:contextualSpacing` | `paragraph.contextualSpacing` |
 | `w:continuationSeparator` | `rawpart.setChildVal` |
@@ -690,7 +691,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:destination` | `rawpart.setChildVal` |
 | `w:dir` | `rawpart.setChildVal` |
 | `w:dirty` | `rawpart.setChildVal` |
-| `w:displayBackgroundShape` | `settings.displayBackgroundShape` |
+| `w:displayBackgroundShape` | `design.pageColor` |
 | `w:displayHangulFixedWidth` | `rawpart.setChildVal` |
 | `w:displayHorizontalDrawingGridEvery` | `settings.displayHorizontalDrawingGridEvery` |
 | `w:displayVerticalDrawingGridEvery` | `settings.displayVerticalDrawingGridEvery` |
@@ -699,8 +700,8 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:divId` | `paragraph.divId` |
 | `w:divs` | `rawpart.setChildVal` |
 | `w:divsChild` | `rawpart.setChildVal` |
-| `w:docDefaults` | `style.ensureHeadings` |
-| `w:docGrid` | `rawpart.setChildVal` |
+| `w:docDefaults` | `design.styleSet` |
+| `w:docGrid` | `layout.pageSetup` |
 | `w:docPart` | `rawpart.setChildVal` |
 | `w:docPartBody` | `rawpart.setChildVal` |
 | `w:docPartCategory` | `rawpart.setChildVal` |
@@ -722,7 +723,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:doNotDisplayPageBoundaries` | `settings.doNotDisplayPageBoundaries` |
 | `w:doNotEmbedSmartTags` | `settings.doNotEmbedSmartTags` |
 | `w:doNotExpandShiftReturn` | `rawpart.setChildVal` |
-| `w:doNotHyphenateCaps` | `settings.doNotHyphenateCaps` |
+| `w:doNotHyphenateCaps` | `layout.hyphenation` |
 | `w:doNotIncludeSubdocsInStats` | `settings.doNotIncludeSubdocsInStats` |
 | `w:doNotLeaveBackslashAlone` | `rawpart.setChildVal` |
 | `w:doNotOrganizeInFolder` | `rawpart.setChildVal` |
@@ -812,7 +813,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:group` | `rawpart.setChildVal` |
 | `w:growAutofit` | `rawpart.setChildVal` |
 | `w:guid` | `rawpart.setChildVal` |
-| `w:gutterAtTop` | `settings.gutterAtTop` |
+| `w:gutterAtTop` | `layout.pageSetup` |
 | `w:hdr` | `stories.editHeaderFooter` |
 | `w:hdrShapeDefaults` | `rawpart.setChildVal` |
 | `w:header` | `rawpart.setChildVal` |
@@ -830,7 +831,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:hpsBaseText` | `rawpart.setChildVal` |
 | `w:hpsRaise` | `rawpart.setChildVal` |
 | `w:hyperlink` | `references.hyperlink` |
-| `w:hyphenationZone` | `settings.hyphenationZone` |
+| `w:hyphenationZone` | `layout.hyphenation` |
 | `w:i` | `text.italic` |
 | `w:iCs` | `text.italic` |
 | `w:id` | `rawpart.setChildVal` |
@@ -864,7 +865,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:listEntry` | `rawpart.setChildVal` |
 | `w:listItem` | `rawpart.setChildVal` |
 | `w:listSeparator` | `settings.listSeparator` |
-| `w:lnNumType` | `rawpart.setChildVal` |
+| `w:lnNumType` | `layout.lineNumbers` |
 | `w:lock` | `rawpart.setChildVal` |
 | `w:locked` | `style.locked` |
 | `w:longDesc` | `rawpart.setChildVal` |
@@ -889,7 +890,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:matchSrc` | `rawpart.setChildVal` |
 | `w:maxLength` | `rawpart.setChildVal` |
 | `w:mirrorIndents` | `paragraph.mirrorIndents` |
-| `w:mirrorMargins` | `settings.mirrorMargins` |
+| `w:mirrorMargins` | `layout.pageSetup` |
 | `w:monthLong` | `rawpart.setChildVal` |
 | `w:monthShort` | `rawpart.setChildVal` |
 | `w:moveFrom` | `rawpart.setChildVal` |
@@ -948,7 +949,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:personal` | `style.personal` |
 | `w:personalCompose` | `style.personalCompose` |
 | `w:personalReply` | `style.personalReply` |
-| `w:pgBorders` | `rawpart.setChildVal` |
+| `w:pgBorders` | `design.pageBorders` |
 | `w:pgMar` | `section.pageMargins` |
 | `w:pgNum` | `rawpart.setChildVal` |
 | `w:pgNumType` | `rawpart.setChildVal` |
@@ -962,14 +963,14 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:position` | `text.position` |
 | `w:pPr` | `paragraph.align` |
 | `w:pPrChange` | `review.acceptAll` |
-| `w:pPrDefault` | `style.ensureHeadings` |
+| `w:pPrDefault` | `design.paragraphSpacing` |
 | `w:printBodyTextBeforeHeader` | `rawpart.setChildVal` |
 | `w:printColBlack` | `rawpart.setChildVal` |
 | `w:printerSettings` | `rawpart.setChildVal` |
 | `w:printFormsData` | `settings.printFormsData` |
 | `w:printFractionalCharacterWidth` | `settings.printFractionalCharacterWidth` |
 | `w:printPostScriptOverText` | `settings.printPostScriptOverText` |
-| `w:printTwoOnOne` | `settings.printTwoOnOne` |
+| `w:printTwoOnOne` | `layout.pageSetup` |
 | `w:proofErr` | `rawpart.setChildVal` |
 | `w:proofState` | `rawpart.setChildVal` |
 | `w:pStyle` | `paragraph.style` |
@@ -1062,7 +1063,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:summaryLength` | `settings.summaryLength` |
 | `w:suppressAutoHyphens` | `paragraph.suppressAutoHyphens` |
 | `w:suppressBottomSpacing` | `rawpart.setChildVal` |
-| `w:suppressLineNumbers` | `paragraph.suppressLineNumbers` |
+| `w:suppressLineNumbers` | `layout.suppressLineNumbers` |
 | `w:suppressOverlap` | `paragraph.suppressOverlap` |
 | `w:suppressSpacingAtTopOfPage` | `rawpart.setChildVal` |
 | `w:suppressSpBfAfterPgBrk` | `rawpart.setChildVal` |
@@ -1128,7 +1129,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:trPrChange` | `rawpart.setChildVal` |
 | `w:truncateFontHeightsLikeWP6` | `rawpart.setChildVal` |
 | `w:txbxContent` | `rawpart.setChildVal` |
-| `w:type` | `rawpart.setChildVal` |
+| `w:type` | `section.break` |
 | `w:types` | `rawpart.setChildVal` |
 | `w:u` | `text.underline` |
 | `w:udl` | `rawpart.setChildVal` |
