@@ -50,7 +50,7 @@ import { paragraphAt } from "../doc-access.js";
 import type { EditorModel } from "../model.js";
 import { comparePositions, type DocPosition, orderSelection } from "../selection.js";
 import type { Command } from "./types.js";
-import { caretBlockIndex, moveLastBlockAfter } from "./insert-util.js";
+import { caretBlockIndex } from "./insert-util.js";
 
 /** The caret paragraph, or undefined when the caret is not in a paragraph. */
 function caretParagraph(model: EditorModel) {
