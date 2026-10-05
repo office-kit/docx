@@ -3,19 +3,12 @@
   import RibbonIcon from '../../RibbonIcon.svelte';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
+  import TableButton from '../TableButton.svelte';
   import { getSession } from '../../session.svelte';
   import { t } from '../../i18n/index.svelte';
 
   const session = getSession();
   const hasSelection = $derived(session.tick >= 0 && !!session.model?.selection);
-
-  function insertTable(): void {
-    const spec = prompt('Table size (rows x cols)', '3x3');
-    if (!spec) return;
-    // Invalid sizes are rejected by the command itself and shown in the status bar.
-    const [rows = Number.NaN, cols = Number.NaN] = spec.split(/[x×,]/).map((n) => Number(n.trim()));
-    session.apply(commands.insertTableCommand, { rows, cols });
-  }
 
   function insertLink(): void {
     const url = prompt('Link URL', 'https://');
@@ -43,7 +36,7 @@
   <Button size="large" icon="pageBreak" tip={t('ins.pageBreak')} onclick={() => session.apply(commands.insertPageBreakCommand, undefined)} disabled={!hasSelection} />
 </Group>
 <Group label={t('group.tables')}>
-  <Button size="large" icon="table" tip={t('ins.table')} onclick={insertTable} />
+  <TableButton />
 </Group>
 <Group label={t('group.illustrations')}>
   <label class="big" title={t('ins.picture')}><RibbonIcon name="picture" size={32} /><span>{t('ins.picture')}</span><input type="file" accept="image/*" onchange={insertImage} hidden /></label>

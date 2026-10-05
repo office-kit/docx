@@ -154,20 +154,24 @@ describe("table layout on the canvas", () => {
   });
 });
 
+/** A `<w:shd>` element with the given attributes. */
+function el(attrs: Record<string, string>) {
+  return {
+    kind: "element" as const,
+    name: { uri: "", local: "shd", prefix: "w" },
+    attrs: Object.entries(attrs).map(([local, value]) => ({
+      name: { uri: "", local, prefix: "w" },
+      value,
+      isNamespaceDecl: false,
+    })),
+    children: [],
+    xmlSpace: "default" as const,
+    selfClosing: true,
+  };
+}
+
 describe("shading", () => {
   it("blends percentage patterns and ignores automatic fills", () => {
-    const el = (attrs: Record<string, string>) => ({
-      kind: "element" as const,
-      name: { uri: "", local: "shd", prefix: "w" },
-      attrs: Object.entries(attrs).map(([local, value]) => ({
-        name: { uri: "", local, prefix: "w" },
-        value,
-        isNamespaceDecl: false,
-      })),
-      children: [],
-      xmlSpace: "default" as const,
-      selfClosing: true,
-    });
     expect(shadingColor(el({ val: "clear", fill: "auto" }))).toBeUndefined();
     expect(shadingColor(el({ val: "clear", fill: "FF0000" }))).toBe("#FF0000");
     expect(shadingColor(el({ val: "pct50", color: "000000", fill: "FFFFFF" }))).toBe("#808080");

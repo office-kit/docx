@@ -234,7 +234,9 @@ export function insertTableColumn(
   table.rows.forEach((row, r) => {
     const placed = placements[r] ?? [];
     const before = gridBeforeOf(row);
-    const end = placed.length ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan : before;
+    const end = placed.length
+      ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan
+      : before;
     if (index < before) {
       setRowGridSkip(row, "gridBefore", before + 1);
       return;
@@ -296,7 +298,9 @@ export function deleteTableColumns(table: WmlTable, first: number, last = first)
     const overlapBefore = Math.max(0, Math.min(before, last + 1) - first);
     if (overlapBefore > 0) setRowGridSkip(row, "gridBefore", before - overlapBefore);
     const placed = placements[r] ?? [];
-    const end = placed.length ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan : before;
+    const end = placed.length
+      ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan
+      : before;
     const after = gridAfterOf(row);
     const overlapAfter = Math.max(0, Math.min(end + after, last + 1) - Math.max(end, first));
     if (overlapAfter > 0) setRowGridSkip(row, "gridAfter", after - overlapAfter);
@@ -509,7 +513,10 @@ function splitColumns(table: WmlTable, original: TableCellPlacement, count: numb
     }
     const left = widths.slice(0, firstGrid).reduce((a, b) => a + b, 0);
     for (let k = 1; k < count; k++) edges.add(Math.round(left + (total * k) / count));
-    regrid(table, [...edges].toSorted((a, b) => a - b));
+    regrid(
+      table,
+      [...edges].toSorted((a, b) => a - b),
+    );
     widths = gridWidths(table);
     const placed = cellPlacements(table)[start.row]?.[start.cell];
     if (!placed) return;
@@ -549,9 +556,9 @@ function splitRows(
   count: number,
 ): void {
   const placements = cellPlacements(table);
-  const targets = (placements[rowIndex] ?? []).filter(
-    (p) => p.gridStart >= gridStart,
-  ).slice(0, columns);
+  const targets = (placements[rowIndex] ?? [])
+    .filter((p) => p.gridStart >= gridStart)
+    .slice(0, columns);
   const height = targets[0]?.rowSpan ?? 1;
   if (height > 1) {
     if (count > height) {
@@ -564,7 +571,11 @@ function splitRows(
         const to = rowIndex + Math.floor((height * (k + 1)) / count) - 1;
         for (let r = from; r <= to; r++) {
           const p = placements[r]?.find((q) => q.gridStart === t.gridStart);
-          if (p) setVMerge(cellAt(table, p), to > from ? (r === from ? "restart" : "continue") : undefined);
+          if (p)
+            setVMerge(
+              cellAt(table, p),
+              to > from ? (r === from ? "restart" : "continue") : undefined,
+            );
         }
       }
     }
@@ -608,7 +619,9 @@ function regrid(table: WmlTable, edges: readonly number[]): void {
       setGridSpan(cellAt(table, p), at(p.gridStart + p.gridSpan) - at(p.gridStart));
     }
     if (before) setRowGridSkip(row, "gridBefore", at(before));
-    const end = placed.length ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan : before;
+    const end = placed.length
+      ? placed[placed.length - 1]!.gridStart + placed[placed.length - 1]!.gridSpan
+      : before;
     const after = gridAfterOf(row);
     if (after) setRowGridSkip(row, "gridAfter", at(end + after) - at(end));
   });
@@ -742,7 +755,10 @@ function marginsEl(local: string, margins: CellMargins): XmlElement | undefined 
 }
 
 /** The table's default cell margins (`w:tblCellMar`); undefined removes them. */
-export function setTableDefaultCellMargins(table: WmlTable, margins: CellMargins | undefined): void {
+export function setTableDefaultCellMargins(
+  table: WmlTable,
+  margins: CellMargins | undefined,
+): void {
   const el = margins && marginsEl("tblCellMar", margins);
   if (el) upsertWChild(tblPrOf(table), el, TBL_PR_ORDER);
   else removeWChild(tblPrOf(table), "tblCellMar");
@@ -853,7 +869,8 @@ export function setTableCellTextDirection(
   cell: WmlTableCell,
   direction: TableCellTextDirection | undefined,
 ): void {
-  if (direction === undefined || direction === "lrTb") removeWChild(ensureTcPr(cell), "textDirection");
+  if (direction === undefined || direction === "lrTb")
+    removeWChild(ensureTcPr(cell), "textDirection");
   else upsertWChild(ensureTcPr(cell), wEl("textDirection", { val: direction }), TC_PR_ORDER);
 }
 
@@ -880,7 +897,8 @@ export function distributeTableColumns(table: WmlTable, first: number, last: num
   const total = widths.slice(first, last + 1).reduce((a, b) => a + b, 0);
   const count = last - first + 1;
   for (let g = first; g <= last; g++) {
-    widths[g] = Math.floor((total * (g - first + 1)) / count) - Math.floor((total * (g - first)) / count);
+    widths[g] =
+      Math.floor((total * (g - first + 1)) / count) - Math.floor((total * (g - first)) / count);
   }
   setGridWidths(table, widths);
   syncAllCellWidths(table);
@@ -911,7 +929,9 @@ export function autoFitTable(table: WmlTable, mode: "contents" | "window" | "fix
     setTableWidth(table, { type: "pct", value: FULL_WIDTH_PCT });
     for (const row of placements) {
       for (const p of row) {
-        const share = widths.slice(p.gridStart, p.gridStart + p.gridSpan).reduce((a, b) => a + b, 0);
+        const share = widths
+          .slice(p.gridStart, p.gridStart + p.gridSpan)
+          .reduce((a, b) => a + b, 0);
         setTableCellWidth(cellAt(table, p), {
           type: "pct",
           value: total ? Math.round((FULL_WIDTH_PCT * share) / total) : 0,
@@ -972,7 +992,8 @@ function setCellBorder(cell: WmlTableCell, side: CellSide, attrs: Record<string,
 
 function setTableLevelBorder(table: WmlTable, side: string, attrs: Record<string, string>): void {
   const tblPr = tblPrOf(table);
-  const borders = wChild(tblPr, "tblBorders") ?? upsertWChild(tblPr, wEl("tblBorders"), TBL_PR_ORDER);
+  const borders =
+    wChild(tblPr, "tblBorders") ?? upsertWChild(tblPr, wEl("tblBorders"), TBL_PR_ORDER);
   upsertWChild(borders, wEl(side, attrs), BORDER_ORDER);
 }
 
@@ -1059,10 +1080,14 @@ export function setTableRangeBorders(
       // Neighbours outside the range share the range's outer edges.
       const overlapsColumns = p.gridStart <= range.lastColumn && last >= range.firstColumn;
       const overlapsRows = p.row >= range.firstRow && p.row <= range.lastRow;
-      if (wants.top && overlapsColumns && p.row === range.firstRow - 1) setCellBorder(cell, "bottom", attrs);
-      if (wants.bottom && overlapsColumns && p.row === range.lastRow + 1) setCellBorder(cell, "top", attrs);
-      if (wants.left && overlapsRows && last === range.firstColumn - 1) setCellBorder(cell, "right", attrs);
-      if (wants.right && overlapsRows && p.gridStart === range.lastColumn + 1) setCellBorder(cell, "left", attrs);
+      if (wants.top && overlapsColumns && p.row === range.firstRow - 1)
+        setCellBorder(cell, "bottom", attrs);
+      if (wants.bottom && overlapsColumns && p.row === range.lastRow + 1)
+        setCellBorder(cell, "top", attrs);
+      if (wants.left && overlapsRows && last === range.firstColumn - 1)
+        setCellBorder(cell, "right", attrs);
+      if (wants.right && overlapsRows && p.gridStart === range.lastColumn + 1)
+        setCellBorder(cell, "left", attrs);
     }
   }
 }
@@ -1091,7 +1116,11 @@ function cellTextOf(cell: WmlTableCell | undefined): string {
       p.children
         .map((c) =>
           c.kind === "run"
-            ? c.pieces.map((piece) => (piece.kind === "text" ? piece.value : piece.kind === "tab" ? "\t" : "")).join("")
+            ? c.pieces
+                .map((piece) =>
+                  piece.kind === "text" ? piece.value : piece.kind === "tab" ? "\t" : "",
+                )
+                .join("")
             : "",
         )
         .join(""),
@@ -1220,7 +1249,8 @@ export function convertTextToTable(
   assertIndex("last", last, blocks.length - 1);
   if (last < first) throw new RangeError("last must not be before first.");
   const paragraphs = blocks.slice(first, last + 1).map((b) => {
-    if (b.kind !== "paragraph") throw new RangeError("Only paragraphs can be converted to a table.");
+    if (b.kind !== "paragraph")
+      throw new RangeError("Only paragraphs can be converted to a table.");
     return b;
   });
   const sep = separatorChar(options.separator);
@@ -1230,14 +1260,20 @@ export function convertTextToTable(
     assertIndex("columns", columns, MAX_COLUMNS);
     if (columns < 1) throw new RangeError("columns must be at least 1.");
     rows = [];
-    for (let i = 0; i < paragraphs.length; i += columns) rows.push(paragraphs.slice(i, i + columns));
+    for (let i = 0; i < paragraphs.length; i += columns)
+      rows.push(paragraphs.slice(i, i + columns));
   } else {
     rows = paragraphs.map((p) => splitParagraphAt(p, sep));
   }
   const columns = Math.max(options.columns ?? 0, ...rows.map((r) => r.length));
-  if (columns > MAX_COLUMNS) throw new RangeError(`A table can have at most ${MAX_COLUMNS} columns.`);
+  if (columns > MAX_COLUMNS)
+    throw new RangeError(`A table can have at most ${MAX_COLUMNS} columns.`);
   const texts = rows.map(() => Array.from({ length: columns }, () => ""));
-  const table = addTable(doc, texts, options.widthTwips ? { totalWidthTwips: options.widthTwips } : {});
+  const table = addTable(
+    doc,
+    texts,
+    options.widthTwips ? { totalWidthTwips: options.widthTwips } : {},
+  );
   blocks.pop();
   table.rows.forEach((row, r) => {
     row.cells.forEach((cell, c) => {

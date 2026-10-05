@@ -33,13 +33,7 @@ import {
   wEl,
 } from "../internal/wordprocessingml/table-xml.js";
 import type { WmlTable } from "../internal/wordprocessingml/index.js";
-import {
-  addStyle,
-  type Docx,
-  getRawPartRoot,
-  stylesPart,
-  xmlPartNames,
-} from "./docx.js";
+import { addStyle, type Docx, getRawPartRoot, stylesPart, xmlPartNames } from "./docx.js";
 import type { TableBorder } from "./table-tools.js";
 
 export type { BuiltInTableStyle, TableStyleCategory, TableStyleRegion };
@@ -129,7 +123,16 @@ export function setTableLook(table: WmlTable, look: TableLook): void {
 }
 
 const THEME_PART_DIR = "/word/theme/";
-const THEME_KEYS = ["dk1", "lt1", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const;
+const THEME_KEYS = [
+  "dk1",
+  "lt1",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+] as const;
 const HEX = /^[0-9A-Fa-f]{6}$/;
 
 /** The document theme's colors, falling back to the Office theme for each missing one. */
@@ -159,9 +162,7 @@ function themeColors(doc: Docx): ThemeColors {
 }
 
 function findLocal(el: XmlElement | undefined, local: string): XmlElement | undefined {
-  return el?.children.find(
-    (c): c is XmlElement => c.kind === "element" && c.name.local === local,
-  );
+  return el?.children.find((c): c is XmlElement => c.kind === "element" && c.name.local === local);
 }
 
 const NORMAL_TABLE = "TableNormal";
@@ -282,7 +283,11 @@ export function setTableStyleFormatting(
     upsertWChild(rPr(), wEl("color", { val: formatting.color.toUpperCase() }), RPR_ORDER);
   }
   if (formatting.alignment !== undefined) {
-    upsertWChild(ensureWChild(target, "pPr", order), wEl("jc", { val: formatting.alignment }), PPR_ORDER);
+    upsertWChild(
+      ensureWChild(target, "pPr", order),
+      wEl("jc", { val: formatting.alignment }),
+      PPR_ORDER,
+    );
   }
   const tcPr = (): XmlElement => ensureWChild(target, "tcPr", order);
   if (formatting.fill !== undefined) {
@@ -303,11 +308,7 @@ export function setTableStyleFormatting(
         : ensureWChild(tcPr(), "tcBorders", TC_PR_ORDER);
     for (const [side, border] of Object.entries(formatting.borders)) {
       if (border === undefined) continue;
-      upsertWChild(
-        container,
-        wEl(side, borderAttrs(border ?? undefined)),
-        BORDER_ORDER,
-      );
+      upsertWChild(container, wEl(side, borderAttrs(border ?? undefined)), BORDER_ORDER);
     }
   }
   doc.stylesDirty = true;

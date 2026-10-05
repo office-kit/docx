@@ -195,9 +195,12 @@ export const insertRowsCommand: Command<{ where: "above" | "below" }> = {
     const count = ts.range.lastRow - ts.range.firstRow + 1;
     const at = where === "above" ? ts.range.firstRow : ts.range.lastRow + 1;
     const formatFrom = where === "above" ? ts.range.firstRow : ts.range.lastRow;
-    for (let i = 0; i < count; i++) insertTableRow(ts.table, at, { formatFrom: formatFrom + (where === "above" ? i : 0) });
+    for (let i = 0; i < count; i++)
+      insertTableRow(ts.table, at, { formatFrom: formatFrom + (where === "above" ? i : 0) });
     const placements = tableSelectionAfter(model, ts);
-    model.setSelection(caretAt(cellStart(ts.block, at, cellIndexAt(placements, at, ts.range.firstColumn))));
+    model.setSelection(
+      caretAt(cellStart(ts.block, at, cellIndexAt(placements, at, ts.range.firstColumn))),
+    );
   },
   isEnabled: inTable,
 };
@@ -218,10 +221,16 @@ export const insertColumnsCommand: Command<{ where: "left" | "right" }> = {
     const formatFrom = where === "left" ? ts.range.firstColumn : ts.range.lastColumn;
     for (let i = 0; i < count; i++) {
       // Each new column to the left pushes the column it copies one step right.
-      insertTableColumn(ts.table, at, { formatFrom: where === "left" ? formatFrom + i : formatFrom });
+      insertTableColumn(ts.table, at, {
+        formatFrom: where === "left" ? formatFrom + i : formatFrom,
+      });
     }
     const placements = tableSelectionAfter(model, ts);
-    model.setSelection(caretAt(cellStart(ts.block, ts.range.firstRow, cellIndexAt(placements, ts.range.firstRow, at))));
+    model.setSelection(
+      caretAt(
+        cellStart(ts.block, ts.range.firstRow, cellIndexAt(placements, ts.range.firstRow, at)),
+      ),
+    );
   },
   isEnabled: inTable,
 };
@@ -232,7 +241,9 @@ function removeTableBlock(model: EditorModel, block: number): void {
   // A body must keep a paragraph to put the caret in.
   if (blocks.length === 0) blocks.push({ kind: "paragraph", children: [], extras: [] });
   const at = Math.min(block, blocks.length - 1);
-  model.setSelection(blocks[at]?.kind === "paragraph" ? caretAt({ block: at, inline: 0, offset: 0 }) : null);
+  model.setSelection(
+    blocks[at]?.kind === "paragraph" ? caretAt({ block: at, inline: 0, offset: 0 }) : null,
+  );
 }
 
 /** Delete Rows: the selected rows (the whole table when every row goes). */
@@ -300,7 +311,9 @@ export const deleteCellsCommand: Command<{ shift: "left" | "up" | "row" | "colum
       removeTableBlock(model, ts.block);
       return;
     }
-    model.setSelection(caretAt(cellStart(ts.block, Math.min(ts.range.firstRow, ts.table.rows.length - 1), 0)));
+    model.setSelection(
+      caretAt(cellStart(ts.block, Math.min(ts.range.firstRow, ts.table.rows.length - 1), 0)),
+    );
   },
   isEnabled: inTable,
 };
@@ -315,7 +328,15 @@ export const mergeCellsCommand: Command<{ range?: TableCellRange }> = {
     const target = range ?? ts.range;
     mergeTableCells(ts.table, target);
     const placements = tableSelectionAfter(model, ts);
-    model.setSelection(caretAt(cellStart(ts.block, target.firstRow, cellIndexAt(placements, target.firstRow, target.firstColumn))));
+    model.setSelection(
+      caretAt(
+        cellStart(
+          ts.block,
+          target.firstRow,
+          cellIndexAt(placements, target.firstRow, target.firstColumn),
+        ),
+      ),
+    );
   },
   isEnabled: (model) => !!tableSelection(model)?.multiCell,
 };
@@ -401,7 +422,8 @@ export const newTableStyleCommand: Command<{ name: string; basedOn?: string }, s
     const taken = new Set(listStyles(model.doc).map((s) => s.styleId));
     let styleId = base;
     for (let n = 2; taken.has(styleId); n++) styleId = `${base}${n}`;
-    if (BUILT_IN_TABLE_STYLES.some((s) => s.styleId === basedOn)) addBuiltInTableStyle(model.doc, basedOn);
+    if (BUILT_IN_TABLE_STYLES.some((s) => s.styleId === basedOn))
+      addBuiltInTableStyle(model.doc, basedOn);
     addStyle(model.doc, { type: "table", styleId, name: trimmed, basedOn, customStyle: true });
     const table = tableSelection(model)?.table;
     if (table) setTableStyle(table, styleId);
@@ -419,7 +441,8 @@ export const modifyTableStyleCommand: Command<{
   group: "table",
   label: "Modify table style",
   run(model, { styleId, region, formatting }) {
-    if (BUILT_IN_TABLE_STYLES.some((s) => s.styleId === styleId)) addBuiltInTableStyle(model.doc, styleId);
+    if (BUILT_IN_TABLE_STYLES.some((s) => s.styleId === styleId))
+      addBuiltInTableStyle(model.doc, styleId);
     setTableStyleFormatting(model.doc, styleId, region, formatting);
   },
 };
@@ -447,6 +470,52 @@ export const rangeBordersCommand: Command<{
   run(model, { edges, border, range }) {
     const ts = requireSelection(model);
     setTableRangeBorders(ts.table, range ?? ts.range, edges, border);
+  },
+  isEnabled: inTable,
+};
+
+/** A cell edge the Borders and Shading dialog sets or clears. */
+export type TableBorderSide = (typeof TABLE_BORDER_SIDES)[number];
+const TABLE_BORDER_SIDES = [
+  "top",
+  "bottom",
+  "left",
+  "right",
+  "insideH",
+  "insideV",
+  "tl2br",
+  "tr2bl",
+] as const;
+
+/**
+ * The Borders and Shading dialog: every edge it lists (a border, or `null`
+ * for none) and optionally the cells' fill, applied as one undo step.
+ */
+export const bordersAndShadingCommand: Command<{
+  range: TableCellRange;
+  borders: Partial<Record<TableBorderSide, TableBorder | null>>;
+  fill?: string;
+}> = {
+  id: "table.bordersShading",
+  group: "table",
+  label: "Borders and shading",
+  run(model, { range, borders, fill }) {
+    const ts = requireSelection(model);
+    for (const side of TABLE_BORDER_SIDES) {
+      const border = borders[side];
+      if (border !== undefined) setTableRangeBorders(ts.table, range, side, border ?? undefined);
+    }
+    if (fill === undefined) return;
+    for (const p of ts.placements.flat()) {
+      if (p.rowSpan === 0) continue;
+      const inRange =
+        p.row >= range.firstRow &&
+        p.row <= range.lastRow &&
+        p.gridStart >= range.firstColumn &&
+        p.gridStart + p.gridSpan - 1 <= range.lastColumn;
+      const cell = ts.table.rows[p.row]?.cells[p.cell];
+      if (inRange && cell) setTableCellShading(cell, { fill });
+    }
   },
   isEnabled: inTable,
 };
@@ -494,7 +563,8 @@ export const tablePropertiesCommand: Command<TablePropertiesParams> = {
     const { table } = ts;
     const t = params.table;
     if (t?.width !== undefined) setTableWidth(table, t.width ?? undefined);
-    if (t?.alignment !== undefined) setTableAlignment(table, t.alignment === "left" ? undefined : t.alignment);
+    if (t?.alignment !== undefined)
+      setTableAlignment(table, t.alignment === "left" ? undefined : t.alignment);
     if (t?.indentTwips !== undefined) setTableIndent(table, t.indentTwips);
     if (t?.position !== undefined) setTablePosition(table, t.position ?? undefined);
     const r = params.rows;
@@ -553,7 +623,8 @@ export const columnWidthSelectionCommand: Command<{ twips: number }> = {
   label: "Column width",
   run(model, { twips }) {
     const ts = requireSelection(model);
-    for (let g = ts.range.firstColumn; g <= ts.range.lastColumn; g++) setTableColumnWidth(ts.table, g, twips);
+    for (let g = ts.range.firstColumn; g <= ts.range.lastColumn; g++)
+      setTableColumnWidth(ts.table, g, twips);
   },
   isEnabled: inTable,
 };
@@ -564,7 +635,8 @@ export const distributeRowsCommand: Command<{ heightTwips: number }> = {
   group: "table",
   label: "Distribute rows",
   run(model, { heightTwips }) {
-    for (const row of rowsOf(requireSelection(model))) setTableRowHeight(row, Math.round(heightTwips), "atLeast");
+    for (const row of rowsOf(requireSelection(model)))
+      setTableRowHeight(row, Math.round(heightTwips), "atLeast");
   },
   isEnabled: inTable,
 };
@@ -672,7 +744,10 @@ export const convertTableToTextCommand: Command<{ separator: TableTextSeparator 
   isEnabled: inTable,
 };
 
-export const convertTextToTableCommand: Command<{ separator: TableTextSeparator; columns?: number }> = {
+export const convertTextToTableCommand: Command<{
+  separator: TableTextSeparator;
+  columns?: number;
+}> = {
   id: "table.convertTextToTable",
   group: "table",
   label: "Convert text to table",
@@ -822,6 +897,7 @@ export const tableCommands = [
   modifyTableStyleCommand,
   shadeCellsCommand,
   rangeBordersCommand,
+  bordersAndShadingCommand,
   tablePropertiesCommand,
   rowHeightSelectionCommand,
   columnWidthSelectionCommand,

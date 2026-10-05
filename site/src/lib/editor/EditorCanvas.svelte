@@ -16,6 +16,7 @@
     orderSelection,
     pageGeometry,
   } from '@office-kit/docx-editor';
+  import { decorateTableSelection, handleTableKey, tableCanvasStyle, tablePointerDown, tablePointerUp, tableToolAttr } from './table-canvas';
 
   interface Props {
     model: EditorModel;
@@ -134,6 +135,7 @@
     else endTyping();
     canvas.innerHTML = renderDocumentHtml(model.doc);
     restoreCaret();
+    decorateTableSelection(canvas, model);
   });
 
   /** Attribute selector for the paragraph a position lives in. */
@@ -247,6 +249,7 @@
     if (imeRange) return;
     const sel = readDomSelection(document);
     if (sel) model.setSelection(sel);
+    if (canvas) decorateTableSelection(canvas, model);
     onselectionchange?.();
   }
 
@@ -283,6 +286,11 @@
     // A key after a range composition must act on the applied result.
     flushImeFinalize();
     if (CARET_KEYS.has(e.key)) endTyping();
+    if (handleTableKey(e, model, exec)) {
+      rerender();
+      onselectionchange?.();
+      return;
+    }
     const mod = e.ctrlKey || e.metaKey;
 
     // Undo / redo.
@@ -418,7 +426,7 @@
   });
 </script>
 
-<div class="wk-page" style="zoom: {zoom}; {pageCss}">
+<div class="wk-page" style="zoom: {zoom}; {pageCss}; {tableCanvasStyle()}" data-table-tool={tableToolAttr()}>
   <div
     bind:this={canvas}
     class="wk-canvas"
@@ -430,6 +438,8 @@
     oninput={onInput}
     onkeydown={onKeydown}
     onmousedown={endTyping}
+    onpointerdown={(e) => tablePointerDown(e, model, exec)}
+    onpointerup={(e) => tablePointerUp(e, model, exec)}
     onblur={endTyping}
     onpaste={onPaste}
     onbeforeinput={onBeforeInput}

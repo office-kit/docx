@@ -164,11 +164,7 @@ export function setVMerge(cell: WmlTableCell, merge: "restart" | "continue" | un
   const tcPr = ensureTcPr(cell);
   if (merge === undefined) removeWChild(tcPr, "vMerge");
   else
-    upsertWChild(
-      tcPr,
-      wEl("vMerge", merge === "restart" ? { val: "restart" } : {}),
-      TC_PR_ORDER,
-    );
+    upsertWChild(tcPr, wEl("vMerge", merge === "restart" ? { val: "restart" } : {}), TC_PR_ORDER);
 }
 
 /** Set (or with 0 remove) a row's `w:gridBefore` / `w:gridAfter`. */
@@ -274,8 +270,7 @@ export function isEmptyCell(cell: WmlTableCell): boolean {
   return cell.paragraphs.every((p) =>
     p.children.every(
       (c) =>
-        c.kind === "run" &&
-        c.pieces.every((piece) => piece.kind === "text" && piece.value === ""),
+        c.kind === "run" && c.pieces.every((piece) => piece.kind === "text" && piece.value === ""),
     ),
   );
 }
@@ -314,7 +309,9 @@ export function joinRowCells(row: WmlTableRow, separator: string): WmlParagraph[
     });
     if (c < row.cells.length - 1) {
       const piece: WmlRunPiece =
-        separator === "\t" ? { kind: "tab" } : { kind: "text", value: separator, preserveSpace: false };
+        separator === "\t"
+          ? { kind: "tab" }
+          : { kind: "text", value: separator, preserveSpace: false };
       current.children.push({ kind: "run", pieces: [piece], extras: [] });
     }
   });

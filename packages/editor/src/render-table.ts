@@ -109,7 +109,14 @@ const VERTICAL_ALIGN: Readonly<Record<string, string>> = {
 };
 
 // ST_TextDirection, in the transitional (lrTb …) and strict (lr …) spellings.
-const VERTICAL_TOP_DOWN: ReadonlySet<string> = new Set(["tbRl", "tbRlV", "rl", "rlV", "tbLrV", "tb"]);
+const VERTICAL_TOP_DOWN: ReadonlySet<string> = new Set([
+  "tbRl",
+  "tbRlV",
+  "rl",
+  "rlV",
+  "tbLrV",
+  "tb",
+]);
 const VERTICAL_BOTTOM_UP: ReadonlySet<string> = new Set(["btLr", "lr"]);
 
 function textDirectionCss(direction: string | undefined): string | undefined {
@@ -156,9 +163,10 @@ function cellCss(cell: ResolvedCell, bottom: BorderSpec | undefined): string {
     `border-left:${borderCss(b.left)}`,
     `border-right:${borderCss(b.right)}`,
   ];
-  const layers = [diagonalCss(b.tl2br, "to top right"), diagonalCss(b.tr2bl, "to bottom right")].filter(
-    (l): l is string => l !== undefined,
-  );
+  const layers = [
+    diagonalCss(b.tl2br, "to top right"),
+    diagonalCss(b.tr2bl, "to bottom right"),
+  ].filter((l): l is string => l !== undefined);
   if (layers.length) css.push(`background-image:${layers.join(",")}`);
   if (cell.background) css.push(`background-color:${cell.background}`);
   const vAlign = cell.verticalAlign && VERTICAL_ALIGN[cell.verticalAlign];
@@ -190,10 +198,11 @@ export function renderTable(table: WmlTable, ctx: TableRenderContext): string {
     (format.width === undefined || format.width.type === "auto") &&
     table.rows.every((row) =>
       row.cells.every((cell) => {
-        const tcW = cell.tcPr?.children.find(
-          (c) => c.kind === "element" && c.name.local === "tcW",
+        const tcW = cell.tcPr?.children.find((c) => c.kind === "element" && c.name.local === "tcW");
+        return (
+          tcW?.kind === "element" &&
+          tcW.attrs.some((a) => a.name.local === "type" && a.value === "auto")
         );
-        return tcW?.kind === "element" && tcW.attrs.some((a) => a.name.local === "type" && a.value === "auto");
       }),
     );
   const rows = table.rows
@@ -225,9 +234,14 @@ export function renderTable(table: WmlTable, ctx: TableRenderContext): string {
           const direction = textDirectionCss(rc.textDirection);
           if (direction) box.push(direction);
           if (exact !== undefined) {
-            box.push(`height:${pt(Math.max(0, exact - rc.margins.top - rc.margins.bottom))}`, "overflow:hidden");
+            box.push(
+              `height:${pt(Math.max(0, exact - rc.margins.top - rc.margins.bottom))}`,
+              "overflow:hidden",
+            );
           }
-          const content = box.length ? `<div class="wk-cell-box" style="${box.join(";")}">${body}</div>` : body;
+          const content = box.length
+            ? `<div class="wk-cell-box" style="${box.join(";")}">${body}</div>`
+            : body;
           const span = [
             p.gridSpan > 1 ? ` colspan="${p.gridSpan}"` : "",
             p.rowSpan > 1 ? ` rowspan="${p.rowSpan}"` : "",

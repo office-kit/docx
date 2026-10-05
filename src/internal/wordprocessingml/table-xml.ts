@@ -358,9 +358,16 @@ export function borderAttrs(
   border: { readonly style: string; readonly size: number; readonly color: string } | undefined,
 ): Record<string, string> {
   if (!border) return { val: "nil" };
-  if (!LINE_STYLES.has(border.style)) throw new RangeError(`Unknown border style "${border.style}".`);
-  if (!Number.isInteger(border.size) || border.size < MIN_BORDER_SIZE || border.size > MAX_BORDER_SIZE) {
-    throw new RangeError(`Border size must be ${MIN_BORDER_SIZE}–${MAX_BORDER_SIZE} eighths of a point.`);
+  if (!LINE_STYLES.has(border.style))
+    throw new RangeError(`Unknown border style "${border.style}".`);
+  if (
+    !Number.isInteger(border.size) ||
+    border.size < MIN_BORDER_SIZE ||
+    border.size > MAX_BORDER_SIZE
+  ) {
+    throw new RangeError(
+      `Border size must be ${MIN_BORDER_SIZE}–${MAX_BORDER_SIZE} eighths of a point.`,
+    );
   }
   if (!COLOR.test(border.color)) throw new RangeError(`Invalid border color "${border.color}".`);
   return { val: border.style, sz: String(border.size), space: "0", color: border.color };

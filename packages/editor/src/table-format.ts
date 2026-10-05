@@ -540,7 +540,9 @@ export function resolveTable(doc: Docx, table: WmlTable): ResolvedTableFormat {
   };
 }
 
-function pickSides(borders: Partial<Record<string, BorderSpec>>): Partial<Record<BorderSide, BorderSpec>> {
+function pickSides(
+  borders: Partial<Record<string, BorderSpec>>,
+): Partial<Record<BorderSide, BorderSpec>> {
   const out: Partial<Record<BorderSide, BorderSpec>> = {};
   for (const side of ["top", "left", "bottom", "right", "insideH", "insideV"] as const) {
     const spec = borders[side];

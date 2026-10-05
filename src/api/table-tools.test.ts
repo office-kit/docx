@@ -88,7 +88,12 @@ describe("insertTableRow / deleteTableRows", () => {
     const { doc, table } = grid(2, 2);
     insertTableRow(table, 1);
     insertTableRow(table, 0);
-    expect(texts(table)).toEqual([["", ""], ["00", "01"], ["", ""], ["10", "11"]]);
+    expect(texts(table)).toEqual([
+      ["", ""],
+      ["00", "01"],
+      ["", ""],
+      ["10", "11"],
+    ]);
     const { xml, table: back } = roundTrip(doc);
     expect(back.rows).toHaveLength(4);
     expect(xml.match(/<w:tcW /g)).toHaveLength(8);
@@ -146,7 +151,10 @@ describe("insertTableColumn / deleteTableColumns", () => {
     const { doc, table } = grid(2, 3);
     mergeTableCells(table, { firstRow: 0, lastRow: 0, firstColumn: 0, lastColumn: 1 });
     expect(deleteTableColumns(table, 1)).toBe(true);
-    expect(texts(table)).toEqual([["00|01", "02"], ["10", "12"]]);
+    expect(texts(table)).toEqual([
+      ["00|01", "02"],
+      ["10", "12"],
+    ]);
     expect(tableColumnWidths(table)).toEqual([1000, 1000]);
     roundTrip(doc);
   });
@@ -243,7 +251,9 @@ describe("table properties", () => {
     const { xml } = roundTrip(doc);
     const tblPr = xml.slice(xml.indexOf("<w:tblPr>"), xml.indexOf("</w:tblPr>"));
     const order = [...tblPr.matchAll(/<w:(\w+)/g)].map((m) => m[1]);
-    expect(order.filter((n) => n !== "top" && n !== "left" && n !== "bottom" && n !== "right")).toEqual([
+    expect(
+      order.filter((n) => n !== "top" && n !== "left" && n !== "bottom" && n !== "right"),
+    ).toEqual([
       "tblPr",
       "tblpPr",
       "tblW",
@@ -325,11 +335,16 @@ describe("column widths and AutoFit", () => {
 describe("setTableRangeBorders", () => {
   it("puts whole-table borders on the table", () => {
     const { doc, table } = grid(2, 2);
-    setTableRangeBorders(table, { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 1 }, "outside", {
-      style: "double",
-      size: 6,
-      color: "FF0000",
-    });
+    setTableRangeBorders(
+      table,
+      { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 1 },
+      "outside",
+      {
+        style: "double",
+        size: 6,
+        color: "FF0000",
+      },
+    );
     const { xml } = roundTrip(doc);
     expect(xml).toContain('<w:top w:val="double" w:sz="6" w:space="0" w:color="FF0000"/>');
     expect(xml).not.toContain("tcBorders");
@@ -337,11 +352,16 @@ describe("setTableRangeBorders", () => {
 
   it("puts part-table borders on the cells and their neighbours", () => {
     const { doc, table } = grid(2, 2);
-    setTableRangeBorders(table, { firstRow: 0, lastRow: 0, firstColumn: 0, lastColumn: 0 }, "bottom", {
-      style: "single",
-      size: 12,
-      color: "auto",
-    });
+    setTableRangeBorders(
+      table,
+      { firstRow: 0, lastRow: 0, firstColumn: 0, lastColumn: 0 },
+      "bottom",
+      {
+        style: "single",
+        size: 12,
+        color: "auto",
+      },
+    );
     const { table: back } = roundTrip(doc);
     const xmlOf = (r: number, c: number): string =>
       JSON.stringify(back.rows[r]?.cells[c]?.tcPr ?? null);
@@ -363,24 +383,44 @@ describe("setTableRangeBorders", () => {
   it("validates the border at the boundary", () => {
     const { table } = grid(1, 1);
     const all = { firstRow: 0, lastRow: 0, firstColumn: 0, lastColumn: 0 };
-    expect(() => setTableRangeBorders(table, all, "all", { style: "zigzag", size: 4, color: "auto" })).toThrow();
-    expect(() => setTableRangeBorders(table, all, "all", { style: "single", size: 1, color: "auto" })).toThrow();
+    expect(() =>
+      setTableRangeBorders(table, all, "all", { style: "zigzag", size: 4, color: "auto" }),
+    ).toThrow();
+    expect(() =>
+      setTableRangeBorders(table, all, "all", { style: "single", size: 1, color: "auto" }),
+    ).toThrow();
   });
 });
 
 describe("sortTableRows", () => {
   it("sorts by number below a header row, descending", () => {
     const doc = createDocx({ paragraphs: [] });
-    const table = addTable(doc, [["Name", "Qty"], ["b", "10"], ["a", "9"], ["c", "1,200"]]);
-    sortTableRows(table, { keys: [{ column: 1, type: "number", order: "descending" }], headerRow: true });
+    const table = addTable(doc, [
+      ["Name", "Qty"],
+      ["b", "10"],
+      ["a", "9"],
+      ["c", "1,200"],
+    ]);
+    sortTableRows(table, {
+      keys: [{ column: 1, type: "number", order: "descending" }],
+      headerRow: true,
+    });
     expect(texts(table).map((r) => r[0])).toEqual(["Name", "c", "b", "a"]);
   });
 
   it("sorts text with a second key", () => {
     const doc = createDocx({ paragraphs: [] });
-    const table = addTable(doc, [["b", "2"], ["a", "2"], ["a", "1"]]);
+    const table = addTable(doc, [
+      ["b", "2"],
+      ["a", "2"],
+      ["a", "1"],
+    ]);
     sortTableRows(table, { keys: [{ column: 0 }, { column: 1, type: "number" }] });
-    expect(texts(table)).toEqual([["a", "1"], ["a", "2"], ["b", "2"]]);
+    expect(texts(table)).toEqual([
+      ["a", "1"],
+      ["a", "2"],
+      ["b", "2"],
+    ]);
   });
 });
 
@@ -389,14 +429,20 @@ describe("text ↔ table", () => {
     const doc = createDocx({ paragraphs: ["a\tb", "c\td\te"] });
     const table = convertTextToTable(doc, 0, 1, { separator: "tab" });
     expect(tableColumnCount(table)).toBe(3);
-    expect(texts(table)).toEqual([["a", "b", ""], ["c", "d", "e"]]);
+    expect(texts(table)).toEqual([
+      ["a", "b", ""],
+      ["c", "d", "e"],
+    ]);
     roundTrip(doc);
   });
 
   it("converts paragraphs into cells of n columns", () => {
     const doc = createDocx({ paragraphs: ["1", "2", "3"] });
     const table = convertTextToTable(doc, 0, 2, { separator: "paragraph", columns: 2 });
-    expect(texts(table)).toEqual([["1", "2"], ["3", ""]]);
+    expect(texts(table)).toEqual([
+      ["1", "2"],
+      ["3", ""],
+    ]);
   });
 
   it("converts a table back to comma-separated text", () => {
@@ -409,7 +455,12 @@ describe("text ↔ table", () => {
 describe("formulas", () => {
   it("sums above and formats the result", () => {
     const doc = createDocx({ paragraphs: [] });
-    const table = addTable(doc, [["Item", "Price"], ["a", "1,000.50"], ["b", "$20"], ["Total", ""]]);
+    const table = addTable(doc, [
+      ["Item", "Price"],
+      ["a", "1,000.50"],
+      ["b", "$20"],
+      ["Total", ""],
+    ]);
     expect(evaluateTableFormula(table, 3, 1, "=SUM(ABOVE)")).toBeCloseTo(1020.5);
     expect(formatFieldNumber(1020.5, "#,##0.00")).toBe("1,020.50");
     expect(formatFieldNumber(-5, "0;(0)")).toBe("(5)");
@@ -418,7 +469,10 @@ describe("formulas", () => {
 
   it("supports references, ranges, functions and operators", () => {
     const doc = createDocx({ paragraphs: [] });
-    const table = addTable(doc, [["2", "4"], ["6", ""]]);
+    const table = addTable(doc, [
+      ["2", "4"],
+      ["6", ""],
+    ]);
     expect(evaluateTableFormula(table, 1, 1, "AVERAGE(A1:B1)+A2^2")).toBe(39);
     expect(evaluateTableFormula(table, 1, 1, "IF(A1>1, MAX(LEFT), 0)")).toBe(6);
     expect(evaluateTableFormula(table, 1, 1, "ROUND(10/3, 2)")).toBe(3.33);

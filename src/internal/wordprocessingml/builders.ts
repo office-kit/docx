@@ -1,12 +1,7 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
 import { normalizeVerticalMerges } from "./table-grid.js";
-import {
-  TBL_PR_ORDER,
-  TC_PR_ORDER,
-  TR_PR_ORDER,
-  upsertWChild,
-} from "./table-xml.js";
+import { TBL_PR_ORDER, TC_PR_ORDER, TR_PR_ORDER, upsertWChild } from "./table-xml.js";
 import type {
   WmlParagraph,
   WmlRun,
@@ -706,7 +701,8 @@ const ORDERED_CONTAINERS: Readonly<Record<string, readonly string[]>> = {
 };
 
 function putPropChild(container: XmlElement, child: XmlElement): void {
-  const order = container.name.uri === WML_NS ? ORDERED_CONTAINERS[container.name.local] : undefined;
+  const order =
+    container.name.uri === WML_NS ? ORDERED_CONTAINERS[container.name.local] : undefined;
   if (order) upsertWChild(container, child, order);
   else (container.children as XmlElement[]).push(child);
 }

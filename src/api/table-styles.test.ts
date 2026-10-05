@@ -52,7 +52,14 @@ describe("built-in table styles", () => {
     const regions = childElementsOf(style)
       .filter((c) => c.name.local === "tblStylePr")
       .map((c) => getElementAttr(c, "type"));
-    expect(regions).toEqual(["firstRow", "lastRow", "firstCol", "lastCol", "band1Vert", "band1Horz"]);
+    expect(regions).toEqual([
+      "firstRow",
+      "lastRow",
+      "firstCol",
+      "lastCol",
+      "band1Vert",
+      "band1Horz",
+    ]);
   });
 
   it("adds a style once and round-trips it", () => {
@@ -98,7 +105,9 @@ describe("table look", () => {
     });
     const back = tables(openDocx(toUint8Array(doc)))[0]!;
     expect(getTableLook(back).totalRow).toBe(true);
-    const xml = new TextDecoder().decode(openDocx(toUint8Array(doc)).opc.parts.get("/word/document.xml")?.data);
+    const xml = new TextDecoder().decode(
+      openDocx(toUint8Array(doc)).opc.parts.get("/word/document.xml")?.data,
+    );
     expect(xml).toContain('<w:tblLook w:val="0340" w:firstRow="0" w:lastRow="1"');
   });
 });
@@ -130,6 +139,8 @@ describe("setTableStyleFormatting", () => {
     const doc = createDocx({ paragraphs: [] });
     expect(() => setTableStyleFormatting(doc, "Nope", "firstRow", {})).toThrow(RangeError);
     addStyle(doc, { type: "table", styleId: "T" });
-    expect(() => setTableStyleFormatting(doc, "T", "firstRow", { fill: "red" })).toThrow(RangeError);
+    expect(() => setTableStyleFormatting(doc, "T", "firstRow", { fill: "red" })).toThrow(
+      RangeError,
+    );
   });
 });

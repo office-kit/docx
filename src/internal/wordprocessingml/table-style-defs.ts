@@ -145,9 +145,9 @@ function withLuminance(hex: string, scale: (l: number) => number): string {
   }
   const l2 = Math.min(1, Math.max(0, scale(l)));
   const c = (1 - Math.abs(2 * l2 - 1)) * s;
-  const x = c * (1 - Math.abs((((h % 6) + 6) % 6 % 2) - 1));
+  const x = c * (1 - Math.abs(((((h % 6) + 6) % 6) % 2) - 1));
   const m = l2 - c / 2;
-  const sector = Math.floor((((h % 6) + 6) % 6));
+  const sector = Math.floor(((h % 6) + 6) % 6);
   const [r1, g1, b1] = [
     [c, x, 0],
     [x, c, 0],
@@ -196,8 +196,7 @@ interface Palette {
 
 function palette(colors: ThemeColors, accent: number | undefined): Palette {
   const theme = accent === undefined ? "text1" : `accent${accent}`;
-  const base =
-    accent === undefined ? colors.dk1 : colors[`accent${accent}` as keyof ThemeColors];
+  const base = accent === undefined ? colors.dk1 : colors[`accent${accent}` as keyof ThemeColors];
   return {
     full: ref(base, theme),
     t60: ref(base, theme, { tint: TINT_60 }),
@@ -515,7 +514,10 @@ function buildSpecs(): Spec[] {
       name: "Table Grid",
       category: "plain",
       priority: PRIORITY_TABLE_GRID,
-      recipe: () => ({ borders: box(single(4, { hex: "auto", theme: "" }), ALL_SIDES), regions: {} }),
+      recipe: () => ({
+        borders: box(single(4, { hex: "auto", theme: "" }), ALL_SIDES),
+        regions: {},
+      }),
     },
     {
       styleId: "TableGridLight",
@@ -567,11 +569,17 @@ function buildSpecs(): Spec[] {
   return specs;
 }
 
-const SPECS = buildSpecs();
-const SPEC_BY_ID = new Map(SPECS.map((s) => [s.styleId, s]));
+// The PURE annotations let a bundler drop the style table from a bundle that
+// never touches table styles (the call would otherwise count as a side effect).
+const SPECS = /* @__PURE__ */ buildSpecs();
+const SPEC_BY_ID = /* @__PURE__ */ specIndex(SPECS);
+
+function specIndex(specs: readonly Spec[]): Map<string, Spec> {
+  return new Map(specs.map((s) => [s.styleId, s]));
+}
 
 /** Every built-in table style, in Word's gallery order. */
-export const BUILT_IN_TABLE_STYLE_LIST: readonly BuiltInTableStyle[] = SPECS.map(
+export const BUILT_IN_TABLE_STYLE_LIST: readonly BuiltInTableStyle[] = /* @__PURE__ */ SPECS.map(
   ({ styleId, name, category }) => ({ styleId, name, category }),
 );
 
@@ -648,7 +656,10 @@ function rPrEl(region: Region): XmlElement | undefined {
     );
   }
   if (region.size !== undefined) {
-    children.push(wEl("sz", { val: String(region.size) }), wEl("szCs", { val: String(region.size) }));
+    children.push(
+      wEl("sz", { val: String(region.size) }),
+      wEl("szCs", { val: String(region.size) }),
+    );
   }
   return children.length ? wEl("rPr", {}, children) : undefined;
 }

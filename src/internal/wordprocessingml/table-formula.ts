@@ -24,7 +24,8 @@ type Token =
 
 // A number, an identifier / cell reference (letters, digits, ':' for ranges),
 // or an operator. Comparison operators are matched before their prefixes.
-const TOKEN = /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([A-Za-z][A-Za-z0-9]*(?::[A-Za-z]+\d+)?)|(<=|>=|<>|[-+*/^%=<>(),]))/y;
+const TOKEN =
+  /\s*(?:(\d+(?:\.\d+)?|\.\d+)|([A-Za-z][A-Za-z0-9]*(?::[A-Za-z]+\d+)?)|(<=|>=|<>|[-+*/^%=<>(),]))/y;
 
 function tokenize(source: string): Token[] {
   const out: Token[] = [];
@@ -226,7 +227,8 @@ class Parser {
     const t = this.tokens[this.pos];
     if (t?.kind === "name" && !FUNCTIONS[t.value] && CONSTANTS[t.value] === undefined) {
       const next = this.tokens[this.pos + 1];
-      const standsAlone = !next || (next.kind === "op" && (next.value === "," || next.value === ")"));
+      const standsAlone =
+        !next || (next.kind === "op" && (next.value === "," || next.value === ")"));
       const range = standsAlone ? this.reference(t.value) : undefined;
       if (range) {
         this.pos++;

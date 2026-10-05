@@ -16,9 +16,16 @@ import {
 import { describe, expect, it } from "vitest";
 import { EditorModel } from "../model.js";
 import { caretAt, type Selection } from "../selection.js";
-import { adjacentCellPosition, cellStart, selectInTable, tableSelection } from "../table-selection.js";
+import {
+  adjacentCellPosition,
+  cellStart,
+  selectInTable,
+  tableSelection,
+} from "../table-selection.js";
+import { tablePropertiesSnapshot } from "../table-properties.js";
 import {
   autoFitCommand,
+  bordersAndShadingCommand,
   cellAlignmentCommand,
   columnWidthSelectionCommand,
   convertTableToTextCommand,
@@ -93,7 +100,10 @@ describe("insert table", () => {
     runCommand(model, insertTableCommand, {
       rows: 2,
       cols: 2,
-      cells: [["Item", "Qty"], ["Pens", "3"]],
+      cells: [
+        ["Item", "Qty"],
+        ["Pens", "3"],
+      ],
       autoFit: "window",
       styleId: "GridTable4-Accent1",
     });
@@ -105,10 +115,17 @@ describe("insert table", () => {
 
 describe("rows and columns", () => {
   it("inserts above / below / left / right of the selection", () => {
-    const { model, table } = withTable([["a", "b"], ["c", "d"]]);
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     runCommand(model, insertRowsCommand, { where: "below" });
     runCommand(model, insertColumnsCommand, { where: "right" });
-    expect(texts(table())).toEqual([["a", "", "b"], ["", "", ""], ["c", "", "d"]]);
+    expect(texts(table())).toEqual([
+      ["a", "", "b"],
+      ["", "", ""],
+      ["c", "", "d"],
+    ]);
     select(model, [0, 0], [2, 0]);
     runCommand(model, insertRowsCommand, { where: "above" });
     expect(table().rows).toHaveLength(6);
@@ -116,13 +133,20 @@ describe("rows and columns", () => {
   });
 
   it("deletes rows, columns, cells and the table", () => {
-    const { model, table } = withTable([["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]]);
+    const { model, table } = withTable([
+      ["a", "b", "c"],
+      ["d", "e", "f"],
+      ["g", "h", "i"],
+    ]);
     select(model, [1, 0], [1, 0]);
     runCommand(model, deleteRowCommand, {});
     expect(texts(table()).map((r) => r[0])).toEqual(["a", "g"]);
     model.setSelection(caretAt(cellStart(0, 0, 1)));
     runCommand(model, deleteColumnsCommand, undefined);
-    expect(texts(table())).toEqual([["a", "c"], ["g", "i"]]);
+    expect(texts(table())).toEqual([
+      ["a", "c"],
+      ["g", "i"],
+    ]);
     runCommand(model, deleteCellsCommand, { shift: "up" });
     expect(texts(table()).map((r) => r[0])).toEqual(["g", ""]);
     runCommand(model, deleteTableCommand, undefined);
@@ -133,7 +157,10 @@ describe("rows and columns", () => {
 
 describe("merge / split", () => {
   it("merges the selected cells and splits them again", () => {
-    const { model, table } = withTable([["a", "b"], ["c", "d"]]);
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     model.setSelection(caretAt(cellStart(0, 0, 0)));
     expect(mergeCellsCommand.isEnabled?.(model)).toBe(false);
     select(model, [0, 0], [0, 1]);
@@ -159,7 +186,11 @@ describe("table design", () => {
     runCommand(model, setTableStyleCommand, { styleId: "ListTable3-Accent2" });
     runCommand(model, setTableLookCommand, { totalRow: true, bandedRows: false });
     expect(getTableStyle(table())).toBe("ListTable3-Accent2");
-    expect(getTableLook(table())).toMatchObject({ headerRow: true, totalRow: true, bandedRows: false });
+    expect(getTableLook(table())).toMatchObject({
+      headerRow: true,
+      totalRow: true,
+      bandedRows: false,
+    });
     expect(xmlOf(model, "/word/styles.xml")).toContain('w:styleId="ListTable3-Accent2"');
     runCommand(model, setTableStyleCommand, { styleId: undefined });
     expect(getTableStyle(table())).toBeUndefined();
@@ -179,7 +210,10 @@ describe("table design", () => {
   });
 
   it("shades and borders the selected cells", () => {
-    const { model, table } = withTable([["a", "b"], ["c", "d"]]);
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     select(model, [0, 0], [1, 0]);
     runCommand(model, shadeCellsCommand, { fill: "FFC000" });
     runCommand(model, rangeBordersCommand, {
@@ -192,7 +226,82 @@ describe("table design", () => {
   });
 });
 
+describe("borders and shading dialog", () => {
+  it("sets and clears edges and fills the range in one undo step", () => {
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
+    const line = { style: "double", size: 6, color: "00B050" };
+    runCommand(model, bordersAndShadingCommand, {
+      range: { firstRow: 0, lastRow: 0, firstColumn: 0, lastColumn: 1 },
+      borders: { top: line, bottom: line, left: null, tl2br: line },
+      fill: "D9E2F3",
+    });
+    const xml = xmlOf(model);
+    expect(xml).toContain('<w:top w:val="double" w:sz="6" w:space="0" w:color="00B050"/>');
+    expect(xml).toContain('<w:left w:val="nil"/>');
+    expect(xml).toContain("<w:tl2br ");
+    expect(xml.match(/w:fill="D9E2F3"/g)).toHaveLength(2);
+    expect(JSON.stringify(table().rows[1]?.cells[0]?.tcPr ?? null)).not.toContain("D9E2F3");
+    model.undo();
+    expect(xmlOf(model)).not.toContain("D9E2F3");
+  });
+});
+
 describe("table layout", () => {
+  it("reports the selection's properties for the Table Properties dialog", () => {
+    const { model } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
+    model.setSelection(caretAt(cellStart(0, 1, 1)));
+    runCommand(model, tablePropertiesCommand, {
+      table: { width: { type: "pct", value: 5000 }, alignment: "center", indentTwips: 0 },
+      rows: { height: { twips: 600, rule: "exact" }, cantSplit: true },
+      cells: { verticalAlign: "bottom", noWrap: true, margins: { left: 200 } },
+      options: {
+        defaultMargins: { top: 20, left: 100, bottom: 20, right: 100 },
+        cellSpacingTwips: 30,
+        autoResize: false,
+      },
+      altText: { title: "T", description: "D" },
+    });
+    const snap = tablePropertiesSnapshot(model);
+    expect(snap?.table).toEqual({
+      width: { type: "pct", value: 5000 },
+      alignment: "center",
+      indentTwips: 0,
+    });
+    expect(snap?.row).toEqual({
+      index: 1,
+      height: { twips: 600, rule: "exact" },
+      cantSplit: true,
+      header: false,
+    });
+    expect(snap?.cell).toMatchObject({
+      verticalAlign: "bottom",
+      noWrap: true,
+      fitText: false,
+      margins: { left: 200 },
+    });
+    expect(snap?.options).toEqual({
+      defaultMargins: { top: 20, left: 100, bottom: 20, right: 100 },
+      cellSpacingTwips: 30,
+      autoResize: false,
+    });
+    expect(snap?.altText).toEqual({ title: "T", description: "D" });
+    expect(snap?.column.index).toBe(1);
+  });
+
+  it("reports Word's defaults for a plain table", () => {
+    const { model } = withTable([["a"]]);
+    const snap = tablePropertiesSnapshot(model);
+    expect(snap?.options.defaultMargins).toEqual({ top: 0, left: 108, bottom: 0, right: 108 });
+    expect(snap?.row.height).toBeUndefined();
+    expect(snap?.cell.verticalAlign).toBe("top");
+  });
+
   it("sets properties from the Table Properties dialog in one step", () => {
     const { model, table } = withTable([["a", "b"]]);
     runCommand(model, tablePropertiesCommand, {
@@ -222,7 +331,10 @@ describe("table layout", () => {
   });
 
   it("height / width spinners, distribute, autofit, alignment and text direction", () => {
-    const { model, table } = withTable([["a", "b"], ["c", "d"]]);
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     runCommand(model, rowHeightSelectionCommand, { twips: 500 });
     runCommand(model, columnWidthSelectionCommand, { twips: 3000 });
     runCommand(model, distributeColumnsCommand, undefined);
@@ -243,29 +355,44 @@ describe("table layout", () => {
     const { model, table } = withTable([["a"], ["b"], ["c"]]);
     model.setSelection(caretAt(cellStart(0, 1, 0)));
     runCommand(model, repeatHeaderRowsCommand, undefined);
-    const header = (r: number): boolean => JSON.stringify(table().rows[r]?.trPr ?? {}).includes("tblHeader");
+    const header = (r: number): boolean =>
+      JSON.stringify(table().rows[r]?.trPr ?? {}).includes("tblHeader");
     expect([header(0), header(1), header(2)]).toEqual([true, true, false]);
     model.setSelection(caretAt(cellStart(0, 0, 0)));
     expect(repeatHeaderRowsCommand.isActive?.(model)).toBe(true);
   });
 
   it("sorts, converts to text and back", () => {
-    const { model } = withTable([["b", "2"], ["a", "1"]]);
+    const { model } = withTable([
+      ["b", "2"],
+      ["a", "1"],
+    ]);
     runCommand(model, sortTableCommand, { keys: [{ column: 0 }] });
-    expect(texts(tables(model.doc)[0]!)).toEqual([["a", "1"], ["b", "2"]]);
+    expect(texts(tables(model.doc)[0]!)).toEqual([
+      ["a", "1"],
+      ["b", "2"],
+    ]);
     runCommand(model, convertTableToTextCommand, { separator: "tab" });
     expect(tables(model.doc)).toHaveLength(0);
-    model.setSelection({ anchor: { block: 0, inline: 0, offset: 0 }, focus: { block: 1, inline: 0, offset: 0 } });
+    model.setSelection({
+      anchor: { block: 0, inline: 0, offset: 0 },
+      focus: { block: 1, inline: 0, offset: 0 },
+    });
     expect(convertTextToTableCommand.isEnabled?.(model)).toBe(true);
     runCommand(model, convertTextToTableCommand, { separator: "tab" });
-    expect(texts(tables(model.doc)[0]!)).toEqual([["a", "1"], ["b", "2"]]);
+    expect(texts(tables(model.doc)[0]!)).toEqual([
+      ["a", "1"],
+      ["b", "2"],
+    ]);
     xmlOf(model);
   });
 
   it("inserts a formula field with its computed result", () => {
     const { model, table } = withTable([["1"], ["2"], [""]]);
     model.setSelection(caretAt(cellStart(0, 2, 0)));
-    expect(runCommand(model, insertFormulaCommand, { formula: "=SUM(ABOVE)", numberFormat: "0.00" })).toBe(3);
+    expect(
+      runCommand(model, insertFormulaCommand, { formula: "=SUM(ABOVE)", numberFormat: "0.00" }),
+    ).toBe(3);
     const xml = xmlOf(model);
     expect(xml).toContain('=SUM(ABOVE) \\# "0.00"');
     expect(xml).toContain("<w:t>3.00</w:t>");
@@ -275,19 +402,33 @@ describe("table layout", () => {
 
 describe("table selection", () => {
   it("expands a cross-cell selection to whole merged cells", () => {
-    const { model } = withTable([["a", "b", "c"], ["d", "e", "f"]]);
+    const { model } = withTable([
+      ["a", "b", "c"],
+      ["d", "e", "f"],
+    ]);
     select(model, [0, 0], [0, 1]);
     runCommand(model, mergeCellsCommand, {});
     // Row 1 cell 1 ("e") sits under the merged A1:B1.
     select(model, [1, 1], [1, 1]);
     model.setSelection({ anchor: cellStart(0, 0, 0), focus: cellStart(0, 1, 2) });
-    expect(tableSelection(model)?.range).toEqual({ firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 2 });
+    expect(tableSelection(model)?.range).toEqual({
+      firstRow: 0,
+      lastRow: 1,
+      firstColumn: 0,
+      lastColumn: 2,
+    });
   });
 
   it("selects the row / column / table and moves with Tab", () => {
-    const { model } = withTable([["a", "b"], ["c", "d"]]);
+    const { model } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     model.setSelection(caretAt(cellStart(0, 1, 1)));
-    expect(selectInTable(model, "row")).toEqual({ anchor: cellStart(0, 1, 0), focus: cellStart(0, 1, 1) });
+    expect(selectInTable(model, "row")).toEqual({
+      anchor: cellStart(0, 1, 0),
+      focus: cellStart(0, 1, 1),
+    });
     expect(selectInTable(model, "column")?.anchor).toEqual(cellStart(0, 0, 1));
     expect(selectInTable(model, "table")?.focus).toEqual(cellStart(0, 1, 1));
     expect(adjacentCellPosition(model, 1)).toBeUndefined();
@@ -295,7 +436,10 @@ describe("table selection", () => {
   });
 
   it("skips merged continuation cells when tabbing", () => {
-    const { model, table } = withTable([["a", "b"], ["c", "d"]]);
+    const { model, table } = withTable([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
     select(model, [0, 0], [1, 0]);
     runCommand(model, mergeCellsCommand, {});
     expect(tableCellPlacements(table())[1]?.[0]?.rowSpan).toBe(0);

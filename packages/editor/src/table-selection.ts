@@ -123,7 +123,10 @@ export function selectedPlacements(ts: TableSelection): TableCellPlacement[] {
   const out: TableCellPlacement[] = [];
   for (let r = ts.range.firstRow; r <= ts.range.lastRow; r++) {
     for (const p of ts.placements[r] ?? []) {
-      if (p.gridStart + p.gridSpan - 1 >= ts.range.firstColumn && p.gridStart <= ts.range.lastColumn) {
+      if (
+        p.gridStart + p.gridSpan - 1 >= ts.range.firstColumn &&
+        p.gridStart <= ts.range.lastColumn
+      ) {
         out.push(p);
       }
     }
@@ -178,7 +181,10 @@ export function selectInTable(model: EditorModel, what: TableSelectTarget): Sele
  * hidden rows of vertical merges — where Tab / Shift+Tab move in Word.
  * Undefined past the last (or before the first) cell.
  */
-export function adjacentCellPosition(model: EditorModel, direction: 1 | -1): DocPosition | undefined {
+export function adjacentCellPosition(
+  model: EditorModel,
+  direction: 1 | -1,
+): DocPosition | undefined {
   const ts = tableSelection(model);
   if (!ts) return undefined;
   const order = ts.placements.flat().filter((p) => p.rowSpan > 0);
