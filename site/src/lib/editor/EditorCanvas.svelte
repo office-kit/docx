@@ -713,6 +713,14 @@
   .wk-canvas :global(.wk-colgap.sep) {
     background: linear-gradient(#000, #000) center / 1px 100% no-repeat;
   }
+  /* 縦書き: lines run top to bottom and follow each other right to left. */
+  .wk-canvas :global(.wk-vertical),
+  .wk-galley :global(.wk-vertical) {
+    writing-mode: vertical-rl;
+  }
+  .wk-canvas :global(.wk-vertical .wk-colgap.sep) {
+    background-size: 100% 1px;
+  }
   .wk-canvas :global(.wk-blk) {
     display: flow-root;
   }

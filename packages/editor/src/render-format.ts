@@ -136,7 +136,76 @@ export function runEffectsCss(fmt: ResolvedRunFormat): string[] {
   const border = borderCss(fmt.border);
   if (border)
     css.push(`border:${border};box-decoration-break:clone;-webkit-box-decoration-break:clone`);
+  css.push(...eastAsianRunCss(fmt));
   return css;
+}
+
+// Word's emphasis marks: 傍点 over the characters (under for underDot).
+const EMPHASIS_CSS: Readonly<Record<string, string>> = {
+  dot: "text-emphasis:filled dot;text-emphasis-position:over right",
+  comma: "text-emphasis:filled sesame;text-emphasis-position:over right",
+  circle: "text-emphasis:open circle;text-emphasis-position:over right",
+  underDot: "text-emphasis:filled dot;text-emphasis-position:under right",
+};
+
+function eastAsianRunCss(fmt: ResolvedRunFormat): string[] {
+  const css: string[] = [];
+  const emphasis = fmt.emphasis && EMPHASIS_CSS[fmt.emphasis];
+  if (emphasis) css.push(emphasis);
+  // Fit Text (均等割り付け): the text spread, character by character, over
+  // the given width.
+  if (fmt.fitText) {
+    css.push(
+      "display:inline-block",
+      // Along the line, so it also holds in vertical text.
+      `inline-size:${fmt.fitText.width / TWIPS_PER_POINT}pt`,
+      "text-align:justify",
+      "text-align-last:justify",
+      "text-justify:inter-character",
+      "white-space:nowrap",
+      "text-indent:0",
+    );
+  }
+  if (fmt.eastAsianLayout?.vert) css.push("text-combine-upright:all");
+  // Character scale: drawn narrower or wider; layoutScaledText fixes the
+  // advance once the natural width is known.
+  if (fmt.scale !== undefined && fmt.scale !== FULL_SCALE) {
+    css.push(
+      "display:inline-block",
+      "white-space:pre",
+      "transform-origin:left",
+      `transform:scaleX(${fmt.scale / FULL_SCALE})`,
+    );
+  }
+  return css;
+}
+
+const FULL_SCALE = 100;
+
+const COMBINE_BRACKETS: Readonly<Record<string, readonly [string, string]>> = {
+  round: ["(", ")"],
+  square: ["[", "]"],
+  angle: ["<", ">"],
+  curly: ["{", "}"],
+};
+
+/**
+ * Combine Characters / Two Lines in One (§17.3.2.10): the run's text set in
+ * two half-size lines inside one line, the first half on top, in brackets
+ * when there are any. Read-only on the canvas, like a phonetic guide.
+ */
+export function combinedTextHtml(text: string, layout: { brackets?: string | undefined }): string {
+  const chars = [...text];
+  const half = Math.ceil(chars.length / 2);
+  const top = escapeHtml(chars.slice(0, half).join(""));
+  const bottom = escapeHtml(chars.slice(half).join(""));
+  const pair = layout.brackets === undefined ? undefined : COMBINE_BRACKETS[layout.brackets];
+  const [open, close] = pair ?? ["", ""];
+  const stack =
+    `<span style="display:inline-flex;flex-direction:column;vertical-align:middle;` +
+    `font-size:50%;line-height:1;text-align:center">` +
+    `<span>${top}</span><span>${bottom}</span></span>`;
+  return `<span contenteditable="false">${escapeHtml(open)}${stack}${escapeHtml(close)}</span>`;
 }
 
 const PARAGRAPH_SIDES = ["top", "left", "bottom", "right"] as const;

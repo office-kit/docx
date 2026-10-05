@@ -43,6 +43,17 @@
   // Word's spinner range for paragraph indents and spacing.
   const MAX_INDENT = 31680;
   const MAX_SPACING = 31680;
+  // Japanese Word shows 段落前 / 段落後 in lines (`w:beforeLines`), others in points.
+  const spacingUnit = $derived(locale() === 'ja' ? 'line' : 'pt');
+  const lineTwips = $derived(live ? commands.spacingLineTwips(live.model) : 1);
+  function spacingValue(twips: number | undefined, lines: number | undefined): number {
+    if (spacingUnit === 'pt') return twips ?? 0;
+    return lines ?? Math.round(((twips ?? 0) / lineTwips) * 100);
+  }
+  function setSpacing(side: 'before' | 'after', value: number): void {
+    const key = spacingUnit === 'pt' ? side : side === 'before' ? 'beforeLines' : 'afterLines';
+    session.apply(commands.layoutSpacingCommand, { [key]: value });
+  }
 
   const DIRECTIONS: ReadonlyArray<{ value: SectionTextDirection; key: MessageKey }> = [
     { value: 'lrTb', key: 'lay.td.horizontal' },
@@ -231,10 +242,10 @@
   <div class="spin-block">
     <span class="spin-head">{t('lay.spacing')}</span>
     <label class="spin-row"><RibbonIcon name="laySpacingBefore" size={16} /><span>{t('lay.before')}:</span>
-      <LengthField value={caretFormat?.before ?? 0} unit="pt" label={t('lay.spacingBefore')} max={MAX_SPACING} disabled={!canFormat} onchange={(v) => session.apply(commands.layoutSpacingCommand, { before: v })} />
+      <LengthField value={spacingValue(caretFormat?.before, caretFormat?.beforeLines)} unit={spacingUnit} label={t('lay.spacingBefore')} max={MAX_SPACING} disabled={!canFormat} onchange={(v) => setSpacing('before', v)} />
     </label>
     <label class="spin-row"><RibbonIcon name="laySpacingAfter" size={16} /><span>{t('lay.after')}:</span>
-      <LengthField value={caretFormat?.after ?? 0} unit="pt" label={t('lay.spacingAfter')} max={MAX_SPACING} disabled={!canFormat} onchange={(v) => session.apply(commands.layoutSpacingCommand, { after: v })} />
+      <LengthField value={spacingValue(caretFormat?.after, caretFormat?.afterLines)} unit={spacingUnit} label={t('lay.spacingAfter')} max={MAX_SPACING} disabled={!canFormat} onchange={(v) => setSpacing('after', v)} />
     </label>
   </div>
 </Group>

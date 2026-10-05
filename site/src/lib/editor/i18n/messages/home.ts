@@ -367,7 +367,7 @@ export default defineMessages({
     "home.styles.more": "その他",
     "home.styles.create": "スタイルの作成",
     "home.styles.apply": "スタイルの適用…",
-    "home.styles.pane": "スタイル ウィンドウ",
+    "home.styles.pane": "スタイル\u200bウィンドウ",
     "home.styles.new": "新しいスタイル…",
     "home.styles.modify": "スタイルの変更…",
     "home.styles.delete": "{name} の削除",

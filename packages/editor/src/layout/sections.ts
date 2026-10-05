@@ -97,6 +97,8 @@ export interface DocumentGrid {
   readonly type: "default" | "lines" | "linesAndChars" | "snapToChars";
   /** Twips between grid lines. */
   readonly linePitch?: number | undefined;
+  /** 4096ths of a point added to the character pitch (§17.6.5). */
+  readonly charSpace?: number | undefined;
 }
 
 export interface PageNumbering {
@@ -123,6 +125,12 @@ export interface SectionModel {
   readonly lineNumbers?: LineNumbering | undefined;
   readonly borders?: PageBorders | undefined;
   readonly grid?: DocumentGrid | undefined;
+  /**
+   * Vertical text (`w:textDirection` tbRl, Word's 縦書き, §17.6.20): lines run
+   * top to bottom and follow each other right to left, so the column widths
+   * divide the text height.
+   */
+  readonly vertical: boolean;
   readonly footnotePr?: NoteProperties | undefined;
   readonly endnotePr?: NoteProperties | undefined;
   /** Header/footer part shown on each page kind, after inheritance; `undefined` for none. */
@@ -253,6 +261,10 @@ export function readNoteProperties(el: XmlElement | undefined): NoteProperties |
   };
 }
 
+// ST_TextDirection values for top-to-bottom, right-to-left text, in their
+// strict and transitional spellings; the others lay out horizontally here.
+const VERTICAL_DIRECTIONS: ReadonlySet<string> = new Set(["tbRl", "tbRlV", "rl", "rlV"]);
+
 function readGrid(sectPr: XmlElement | undefined): DocumentGrid | undefined {
   const el = child(sectPr, "docGrid");
   if (!el) return undefined;
@@ -263,6 +275,7 @@ function readGrid(sectPr: XmlElement | undefined): DocumentGrid | undefined {
       "default",
     ),
     linePitch: num(el, "linePitch"),
+    charSpace: num(el, "charSpace"),
   };
 }
 
@@ -291,6 +304,10 @@ function readSection(
     fixedBottom: bottom < 0,
   };
   const textWidth = pageWidth - margins.left - margins.right - margins.gutter;
+  const direction = child(sectPr, "textDirection");
+  const vertical = VERTICAL_DIRECTIONS.has(
+    direction ? (getElementAttr(direction, "val") ?? "") : "",
+  );
   const typeEl = child(sectPr, "type");
   const vAlignEl = child(sectPr, "vAlign");
   const pgNumType = child(sectPr, "pgNumType");
@@ -306,7 +323,7 @@ function readSection(
     pageWidth,
     pageHeight,
     margins,
-    columns: readColumns(sectPr, textWidth),
+    columns: readColumns(sectPr, vertical ? pageHeight - margins.top - margins.bottom : textWidth),
     separator: onOffAttr(child(sectPr, "cols"), "sep"),
     vAlign: oneOf(vAlignEl && getElementAttr(vAlignEl, "val"), VALIGNS, "top"),
     titlePage,
@@ -317,6 +334,7 @@ function readSection(
     lineNumbers: readLineNumbers(sectPr),
     borders: readBorders(sectPr),
     grid: readGrid(sectPr),
+    vertical,
     footnotePr: readNoteProperties(child(sectPr, "footnotePr")),
     endnotePr: readNoteProperties(child(sectPr, "endnotePr")),
     headers: {

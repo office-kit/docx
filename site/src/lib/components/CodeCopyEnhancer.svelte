@@ -4,6 +4,8 @@
   // own copy button in the figcaption, so we skip those.
   import { afterNavigate } from '$app/navigation';
   import { onMount, tick } from 'svelte';
+  import { localized } from '$lib/i18n';
+  import core from '$lib/i18n/messages/core';
 
   const ENHANCED = 'data-copy-enhanced';
 
@@ -18,6 +20,7 @@
 
   function attach(pre: HTMLPreElement) {
     pre.setAttribute(ENHANCED, '');
+    const m = localized(core).copy;
 
     // Wrap the <pre> so the absolutely-positioned button anchors to its corner
     // without depending on a containing block we don't control.
@@ -29,8 +32,8 @@
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'code-copy-btn';
-    btn.setAttribute('aria-label', 'Copy code to clipboard');
-    btn.textContent = 'Copy';
+    btn.setAttribute('aria-label', m.label);
+    btn.textContent = m.idle;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     btn.addEventListener('click', async () => {
@@ -38,15 +41,15 @@
       if (!text) return;
       try {
         await navigator.clipboard.writeText(text);
-        btn.textContent = 'Copied';
+        btn.textContent = m.copied;
         btn.classList.add('copied');
       } catch {
-        btn.textContent = 'Failed';
+        btn.textContent = m.failed;
         btn.classList.add('failed');
       }
       clearTimeout(timer);
       timer = setTimeout(() => {
-        btn.textContent = 'Copy';
+        btn.textContent = m.idle;
         btn.classList.remove('copied', 'failed');
       }, 1500);
     });

@@ -2,7 +2,7 @@
   /**
    * Word's measurement box with spinner arrows: shows twips in the given unit
    * (`1"`, `2.54 cm`, `6 pt`), accepts any unit typed with the number, and
-   * reports the new value in twips. Out-of-range or unreadable input puts
+   * reports the new value in twips (hundredths of a line for `line`). Out-of-range or unreadable input puts
    * the box back without reporting anything.
    */
   import RibbonIcon from '../RibbonIcon.svelte';

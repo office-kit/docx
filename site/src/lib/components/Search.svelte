@@ -1,6 +1,11 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
+  import RichText from '$lib/components/RichText.svelte';
+  import { localized } from '$lib/i18n';
+  import core from '$lib/i18n/messages/core';
+
+  const m = $derived(localized(core).search);
 
   type PagefindResult = {
     id: string;
@@ -127,14 +132,14 @@
   type="button"
   class="trigger"
   onclick={openModal}
-  aria-label="Search docs (press / or Cmd-K)"
+  aria-label={m.trigger}
   data-pagefind-ignore
 >
   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
     <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6" />
     <path d="m10.5 10.5 3.6 3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
   </svg>
-  <span class="trigger-label">Search</span>
+  <span class="trigger-label">{m.label}</span>
   <kbd class="trigger-kbd">⌘K</kbd>
 </button>
 
@@ -148,7 +153,7 @@
       class="modal"
       role="dialog"
       aria-modal="true"
-      aria-label="Search"
+      aria-label={m.label}
       tabindex="-1"
       onclick={(e) => e.stopPropagation()}
     >
@@ -157,7 +162,7 @@
           bind:this={inputEl}
           bind:value={query}
           type="search"
-          placeholder="Search docs and API…"
+          placeholder={m.placeholder}
           autocomplete="off"
           spellcheck="false"
           class="input"
@@ -167,18 +172,13 @@
 
       <div class="results" aria-live="polite">
         {#if status === 'unavailable'}
-          <p class="status">
-            Search index not available. Run <code>pnpm --filter word-kit-site build</code>
-            to generate it (the dev server skips indexing).
-          </p>
+          <p class="status"><RichText text={m.unavailable} /></p>
         {:else if status === 'loading' && hits.length === 0}
-          <p class="status">Loading search index…</p>
+          <p class="status">{m.loading}</p>
         {:else if query.trim() && hits.length === 0 && status === 'ready'}
-          <p class="status">No results for "{query}".</p>
+          <p class="status">{m.noResults(query)}</p>
         {:else if !query.trim()}
-          <p class="status">
-            Type to search across docs, recipes, and the full API reference.
-          </p>
+          <p class="status">{m.hint}</p>
         {:else}
           <ul class="hits">
             {#each hits as hit (hit.url)}

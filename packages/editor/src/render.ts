@@ -40,7 +40,17 @@ import {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,
 } from "./resolve.js";
+import { documentSections } from "./layout/sections.js";
 import {
+  eastAsianTypographyCss,
+  gridLetterSpacing,
+  lineHeightCss,
+  type GridPitch,
+  gridPitch,
+  paragraphMetrics,
+} from "./render-grid.js";
+import {
+  combinedTextHtml,
   listLabelHtml,
   paragraphBoxCss,
   type RenderResolver,
@@ -77,6 +87,11 @@ const VERT_ALIGN_CSS: Record<string, string> = {
   subscript: "vertical-align:sub;font-size:smaller",
 };
 
+const JA_SERIF = "YuMincho,'Hiragino Mincho ProN','Noto Serif JP','Noto Serif CJK JP',serif";
+const JA_SANS = "YuGothic,'Hiragino Sans','Noto Sans JP','Noto Sans CJK JP',sans-serif";
+const ZH_SERIF = "'Songti SC','Noto Serif SC','Noto Serif CJK SC',serif";
+const ZH_SANS = "'PingFang SC','Noto Sans SC','Noto Sans CJK SC',sans-serif";
+
 // When a document font is not installed in the browser (Calibri and Cambria
 // ship with Office, not with most systems), fall back to a metric-compatible
 // font or at least the right generic family, as Word's font substitution does.
@@ -90,16 +105,36 @@ const FALLBACK_FAMILY: Readonly<Record<string, string>> = {
   Garamond: "serif",
   "Book Antiqua": "serif",
   Consolas: "monospace",
-  "Yu Mincho": "'Hiragino Mincho ProN',serif",
-  "MS Mincho": "'Hiragino Mincho ProN',serif",
-  "Yu Gothic": "'Hiragino Sans',sans-serif",
-  "MS Gothic": "'Hiragino Sans',sans-serif",
+  // Japanese Word writes these fonts under their Japanese names. macOS has
+  // YuMincho / YuGothic and Hiragino, other systems the Noto CJK fonts.
+  "Yu Mincho": JA_SERIF,
+  游明朝: JA_SERIF,
+  "游明朝 Demibold": JA_SERIF,
+  "MS Mincho": JA_SERIF,
+  "ＭＳ 明朝": JA_SERIF,
+  "ＭＳ Ｐ明朝": JA_SERIF,
+  "Yu Gothic": JA_SANS,
+  "Yu Gothic Light": JA_SANS,
+  游ゴシック: JA_SANS,
+  "游ゴシック Light": JA_SANS,
+  "MS Gothic": JA_SANS,
+  "ＭＳ ゴシック": JA_SANS,
+  "ＭＳ Ｐゴシック": JA_SANS,
+  Meiryo: JA_SANS,
+  メイリオ: JA_SANS,
+  SimSun: ZH_SERIF,
+  宋体: ZH_SERIF,
+  DengXian: ZH_SANS,
+  等线: ZH_SANS,
+  "Microsoft YaHei": ZH_SANS,
+  微软雅黑: ZH_SANS,
 };
 
 const TWIPS_PER_POINT = 20;
-const AUTO_LINE_UNIT = 240;
-// CSS line-height that matches Word's single spacing for its default fonts.
-const SINGLE_LINE_HEIGHT = 1.2;
+// w:w, a run at its natural width (§17.3.2.43).
+const FULL_SCALE = 100;
+// w:sz when nothing sets it (§17.3.2.38).
+const DEFAULT_SIZE_HALF_POINTS = 20;
 
 function escapeHtml(s: string): string {
   return s
@@ -181,35 +216,57 @@ function fontCss(fmt: ResolvedRunFormat, complexScript = false): string[] {
     // A generic family always matches, so it can only come last.
     const fallback = (primary && FALLBACK_FAMILY[primary]?.split(",")) || ["sans-serif"];
     const generic = fallback.filter((f) => GENERIC_FAMILIES.has(f));
-    const list = [
-      ...(primary ? [cssFontName(primary)] : []),
-      ...fallback.filter((f) => !GENERIC_FAMILIES.has(f)),
-      ...new Set(others.map(cssFontName)),
-      ...(generic.length > 0 ? generic : ["sans-serif"]),
-    ];
-    parts.push(`font-family:${list.join(",")}`);
+    const list: string[] = primary ? [cssFontName(primary)] : [];
+    for (const f of fallback) if (!GENERIC_FAMILIES.has(f)) list.push(f);
+    // An East Asian font missing from the system needs its stand-ins too,
+    // or CJK text falls through to the Latin font's generic family.
+    for (const font of others) {
+      list.push(cssFontName(font));
+      for (const f of FALLBACK_FAMILY[font]?.split(",") ?? []) {
+        if (!GENERIC_FAMILIES.has(f)) list.push(f);
+      }
+    }
+    list.push(...(generic.length > 0 ? generic : ["sans-serif"]));
+    parts.push(`font-family:${[...new Set(list)].join(",")}`);
   }
   return parts;
 }
 
-export function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): string {
+const HORIZONTAL_SIDES = { before: "top", after: "bottom", left: "left", right: "right" } as const;
+const VERTICAL_SIDES = { before: "right", after: "left", left: "top", right: "bottom" } as const;
+
+export function paragraphCss(
+  fmt: ResolvedParagraphFormat,
+  mark: ResolvedRunFormat,
+  pitch: GridPitch = {},
+  vertical = false,
+): string {
   const css = fontCss(mark);
+  const fontSize = (mark.sizeHalfPoints ?? DEFAULT_SIZE_HALF_POINTS) / 2;
   const align = ALIGN_TO_CSS[fmt.alignment ?? ""];
   if (align) css.push(`text-align:${align}`);
-  css.push(`margin-top:${(fmt.before ?? 0) / TWIPS_PER_POINT}pt`);
-  css.push(`margin-bottom:${(fmt.after ?? 0) / TWIPS_PER_POINT}pt`);
-  if (fmt.left !== undefined) css.push(`margin-left:${fmt.left / TWIPS_PER_POINT}pt`);
-  if (fmt.right !== undefined) css.push(`margin-right:${fmt.right / TWIPS_PER_POINT}pt`);
-  if (fmt.hanging !== undefined) css.push(`text-indent:${-fmt.hanging / TWIPS_PER_POINT}pt`);
-  else if (fmt.firstLine !== undefined)
-    css.push(`text-indent:${fmt.firstLine / TWIPS_PER_POINT}pt`);
-  if (fmt.line !== undefined && fmt.line > 0) {
-    css.push(
-      fmt.lineRule === "auto"
-        ? `line-height:${(fmt.line / AUTO_LINE_UNIT) * SINGLE_LINE_HEIGHT}`
-        : `line-height:${fmt.line / TWIPS_PER_POINT}pt`,
-    );
+  // Distributed text spreads every line, the last one too, by character.
+  if (fmt.alignment === "distribute" || fmt.alignment === "thaiDistribute") {
+    css.push("text-align-last:justify", "text-justify:inter-character");
   }
+  const m = paragraphMetrics(fmt, pitch, fontSize);
+  // In vertical text (tbRl) lines follow each other right to left, so space
+  // before is on the right and the left indent at the top. Physical sides
+  // rather than logical ones: a bidi paragraph's own direction must not flip them.
+  const side = vertical ? VERTICAL_SIDES : HORIZONTAL_SIDES;
+  css.push(`margin-${side.before}:${m.before}pt`, `margin-${side.after}:${m.after}pt`);
+  if (m.left !== undefined) css.push(`margin-${side.left}:${m.left}pt`);
+  if (m.right !== undefined) css.push(`margin-${side.right}:${m.right}pt`);
+  if (m.hanging !== undefined) css.push(`text-indent:${-m.hanging}pt`);
+  else if (m.firstLine !== undefined) css.push(`text-indent:${m.firstLine}pt`);
+  const lineHeight = lineHeightCss(fmt, pitch, mark);
+  if (lineHeight) css.push(lineHeight);
+  else if (fmt.line !== undefined && fmt.line > 0 && fmt.lineRule !== "auto") {
+    css.push(`line-height:${fmt.line / TWIPS_PER_POINT}pt`);
+  }
+  const spacing = gridLetterSpacing(fmt, pitch, fontSize);
+  if (spacing !== undefined) css.push(`letter-spacing:${spacing}pt`);
+  css.push(...eastAsianTypographyCss(fmt));
   css.push(...paragraphBoxCss(fmt));
   if (fmt.dropCap) css.push(...dropCapCss(fmt.dropCap));
   return css.join(";");
@@ -271,6 +328,7 @@ function renderRun(
   cell?: CellAnchor,
   extraAttrs = "",
   extraClass = "",
+  innerHtml?: string,
 ): string {
   const deco = review.run(run);
   // A tracked deletion: shown (per the markup mode) but never editable.
@@ -289,7 +347,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}${deco.classes}" ${attrs}${deco.attrs}>${specialRunHtml(run) ?? (textHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}${deco.classes}" ${attrs}${deco.attrs}>${innerHtml ?? specialRunHtml(run) ?? (textHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
 }
 
 /**
@@ -339,6 +397,37 @@ function wrappedRunHtml(run: WmlRun, runStyle: (run: WmlRun) => string): string 
   return text ? `<span style="${escapeHtml(runStyle(run))}">${textHtml(text)}</span>` : "";
 }
 
+/**
+ * Characters per Fit Text region: runs sharing a `w:fitText/@w:id` are one
+ * region, spread together over its width (§17.3.2.14).
+ */
+function fitTextRegionChars(
+  para: WmlParagraph,
+  styles: RenderResolver,
+  text: CellTextFormat | undefined,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const child of para.children) {
+    if (child.kind !== "run") continue;
+    const id = styles.run(para, child, text).fitText?.id;
+    if (id !== undefined) out.set(id, (out.get(id) ?? 0) + [...runText(child)].length);
+  }
+  return out;
+}
+
+/** A run's part of its Fit Text region's width, by its share of the characters. */
+function fitTextShare(
+  fmt: ResolvedRunFormat,
+  run: WmlRun,
+  regionChars: ReadonlyMap<number, number>,
+): ResolvedRunFormat {
+  const fit = fmt.fitText;
+  const total = fit?.id === undefined ? undefined : regionChars.get(fit.id);
+  if (!fit || !total) return fmt;
+  const width = (fit.width * [...runText(run)].length) / total;
+  return { ...fmt, fitText: { ...fit, width } };
+}
+
 function renderParagraph(
   para: WmlParagraph,
   doc: Docx,
@@ -354,7 +443,8 @@ function renderParagraph(
     labelText === undefined
       ? ""
       : listLabelHtml(labelText, paragraphFmt, runCss(styles.listLabelRun(para, text)));
-  const styleAttr = ` style="${escapeHtml(paragraphCss(paragraphFmt, styles.run(para, undefined, text)))}"`;
+  const { pitch, vertical } = sectionFlowOf(block);
+  const styleAttr = ` style="${escapeHtml(paragraphCss(paragraphFmt, styles.run(para, undefined, text), pitch, vertical))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
@@ -362,6 +452,7 @@ function renderParagraph(
   const fields = fieldResultRuns(para);
   // Fields, symbols and equations (Insert tab): see render-fields / render-math.
   const fieldRoles = fieldRunRoles(para);
+  const fitTextChars = fitTextRegionChars(para, styles, text);
   let mathIndex = 0;
   const mathAnchor = (): string =>
     `data-wk-math-block="${block}" data-wk-math="${mathIndex++}"${cell ? ` data-wk-math-cell="${cell.coord}" data-wk-math-para="${cell.para}"` : ""}`;
@@ -377,8 +468,10 @@ function renderParagraph(
             });
       }
       const role = fieldRoles.get(child);
-      const fmt = styles.run(para, child, text);
-      const css = runCss(fmt, isComplexScriptRun(fmt, runText(child)));
+      const fmt = fitTextShare(styles.run(para, child, text), child, fitTextChars);
+      const lineHeight = lineHeightCss(paragraphFmt, pitch, fmt);
+      const css =
+        runCss(fmt, isComplexScriptRun(fmt, runText(child))) + (lineHeight ? `;${lineHeight}` : "");
       const special = renderFieldStructureRun(child, role) ?? renderSymbolRun(child, css);
       if (special !== undefined) {
         runIndex++;
@@ -393,6 +486,11 @@ function renderParagraph(
       if (isDrawingOnlyRun(child)) return objects;
       textRuns++;
       const field = fields.get(i);
+      const scaled =
+        fmt.scale !== undefined && fmt.scale !== FULL_SCALE ? ` data-wk-scale="${fmt.scale}"` : "";
+      const combined = fmt.eastAsianLayout?.combine
+        ? combinedTextHtml(runText(child), fmt.eastAsianLayout)
+        : undefined;
       return (
         renderRun(
           child,
@@ -401,8 +499,9 @@ function renderParagraph(
           inline,
           review,
           cell,
-          field ? fieldAttrs(field) : "",
+          (field ? fieldAttrs(field) : "") + scaled,
           role === "result" ? " wk-fresult" : "",
+          combined,
         ) + objects
       );
     })
@@ -471,11 +570,36 @@ function positionOf(block: number, inline: number, cell?: CellAnchor): DocPositi
 /** Render the whole document body to an HTML string for the canvas. */
 export function renderDocumentHtml(doc: Docx): string {
   drawingContext = createDrawingContext(doc);
+  const sections = documentSections(doc);
+  const base = baseFontSize(doc);
+  const flowOfBlock: SectionFlow[] = [];
+  for (const s of sections) {
+    const flow = { pitch: gridPitch(s.grid, base), vertical: s.vertical };
+    for (let b = s.firstBlock; b <= s.lastBlock; b++) flowOfBlock[b] = flow;
+  }
+  sectionFlowOf = (block) => flowOfBlock[block] ?? HORIZONTAL;
   try {
     return renderBlocksHtml(doc, doc.document.body.blocks);
   } finally {
     drawingContext = undefined;
+    sectionFlowOf = () => HORIZONTAL;
   }
+}
+
+/** What a block takes from its section: the grid, and the text direction. */
+interface SectionFlow {
+  readonly pitch: GridPitch;
+  readonly vertical: boolean;
+}
+const HORIZONTAL: SectionFlow = { pitch: {}, vertical: false };
+// The section flow of a body block, for the render in progress. Stories
+// (headers, notes) are rendered on their own: no grid, horizontal.
+let sectionFlowOf: (block: number) => SectionFlow = () => HORIZONTAL;
+
+/** The Normal style's font size in points: the size a character grid is built on. */
+function baseFontSize(doc: Docx): number {
+  const size = createStyleResolver(doc).style("Normal").run.sizeHalfPoints;
+  return (size ?? DEFAULT_SIZE_HALF_POINTS) / 2;
 }
 
 /**

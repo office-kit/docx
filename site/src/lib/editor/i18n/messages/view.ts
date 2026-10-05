@@ -149,7 +149,7 @@ export default defineMessages({
     "outline.allLevels": "すべてのレベル",
     "outline.firstLineOnly": "1 行目のみ表示",
     "outline.showFormatting": "文字列の書式の表示",
-    "outline.close": "アウトライン表示を閉じる",
+    "outline.close": "アウトライン表示\u200bを閉じる",
   },
   es: {
     "group.views": "Vistas",

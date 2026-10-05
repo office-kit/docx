@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createEditor, openEditor, editorFor } from '@office-kit/docx-editor';
+  import { openEditor, editorFor } from '@office-kit/docx-editor';
+  import { newDocument } from '$lib/editor/new-document';
   import {
     createDocx,
     appendHeading,
@@ -22,7 +23,8 @@
   import { TABS } from '$lib/editor/ribbon/tabs';
   import { PANES } from '$lib/editor/panes/registry';
   import { EditorSession, setSession, type PaneSide } from '$lib/editor/session.svelte';
-  import { t } from '$lib/editor/i18n/index.svelte';
+  import { locale, setLocale, t } from '$lib/editor/i18n/index.svelte';
+  import { storedLocale } from '$lib/i18n';
   import '$lib/editor/ribbon.css';
   import '$lib/editor/review-view.css';
 
@@ -68,7 +70,10 @@
     };
     measure();
     window.addEventListener('resize', measure);
-    session.load(editorFor(sampleDoc()), 'Document1.docx');
+    // The editor opens in the language last chosen on the docs site.
+    const siteLocale = storedLocale();
+    if (siteLocale) setLocale(siteLocale);
+    session.load(editorFor(sampleDoc()), t('doc.newName'));
     // Dev-only handle so the editor can be driven/inspected from the console
     // (and by the e2e verification). Stripped from production builds.
     if (import.meta.env.DEV) Object.assign(window, { wkEditorModel: () => session.model, wkEditorSession: session });
@@ -160,11 +165,11 @@
   {#if Pane}<aside class="pane {side}"><Pane /></aside>{/if}
 {/snippet}
 
-<div class="wk-app" class:marks={session.showMarks} class:field-codes={session.showFieldCodes} {...session.displayAttrs} bind:this={appEl} style="--app-top: {appTop}px">
+<div class="wk-app" class:marks={session.showMarks} class:ja={locale() === 'ja'} class:field-codes={session.showFieldCodes} {...session.displayAttrs} bind:this={appEl} style="--app-top: {appTop}px">
   <!-- Title bar: Quick Access Toolbar, document name, search (Word for Mac). -->
   <header class="titlebar" onmousedown={keepSelection} role="toolbar" tabindex="-1">
     <div class="qat">
-      <button class="qb" onclick={() => session.load(createEditor(), 'Document1.docx')} title={t('action.new')} aria-label={t('action.new')}><RibbonIcon name="newDoc" size={18} /></button>
+      <button class="qb" onclick={() => session.load(editorFor(newDocument(locale())), t('doc.newName'))} title={t('action.new')} aria-label={t('action.new')}><RibbonIcon name="newDoc" size={18} /></button>
       <label class="qb" title={t('action.open')} aria-label={t('action.open')}><RibbonIcon name="open" size={18} /><input type="file" accept=".docx" onchange={openFile} hidden /></label>
       <button class="qb" onclick={download} title={t('action.save')} aria-label={t('action.save')}><RibbonIcon name="save" size={18} /></button>
       <button class="qb" onclick={() => session.undo()} disabled={session.tick < 0 || !session.model?.canUndo()} title={`${t('action.undo')} (⌘Z)`} aria-label={t('action.undo')}><RibbonIcon name="undo" size={18} /></button>
@@ -351,4 +356,6 @@
 
   /* Show/Hide ¶: a pilcrow at the end of every paragraph, as Word draws it. */
   .wk-app.marks :global(.wk-p)::after { content: '¶'; color: #7a7a7a; font-weight: normal; font-style: normal; }
+  /* Japanese Word's paragraph mark is a return arrow. */
+  .wk-app.marks.ja :global(.wk-p)::after { content: '↲'; }
 </style>

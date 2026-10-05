@@ -5,6 +5,7 @@ import {
   createDocx,
   ensureHeaderFooter,
   makePropsElement,
+  setSectionProperties,
   setElementAttr,
   setElementOnOff,
   setElementValProp,
@@ -32,6 +33,17 @@ describe("documentSections", () => {
       vAlign: "top",
       titlePage: false,
     });
+  });
+
+  it("divides the text height into columns for vertical text", () => {
+    const doc = createDocx();
+    setSectionProperties(doc, {
+      textDirection: "tbRl",
+      columns: { count: 2, spaceTwips: 720, separator: false },
+    });
+    const [only] = documentSections(doc);
+    // Letter, 1 in margins: 12960 twips of text height, less the gap, halved.
+    expect(only).toMatchObject({ vertical: true, columns: [{ width: 6120 }, { width: 6120 }] });
   });
 
   it("splits blocks into sections and reads their properties", () => {

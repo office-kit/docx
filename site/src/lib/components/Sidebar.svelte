@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { base } from '$app/paths';
-  import { page } from '$app/state';
   import { docSections } from '$lib/docs-nav';
+  import { href, locale, localized, routePath } from '$lib/i18n';
+  import docs from '$lib/i18n/messages/docs';
+
+  const current = $derived(routePath());
 </script>
 
-<nav class="sidebar-nav" aria-label="Documentation">
-  {#each docSections as section (section.title)}
+<nav class="sidebar-nav" aria-label={localized(docs).layout.documentation}>
+  {#each docSections(locale()) as section (section.title)}
     <section>
       <h2>{section.title}</h2>
       <ul>
         {#each section.links as link (link.href)}
-          {@const active = page.url.pathname.replace(/\/$/, '') === `${base}${link.href}`}
           <li>
-            <a href="{base}{link.href}" aria-current={active ? 'page' : undefined}>{link.title}</a>
+            <a href={href(link.href)} aria-current={link.href === current ? 'page' : undefined}
+              >{link.title}</a
+            >
           </li>
         {/each}
       </ul>

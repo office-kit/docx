@@ -27,6 +27,7 @@ import {
   paginate,
   type PaginatorSection,
   type ParagraphFlags,
+  layoutScaledText,
   layoutTabStops,
   renderBlocksHtml,
   renderDocumentHtml,
@@ -35,7 +36,7 @@ import {
   STORY_ATTR,
 } from "@office-kit/docx-editor";
 import { type Docx, storyBody, storyKey, type StoryRef } from "@office-kit/docx";
-import { breakOffsets, forcedBreaks, lineBottoms, outerHeight } from "./measure";
+import { blockSize, breakOffsets, forcedBreaks, lineBottoms, outerHeight } from "./measure";
 import { decoratePage, fillPageFields, numberLines } from "./decorations";
 import { twipsToPx } from "./units";
 
@@ -183,8 +184,8 @@ export class PageLayout {
     // One galley column per section at its first column's width, and one at
     // its text width for headers, footers and notes.
     const columnGalleys = this.sections.map((s) => {
-      const g = el("div", "wk-galley-col");
-      g.style.width = `${twipsToPx(s.columns[0]?.width ?? 0)}px`;
+      const g = el("div", s.vertical ? "wk-galley-col wk-vertical" : "wk-galley-col");
+      g.style.inlineSize = `${twipsToPx(s.columns[0]?.width ?? 0)}px`;
       this.galley.appendChild(g);
       return g;
     });
@@ -300,13 +301,14 @@ export class PageLayout {
 
     // Tabs widen to their stops before anything is measured: they move text
     // to the next line. One read pass after the writes above otherwise.
+    layoutScaledText(this.galley);
     layoutTabStops(this.galley);
     for (const story of this.headers.values()) story.height = outerHeight(story.el);
     for (const note of this.notes.values()) note.height = outerHeight(note.el);
     for (const item of this.items) {
       this.measureItem(item);
       if (item.table) {
-        item.tableExtra = item.content.offsetHeight - item.height;
+        item.tableExtra = blockSize(item.content) - item.height;
         item.height += item.tableExtra;
       }
       item.notes = item.notes.map((n) => ({
@@ -320,13 +322,13 @@ export class PageLayout {
   private measureItem(item: Item): void {
     item.lines = undefined;
     item.rowHeights = item.rows.map((row, i) => ({
-      height: row.offsetHeight,
+      height: blockSize(row),
       header: item.rowHeights[i]?.header ?? false,
     }));
     // A table may be split over several page boxes; its rows add up wherever they are.
     item.height = item.table
       ? item.rowHeights.reduce((n, r) => n + r.height, 0) + item.tableExtra
-      : item.content.offsetHeight;
+      : blockSize(item.content);
     const node =
       item.block === undefined || !this.doc ? undefined : this.doc.document.body.blocks[item.block];
     item.breaks = node?.kind === "paragraph" ? breakOffsets(item.content, forcedBreaks(node)) : [];
@@ -342,6 +344,7 @@ export class PageLayout {
     // A clipped (split) block is measured through its master element, whose
     // full height the clip does not change.
     const before = item.height;
+    layoutScaledText(item.content);
     layoutTabStops(item.content);
     this.measureItem(item);
     return Math.abs(item.height - before) > 0.5 || item.breaks.length > 0;
@@ -396,8 +399,8 @@ export class PageLayout {
     for (const item of this.items) {
       const body = item.table?.tBodies[0];
       if (body) body.replaceChildren(...item.rows);
-      item.content.style.marginBottom = "";
-      item.content.style.marginTop = "";
+      item.content.style.marginBlockEnd = "";
+      item.content.style.marginBlockStart = "";
     }
     const container = el("div", "wk-pages");
     this.sectionPages = sectionPageCounts(this.pages);
@@ -442,7 +445,7 @@ export class PageLayout {
       vAlign: section.vAlign,
       bodyHeight: (kind) => {
         const g = this.geometry(section.index, kind);
-        return g.height - g.bodyTop - g.bodyBottom;
+        return section.vertical ? g.textWidth : g.height - g.bodyTop - g.bodyBottom;
       },
     };
   }
@@ -456,11 +459,11 @@ export class PageLayout {
     }
     if (f.kind === "slice") {
       const window = el("div", "wk-slice");
-      window.style.height = `${f.to - f.from}px`;
+      window.style.blockSize = `${f.to - f.from}px`;
       const master = !firstUse.has(item);
       const inner = master ? item.content : this.cloneOf(item.content);
       firstUse.add(item);
-      inner.style.marginTop = `${-f.from}px`;
+      inner.style.marginBlockStart = `${-f.from}px`;
       window.appendChild(inner);
       return window;
     }
@@ -541,7 +544,8 @@ export class PageLayout {
       return zone;
     };
 
-    const body = el("div", "wk-body");
+    // Header and footer stay horizontal in a vertical section, as in Word.
+    const body = el("div", section.vertical ? "wk-body wk-vertical" : "wk-body");
     body.style.marginTop = `${g.bodyTop}px`;
     body.style.marginLeft = `${g.left}px`;
     body.style.width = `${g.textWidth}px`;
@@ -553,27 +557,27 @@ export class PageLayout {
     for (const region of page.regions) {
       const rs = this.sections[region.section] ?? section;
       const r = el("div", "wk-region");
-      r.style.marginTop = `${region.top + region.offset - y}px`;
+      r.style.marginBlockStart = `${region.top + region.offset - y}px`;
       const height = Math.max(0, ...region.columns.map((c) => c.height));
-      r.style.height = `${height}px`;
+      r.style.blockSize = `${height}px`;
       y = region.top + region.offset + height;
       region.columns.forEach((column, c) => {
         const spec = rs.columns[c];
         const col = el("div", "wk-col");
-        col.style.width = `${twipsToPx(spec?.width ?? 0)}px`;
+        col.style.inlineSize = `${twipsToPx(spec?.width ?? 0)}px`;
         for (const [i, f] of column.fragments.entries()) {
           const node = this.fragmentElement(f, firstUse);
           if (!node) continue;
           if (column.gap > 0 && i < column.fragments.length - 1)
-            node.style.marginBottom = `${column.gap}px`;
+            node.style.marginBlockEnd = `${column.gap}px`;
           col.appendChild(node);
         }
         r.appendChild(col);
         if (c < region.columns.length - 1) {
           const gap = el("div", rs.separator ? "wk-colgap sep" : "wk-colgap");
           gap.setAttribute("contenteditable", "false");
-          gap.style.width = `${twipsToPx(spec?.space ?? 0)}px`;
-          gap.style.height = `${height}px`;
+          gap.style.inlineSize = `${twipsToPx(spec?.space ?? 0)}px`;
+          gap.style.blockSize = `${height}px`;
           r.appendChild(gap);
         }
       });
@@ -583,7 +587,7 @@ export class PageLayout {
 
     if (page.notes.length) {
       const notes = el("div", "wk-notes");
-      notes.style.height = `${page.noteHeight}px`;
+      notes.style.blockSize = `${page.noteHeight}px`;
       const separator = el("div", "wk-note-sep");
       separator.setAttribute("contenteditable", "false");
       notes.appendChild(separator);
@@ -620,6 +624,7 @@ export class PageLayout {
     flow.append(...blockElements(renderDocumentHtml(doc), blocks.length));
     this.items = [];
     this.root.replaceChildren(flow);
+    layoutScaledText(flow);
     layoutTabStops(flow);
   }
 }

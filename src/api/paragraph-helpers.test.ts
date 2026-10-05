@@ -5,6 +5,7 @@ import {
   setParagraphAlignment,
   setParagraphIndent,
   setParagraphSpacing,
+  validatePackage,
 } from "./index.js";
 
 import { appendParagraph, createDocx, openDocx, toUint8Array } from "./docx.js";
@@ -48,6 +49,19 @@ describe("paragraph helpers", () => {
     expect(xml).toContain('w:before="240"');
     expect(xml).toContain('w:line="360"');
     expect(xml).toContain('w:lineRule="auto"');
+  });
+
+  it("writes East Asian character and line units, and validates", () => {
+    const doc = createDocx({ paragraphs: [] });
+    const para = appendParagraph(doc, "字下げ");
+    setParagraphIndent(para, { firstLine: 210, firstLineChars: 100, leftChars: 200 });
+    setParagraphSpacing(para, { beforeLines: 50, afterLines: 100 });
+    const xml = new TextDecoder().decode(
+      getPart(openDocx(toUint8Array(doc)).opc, "/word/document.xml")?.data ?? new Uint8Array(),
+    );
+    expect(xml).toContain('<w:ind w:leftChars="200" w:firstLine="210" w:firstLineChars="100"/>');
+    expect(xml).toContain('<w:spacing w:beforeLines="50" w:afterLines="100"/>');
+    expect(validatePackage(openDocx(toUint8Array(doc)).opc)).toEqual([]);
   });
 
   it("setting the same property twice replaces (not duplicates) it", () => {

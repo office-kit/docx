@@ -157,10 +157,37 @@ export const hyphenationCommand: Command<HyphenationOptions> = {
 };
 
 /** The paragraph's own `<w:ind>` / `<w:spacing>` attributes, so one box can change without the others. */
+const DIRECT_ATTRS = ["left", "right", "firstLine", "hanging", "before", "after", "line"] as const;
+// The East Asian unit that overrides each twips attribute when set
+// (§17.3.1.12, §17.3.1.33): a new twips value has to clear it to show.
+const EAST_ASIAN_UNIT = {
+  left: "leftChars",
+  right: "rightChars",
+  firstLine: "firstLineChars",
+  hanging: "hangingChars",
+  before: "beforeLines",
+  after: "afterLines",
+} as const;
+
+/** The paragraph's current attributes with `change` applied over them. */
+function withChange(
+  p: WmlParagraph,
+  local: "ind" | "spacing",
+  change: Readonly<Record<string, number | undefined>>,
+): Record<string, number> {
+  const out = directAttrs(p, local);
+  for (const [name, value] of Object.entries(change)) {
+    if (value === undefined) continue;
+    out[name] = value;
+    if (name in EAST_ASIAN_UNIT) delete out[EAST_ASIAN_UNIT[name as keyof typeof EAST_ASIAN_UNIT]];
+  }
+  return out;
+}
+
 function directAttrs(p: WmlParagraph, local: string): Record<string, number> {
   const el = p.pPr && childElementsOf(p.pPr).find((c) => c.name.local === local);
   const out: Record<string, number> = {};
-  for (const name of ["left", "right", "firstLine", "hanging", "before", "after", "line"]) {
+  for (const name of [...DIRECT_ATTRS, ...Object.values(EAST_ASIAN_UNIT)]) {
     const raw = el && getElementAttr(el, name);
     if (raw !== undefined && Number.isInteger(Number(raw))) out[name] = Number(raw);
   }
@@ -173,14 +200,23 @@ export const layoutIndentCommand: Command<{ left?: number; right?: number }> = {
   group: "layout",
   label: "Indent",
   run(model, change) {
-    for (const p of selectedParagraphs(model))
-      setParagraphIndent(p, { ...directAttrs(p, "ind"), ...change });
+    for (const p of selectedParagraphs(model)) setParagraphIndent(p, withChange(p, "ind", change));
   },
   isEnabled: (model) => selectedParagraphs(model).length > 0,
 };
 
-/** Layout ▸ Spacing Before / After boxes (twips). The line spacing rule is kept. */
-export const layoutSpacingCommand: Command<{ before?: number; after?: number }> = {
+/**
+ * Layout ▸ Spacing Before / After boxes, in twips or (the Japanese UI's 段落前
+ * / 段落後) in hundredths of a line. The line spacing rule is kept. A value
+ * in lines also writes its twips, at the section's grid pitch, for readers
+ * that know only those, as Word does.
+ */
+export const layoutSpacingCommand: Command<{
+  before?: number;
+  after?: number;
+  beforeLines?: number;
+  afterLines?: number;
+}> = {
   id: "layout.spacing",
   group: "layout",
   label: "Spacing",
@@ -189,15 +225,34 @@ export const layoutSpacingCommand: Command<{ before?: number; after?: number }> 
       const el = p.pPr && childElementsOf(p.pPr).find((c) => c.name.local === "spacing");
       const rule = el && getElementAttr(el, "lineRule");
       const lineRule = rule === "auto" || rule === "exact" || rule === "atLeast" ? rule : undefined;
+      const line = spacingLineTwips(model);
+      const twips = (lines: number | undefined) =>
+        lines === undefined ? undefined : Math.round((lines / HUNDREDTHS) * line);
       setParagraphSpacing(p, {
-        ...directAttrs(p, "spacing"),
+        ...withChange(p, "spacing", {
+          before: change.before ?? twips(change.beforeLines),
+          after: change.after ?? twips(change.afterLines),
+        }),
+        ...(change.beforeLines === undefined ? {} : { beforeLines: change.beforeLines }),
+        ...(change.afterLines === undefined ? {} : { afterLines: change.afterLines }),
         ...(lineRule ? { lineRule } : {}),
-        ...change,
       });
     }
   },
   isEnabled: (model) => selectedParagraphs(model).length > 0,
 };
+
+const HUNDREDTHS = 100;
+// A line without a line grid: Word's single line, 12 pt.
+const SINGLE_LINE_TWIPS = 240;
+
+/** Twips per line for `beforeLines` / `afterLines` in the caret's section. */
+export function spacingLineTwips(model: EditorModel): number {
+  const grid = currentSectionProperties(model).documentGrid;
+  return (grid?.type === "lines" || grid?.type === "linesAndChars") && grid.linePitch
+    ? grid.linePitch
+    : SINGLE_LINE_TWIPS;
+}
 
 /** Document-wide settings the Page Setup dialog edits. */
 export interface PageSetupSettings {
