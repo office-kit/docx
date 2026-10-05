@@ -76,7 +76,7 @@ export class EditorSession {
   version = $state(0);
   /** Bumped on any edit or selection change; reactive reads depend on it. */
   tick = $state(0);
-  fileName = $state("Document1.docx");
+  fileName = $state("");
   /** One-line message in the status bar (errors from rejected commands). */
   status = $state("");
   /** The open drop-down menu (one at a time, like Word's ribbon). */

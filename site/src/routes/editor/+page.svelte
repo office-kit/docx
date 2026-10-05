@@ -68,7 +68,7 @@
     };
     measure();
     window.addEventListener('resize', measure);
-    session.load(editorFor(sampleDoc()), 'Document1.docx');
+    session.load(editorFor(sampleDoc()), t('doc.newName'));
     // Dev-only handle so the editor can be driven/inspected from the console
     // (and by the e2e verification). Stripped from production builds.
     if (import.meta.env.DEV) Object.assign(window, { wkEditorModel: () => session.model, wkEditorSession: session });
@@ -164,7 +164,7 @@
   <!-- Title bar: Quick Access Toolbar, document name, search (Word for Mac). -->
   <header class="titlebar" onmousedown={keepSelection} role="toolbar" tabindex="-1">
     <div class="qat">
-      <button class="qb" onclick={() => session.load(createEditor(), 'Document1.docx')} title={t('action.new')} aria-label={t('action.new')}><RibbonIcon name="newDoc" size={18} /></button>
+      <button class="qb" onclick={() => session.load(createEditor(), t('doc.newName'))} title={t('action.new')} aria-label={t('action.new')}><RibbonIcon name="newDoc" size={18} /></button>
       <label class="qb" title={t('action.open')} aria-label={t('action.open')}><RibbonIcon name="open" size={18} /><input type="file" accept=".docx" onchange={openFile} hidden /></label>
       <button class="qb" onclick={download} title={t('action.save')} aria-label={t('action.save')}><RibbonIcon name="save" size={18} /></button>
       <button class="qb" onclick={() => session.undo()} disabled={session.tick < 0 || !session.model?.canUndo()} title={`${t('action.undo')} (⌘Z)`} aria-label={t('action.undo')}><RibbonIcon name="undo" size={18} /></button>

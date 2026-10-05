@@ -2,12 +2,15 @@
  * Measurement units for the Layout tab and its dialogs. Word shows lengths
  * in the user's measurement unit (inches in the US English UI, centimetres in
  * most others, millimetres in the Japanese one) and paragraph spacing in
- * points; the document stores twips (1/20 pt).
+ * points, or lines in the Japanese UI; the document stores twips (1/20 pt).
+ *
+ * `line` is the odd one out: its values are hundredths of a line
+ * (`w:beforeLines`), not twips, as a line's length depends on the grid.
  */
 
 import type { LocaleId } from "../i18n/locales.js";
 
-export type LengthUnit = "in" | "cm" | "mm" | "pt";
+export type LengthUnit = "in" | "cm" | "mm" | "pt" | "line";
 
 export const TWIPS_PER_INCH = 1440;
 export const TWIPS_PER_POINT = 20;
@@ -16,15 +19,23 @@ const TWIPS_PER_UNIT: Readonly<Record<LengthUnit, number>> = {
   cm: TWIPS_PER_INCH / 2.54,
   mm: TWIPS_PER_INCH / 25.4,
   pt: TWIPS_PER_POINT,
+  line: 100,
 };
-const DECIMALS: Readonly<Record<LengthUnit, number>> = { in: 2, cm: 2, mm: 1, pt: 1 };
-const SUFFIX: Readonly<Record<LengthUnit, string>> = { in: '"', cm: " cm", mm: " mm", pt: " pt" };
+const DECIMALS: Readonly<Record<LengthUnit, number>> = { in: 2, cm: 2, mm: 1, pt: 1, line: 2 };
+const SUFFIX: Readonly<Record<LengthUnit, string>> = {
+  in: '"',
+  cm: " cm",
+  mm: " mm",
+  pt: " pt",
+  line: " 行",
+};
 // Spellings Word accepts after a number, by unit.
 const UNIT_SPELLINGS: ReadonlyArray<readonly [RegExp, LengthUnit]> = [
   [/^("|in|inch|inches|″)$/i, "in"],
   [/^(cm|センチ)$/i, "cm"],
   [/^(mm|ミリ)$/i, "mm"],
   [/^(pt|point|points|ポイント)$/i, "pt"],
+  [/^(行|li|line|lines)$/i, "line"],
 ];
 
 /** Word's default length unit for a UI language. */
@@ -57,6 +68,8 @@ export function parseLength(text: string, defaultUnit: LengthUnit): number | und
   const suffix = match[2] ?? "";
   const unit = suffix === "" ? defaultUnit : UNIT_SPELLINGS.find(([re]) => re.test(suffix))?.[1];
   if (unit === undefined || !Number.isFinite(value)) return undefined;
+  // Lines and lengths do not convert into each other without the grid.
+  if ((unit === "line") !== (defaultUnit === "line")) return undefined;
   return Math.round(value * TWIPS_PER_UNIT[unit]);
 }
 
@@ -64,5 +77,7 @@ export function parseLength(text: string, defaultUnit: LengthUnit): number | und
 export function spinStep(unit: LengthUnit): number {
   if (unit === "in") return TWIPS_PER_INCH / 10;
   if (unit === "pt") return 6 * TWIPS_PER_POINT;
+  // Japanese Word's 段落前 / 段落後 arrows move by half a line.
+  if (unit === "line") return 50;
   return Math.round(TWIPS_PER_UNIT.cm / 10);
 }

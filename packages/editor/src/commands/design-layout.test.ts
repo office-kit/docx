@@ -10,6 +10,8 @@ import {
   openDocx,
   PAGE_SIZE_A4,
   paragraphs,
+  setParagraphIndent,
+  setSectionProperties,
   paragraphText,
   sectionCount,
   STYLE_SETS,
@@ -158,6 +160,20 @@ describe("layout commands", () => {
     );
     expect(attrs(ind)).toEqual({ left: "720", right: "360" });
     expect(attrs(spacing)).toEqual({ before: "240", after: "120" });
+  });
+
+  it("writes spacing in lines, and a twips value clears the East Asian unit", () => {
+    const model = editor(["a"]);
+    setSectionProperties(model.doc, { documentGrid: { type: "lines", linePitch: 360 } });
+    setParagraphIndent(paragraphs(model.doc)[0]!, { leftChars: 200 });
+    runCommand(model, c.layoutSpacingCommand, { beforeLines: 50 });
+    runCommand(model, c.layoutIndentCommand, { left: 720 });
+    const p = paragraphs(saved(model))[0];
+    const find = (local: string) =>
+      p?.pPr?.children.find((n) => n.kind === "element" && n.name.local === local);
+    // Half of an 18 pt grid line, also as twips, as Word writes it.
+    expect(attrs(find("spacing"))).toEqual({ before: "180", beforeLines: "50" });
+    expect(attrs(find("ind"))).toEqual({ left: "720" });
   });
 
   it("sets the section text direction", () => {
