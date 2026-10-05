@@ -9,7 +9,15 @@
  * The editor keeps selection here — decoupled from the DOM — so commands can
  * reason about "what is selected" without touching rendered nodes. The
  * DOM↔selection mapping lives in {@link ./dom-selection.ts}.
+ *
+ * A position may also name a {@link StoryRef} — a header, footer, footnote,
+ * endnote or comment. Its block index then counts that story's blocks;
+ * without one it addresses the main body, as it always has.
  */
+
+import { type StoryRef, storyKey } from "@office-kit/docx";
+
+export type { StoryRef };
 
 /** Coordinates of a table cell inside a table block. */
 export interface CellCoord {
@@ -19,6 +27,8 @@ export interface CellCoord {
 
 /** A single caret position in the document. */
 export interface DocPosition {
+  /** The story the position is in; absent for the main document body. */
+  readonly story?: StoryRef;
   /** Index into `body.blocks`. */
   readonly block: number;
   /** When the block is a table: which cell. */
@@ -45,7 +55,21 @@ export interface OrderedSelection {
   readonly collapsed: boolean;
 }
 
+/** Whether two positions are in the same story (both in the body counts). */
+export function sameStory(a: DocPosition, b: DocPosition): boolean {
+  return storyKeyOf(a) === storyKeyOf(b);
+}
+
+/** The position's story key, `""` for the main body. */
+export function storyKeyOf(pos: DocPosition): string {
+  return pos.story ? storyKey(pos.story) : "";
+}
+
 function comparePositions(a: DocPosition, b: DocPosition): number {
+  // Selections never span stories; ordering them keeps the order total.
+  const as = storyKeyOf(a);
+  const bs = storyKeyOf(b);
+  if (as !== bs) return as < bs ? -1 : 1;
   if (a.block !== b.block) return a.block - b.block;
   const ar = a.cell?.row ?? -1;
   const br = b.cell?.row ?? -1;

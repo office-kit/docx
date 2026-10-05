@@ -17,7 +17,7 @@ import {
   type WmlParagraph,
   type WmlRun,
 } from "@office-kit/docx";
-import { paragraphAt, paragraphsInRange } from "./doc-access.js";
+import { bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
 import type { EditorModel } from "./model.js";
 import {
   type CellCoord,
@@ -81,7 +81,7 @@ function rangeWindows(doc: Docx, { start, end }: OrderedSelection): ParaWindow[]
   // Multi-block selection over top-level paragraphs. Tables fall back to whole
   // cell paragraphs (a rare selection shape not worth per-char precision here).
   const out: ParaWindow[] = [];
-  const blocks = doc.document.body.blocks;
+  const blocks = bodyOf(doc, start).blocks;
   for (let b = start.block; b <= end.block && b < blocks.length; b++) {
     const node = blocks[b];
     if (node?.kind === "paragraph") {

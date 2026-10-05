@@ -9,8 +9,8 @@
  * do one thing").
  */
 
-import { clone, type Docx } from "@office-kit/docx";
-import type { Selection } from "./selection.js";
+import { clone, type Docx, storyView } from "@office-kit/docx";
+import type { DocPosition, Selection, StoryRef } from "./selection.js";
 
 export interface EditorSnapshot {
   readonly doc: Docx;
@@ -32,6 +32,10 @@ export class EditorModel {
   // must not fork the timeline). Held here rather than read back off the undo
   // stack because `historyLimit` may already have evicted it.
   private pending: { snapshot: EditorSnapshot; redo: EditorSnapshot[] } | null = null;
+  // While an edit is open in a header, footer or note, `doc` is a view of the
+  // document whose body is that story, so every command (and the library
+  // functions it calls) edits the story without knowing about stories.
+  private editStory: { readonly ref: StoryRef; readonly view: Docx } | null = null;
   private readonly listeners = new Set<ChangeListener>();
   private readonly historyLimit: number;
 
@@ -40,8 +44,22 @@ export class EditorModel {
     this.historyLimit = options.historyLimit ?? DEFAULT_HISTORY_LIMIT;
   }
 
+  /**
+   * The document — or, while an edit is open with the selection in another
+   * story, a view whose body is that story (see `storyView`).
+   */
   get doc(): Docx {
+    return this.editStory?.view ?? this.docState;
+  }
+
+  /** The document itself, never a story view: for saving and whole-document reads. */
+  get document(): Docx {
     return this.docState;
+  }
+
+  /** The story the selection is in, or `undefined` for the main body. */
+  get story(): StoryRef | undefined {
+    return this.selectionState?.focus.story;
   }
 
   get selection(): Selection | null {
@@ -49,7 +67,7 @@ export class EditorModel {
   }
 
   setSelection(selection: Selection | null): void {
-    this.selectionState = selection;
+    this.setSelectionQuietly(selection);
     this.emit();
   }
 
@@ -67,6 +85,9 @@ export class EditorModel {
     if (this.undoStack.length > this.historyLimit) this.undoStack.shift();
     this.pending = { snapshot, redo: this.redoStack };
     this.redoStack = [];
+    const story = this.selectionState?.focus.story;
+    const view = story && storyView(this.docState, story);
+    this.editStory = story && view ? { ref: story, view } : null;
   }
 
   /**
@@ -83,13 +104,15 @@ export class EditorModel {
     this.selectionState = pending.snapshot.selection;
     this.redoStack = pending.redo;
     this.pending = null;
+    this.editStory = null;
     this.emit();
   }
 
   /** Notify subscribers that the document (or selection) changed. */
   commit(nextSelection?: Selection | null): void {
     this.pending = null;
-    if (nextSelection !== undefined) this.selectionState = nextSelection;
+    if (nextSelection !== undefined) this.setSelectionQuietly(nextSelection);
+    this.editStory = null;
     this.docState.dirty = true;
     this.emit();
   }
@@ -104,6 +127,7 @@ export class EditorModel {
 
   undo(): void {
     this.pending = null;
+    this.editStory = null;
     const prev = this.undoStack.pop();
     if (!prev) return;
     this.redoStack.push({ doc: clone(this.docState), selection: this.selectionState });
@@ -114,6 +138,7 @@ export class EditorModel {
 
   redo(): void {
     this.pending = null;
+    this.editStory = null;
     const next = this.redoStack.pop();
     if (!next) return;
     this.undoStack.push({ doc: clone(this.docState), selection: this.selectionState });
@@ -129,7 +154,19 @@ export class EditorModel {
     this.undoStack.length = 0;
     this.redoStack = [];
     this.pending = null;
+    this.editStory = null;
     this.emit();
+  }
+
+  private setSelectionQuietly(selection: Selection | null): void {
+    // Commands build positions from block indices alone; inside a story edit
+    // those indices count the story's blocks, so they belong to it.
+    const story = this.editStory?.ref;
+    const own = (pos: DocPosition): DocPosition => (pos.story || !story ? pos : { ...pos, story });
+    this.selectionState = selection && {
+      anchor: own(selection.anchor),
+      focus: own(selection.focus),
+    };
   }
 
   subscribe(listener: ChangeListener): () => void {
