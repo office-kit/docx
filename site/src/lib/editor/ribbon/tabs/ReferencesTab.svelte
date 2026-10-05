@@ -150,7 +150,7 @@
   <Button size="large" icon="citations" tip={t('ref.citations')} on={session.pane.right === 'citations'} onclick={() => session.togglePane('right', 'citations')} />
   <div class="col">
     <label class="field" title={t('ref.style')}>
-      <select value={style} onchange={setStyle} aria-label={t('ref.style')}>
+      <select value={style} onchange={setStyle} aria-label={t('ref.style')} style="width: 120px">
         {#each STYLE_NAMES as name (name)}<option value={name}>{name}</option>{/each}
       </select>
     </label>
@@ -194,3 +194,10 @@
 </Group>
 
 <ReferencesDialogs />
+
+<style>
+  /* Keep icons whole when the ribbon is narrower than the tab. */
+  .col :global(svg) {
+    flex-shrink: 0;
+  }
+</style>

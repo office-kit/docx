@@ -163,6 +163,11 @@
 <MailingsDialogs />
 
 <style>
+  /* Keep icons whole when the ribbon is narrower than the tab. */
+  .col :global(svg),
+  .rows :global(svg) {
+    flex-shrink: 0;
+  }
   /* Highlight Merge Fields: Word shades merge fields grey. The canvas tags each field result with its type. */
   :global(.wk-highlight-merge :is([data-wk-field="MERGEFIELD"], [data-wk-field="ADDRESSBLOCK"], [data-wk-field="GREETINGLINE"])) {
     background: #d9d9d9;
