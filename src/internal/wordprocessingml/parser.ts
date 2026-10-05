@@ -55,7 +55,7 @@ function parseBody(body: XmlElement): WmlBody {
       continue;
     }
     if (isWmlElement(child, "tbl")) {
-      blocks.push(parseTable(child));
+      blocks.push(parseTableElement(child));
       continue;
     }
     if (isWmlElement(child, "sectPr") && i === lastChildIdx) {
@@ -214,7 +214,8 @@ function parseRunPiece(el: XmlElement): WmlRunPiece | undefined {
   }
 }
 
-function parseTable(tbl: XmlElement): WmlTable {
+/** Parse a `<w:tbl>` element (also used for tables nested in cells). */
+export function parseTableElement(tbl: XmlElement): WmlTable {
   let tblPr: XmlElement | undefined;
   let tblGrid: XmlElement | undefined;
   const rows: WmlTableRow[] = [];
