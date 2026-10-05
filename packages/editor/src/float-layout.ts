@@ -164,7 +164,7 @@ export function readFloat(el: HTMLElement): FloatData | undefined {
 export function layoutFloatingObjects(canvas: HTMLElement, page: PageBox): void {
   // Idempotent: undo the previous pass before measuring (text may have reflowed).
   for (const spacer of Array.from(canvas.querySelectorAll(".wk-float-spacer"))) spacer.remove();
-  const floats = Array.from(canvas.querySelectorAll<HTMLElement>(".wk-obj-float"));
+  const floats = Array.from(canvas.querySelectorAll<HTMLElement>(".wk-obj-float:not([hidden])"));
   for (const el of floats) for (const prop of LAYOUT_PROPS) el.style.removeProperty(prop);
   for (const el of floats) {
     const data = readFloat(el);

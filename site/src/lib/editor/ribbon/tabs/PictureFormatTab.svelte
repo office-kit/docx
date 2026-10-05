@@ -6,6 +6,7 @@
    */
   import { commands, CROP_SHAPES, presetPath } from '@office-kit/docx-editor';
   import type { PictureShadow } from '@office-kit/docx';
+  import RibbonIcon from '../../RibbonIcon.svelte';
   import ArrangeGroup from '../ArrangeGroup.svelte';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
@@ -45,9 +46,11 @@
   const picture = $derived(info?.picture);
   const adj = $derived(picture?.adjustments ?? {});
   // Picture Styles shows this many tiles in the ribbon; the rest open from the chevron.
-  const INLINE_STYLES = 6;
+  const INLINE_STYLES = 4;
   const PREVIEW_W = 64;
   const PREVIEW_H = 48;
+  const SMALL_W = 44;
+  const SMALL_H = 34;
 
   type EffectSection = 'shadow' | 'reflection' | 'glow' | 'softEdges' | 'bevel' | 'rotation3d';
   const EFFECT_SECTIONS: ReadonlyArray<readonly [EffectSection, MessageKey]> = [
@@ -123,7 +126,8 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.correctionsOptions')}</button>
     {/snippet}
   </SplitButton>
-  <SplitButton id="pic.color" size="large" icon="pictureColor" tip={t('pic.color')} disabled={!picture}>
+  <div class="col">
+  <SplitButton id="pic.color" size="mid" icon="pictureColor" tip={t('pic.color')} disabled={!picture}>
     {#snippet menu()}
       <div class="menu-head">{t('pic.saturation')}</div>
       <div class="pic-row">
@@ -146,8 +150,8 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.colorOptions')}</button>
     {/snippet}
   </SplitButton>
-  <Button size="large" icon="artisticEffects" tip={t('pic.artisticEffects')} onclick={() => {}} disabled />
-  <SplitButton id="pic.transparency" size="large" icon="transparency" tip={t('pic.transparency')} disabled={!picture}>
+  <Button size="mid" icon="artisticEffects" tip={t('pic.artisticEffects')} onclick={() => {}} disabled />
+  <SplitButton id="pic.transparency" size="mid" icon="transparency" tip={t('pic.transparency')} disabled={!picture}>
     {#snippet menu()}
       <div class="pic-row">
         {#each TRANSPARENCIES as tr (tr)}
@@ -160,14 +164,15 @@
       <button class="mi" role="menuitem" onclick={() => openPane('formatPicture')}>{t('pic.transparencyOptions')}</button>
     {/snippet}
   </SplitButton>
+  </div>
   <div class="col">
-    <Button size="mid" icon="compress" tip={t('pic.compress')} onclick={() => session.openDialog('picture.compress')} disabled={!picture} />
-    <SplitButton id="pic.change" size="mid" icon="changePicture" tip={t('pic.change')} disabled={!picture}>
+    <Button icon="compress" tip={t('pic.compress')} onclick={() => session.openDialog('picture.compress')} disabled={!picture} />
+    <SplitButton id="pic.change" icon="changePicture" tip={t('pic.change')} disabled={!picture}>
       {#snippet menu()}
         <button class="mi" role="menuitem" onclick={() => { session.openMenu = null; changeInput?.click(); }}>{t('pic.fromFile')}</button>
       {/snippet}
     </SplitButton>
-    <SplitButton id="pic.reset" size="mid" icon="resetPicture" tip={t('pic.reset')} disabled={!picture} onclick={() => applyToSelected(session, commands.resetPictureCommand, { size: false })}>
+    <SplitButton id="pic.reset" icon="resetPicture" tip={t('pic.reset')} disabled={!picture} onclick={() => applyToSelected(session, commands.resetPictureCommand, { size: false })}>
       {#snippet menu()}
         <button class="mi" role="menuitem" onclick={() => applyToSelected(session, commands.resetPictureCommand, { size: false })}>{t('pic.reset')}</button>
         <button class="mi" role="menuitem" onclick={() => applyToSelected(session, commands.resetPictureCommand, { size: true })}>{t('pic.resetSize')}</button>
@@ -181,9 +186,9 @@
   <div class="gallery-group">
     <div class="gallery pic-styles">
       {#each PICTURE_STYLES.slice(0, INLINE_STYLES) as s (s.id)}
-        <button class="pic-tile" title={s.name} aria-label={s.name} disabled={!picture}
+        <button class="pic-tile small" title={s.name} aria-label={s.name} disabled={!picture}
           onclick={() => applyToSelected(session, commands.pictureStyleCommand, { outline: s.outline, effects: s.effects, geometry: s.geometry })}
-          >{@html preview({ outline: s.outline, effects: s.effects, geometry: s.geometry })}</button>
+          >{@html picture ? picturePreview(picture, { outline: s.outline, effects: s.effects, geometry: s.geometry }, SMALL_W, SMALL_H) : ''}</button>
       {/each}
     </div>
     <SplitButton id="pic.stylesMore" tip={t('pic.styles')} disabled={!picture}>
@@ -332,23 +337,20 @@
     {/snippet}
   </SplitButton>
   <div class="rows pic-size">
-    <label class="field" title={t('pic.height')}>
-      <span class="pic-dim">{t('pic.height')}</span>
-      <input type="number" min="0.01" step="0.1" value={info ? cm(info.heightEmu) : ''} disabled={!info} onchange={(e) => setSize('height', e.currentTarget.valueAsNumber)} /> cm
+    <label class="field" title="{t('pic.height')} (cm)">
+      <RibbonIcon name="picHeight" size={16} />
+      <input type="number" min="0.01" step="0.1" value={info ? cm(info.heightEmu) : ''} disabled={!info} onchange={(e) => setSize('height', e.currentTarget.valueAsNumber)} />
     </label>
-    <label class="field" title={t('pic.width')}>
-      <span class="pic-dim">{t('pic.width')}</span>
-      <input type="number" min="0.01" step="0.1" value={info ? cm(info.widthEmu) : ''} disabled={!info} onchange={(e) => setSize('width', e.currentTarget.valueAsNumber)} /> cm
+    <label class="field" title="{t('pic.width')} (cm)">
+      <RibbonIcon name="picWidth" size={16} />
+      <input type="number" min="0.01" step="0.1" value={info ? cm(info.widthEmu) : ''} disabled={!info} onchange={(e) => setSize('width', e.currentTarget.valueAsNumber)} />
     </label>
     <div class="row">
       <Button icon="lockAspect" tip={t('pic.lockAspect')} on={info?.lockAspect ?? false} disabled={!info} onclick={() => applyToSelected(session, commands.drawingAspectLockCommand, { locked: !info?.lockAspect })} />
-      <Button icon="formatPane" tip={t('pic.sizeDialog')} disabled={!info} onclick={() => session.openDialog('picture.size')} />
+      <Button icon="arrPosition" tip={t('pic.sizeDialog')} disabled={!info} onclick={() => session.openDialog('picture.size')} />
+      <Button icon="formatPane" tip={t('pic.formatPane')} on={session.pane.right === 'formatPicture'} disabled={!info} onclick={() => session.togglePane('right', 'formatPicture')} />
     </div>
   </div>
-</Group>
-
-<Group label={t('pic.formatPane')}>
-  <Button size="large" icon="formatPane" tip={t('pic.formatPane')} on={session.pane.right === 'formatPicture'} disabled={!info} onclick={() => session.togglePane('right', 'formatPicture')} />
 </Group>
 
 <CompressDialog />
@@ -365,6 +367,10 @@
     border-radius: 3px;
     background: #fff;
     cursor: pointer;
+  }
+  .pic-tile.small {
+    width: 52px;
+    height: 44px;
   }
   .pic-tile.tall {
     height: 96px;
@@ -419,11 +425,6 @@
     background: #fff;
   }
   .pic-size input {
-    width: 56px;
-  }
-  .pic-dim {
-    width: 3.5em;
-    color: var(--muted);
-    font-size: 11px;
+    width: 48px;
   }
 </style>

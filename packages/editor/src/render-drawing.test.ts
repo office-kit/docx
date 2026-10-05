@@ -116,7 +116,7 @@ describe("picture rendering", () => {
     expect(html).toContain(
       "&quot;relativeTo&quot;:&quot;page&quot;,&quot;align&quot;:&quot;center&quot;",
     );
-    expect(html).toContain("display:none");
+    expect(html).toMatch(/data-wk-object="picture"[^>]* hidden /);
     expect(html).toMatch(/z-index:-\d+/);
     expect(html).toContain(`data-wk-href="https://example.com/"`);
   });

@@ -438,7 +438,8 @@ function renderOne(ctx: DrawingRenderContext, node: XmlElement, at: DocPosition)
     const spec = info.chartPartName ? chartFor(ctx, node, info.chartPartName) : undefined;
     inner = spec ? chartSvg(spec, w, h) : "";
   }
-  const css: string[] = [`width:${w}px`, `height:${h}px`];
+  // inline-block so the box (what selection measures) is the object's size, not the line's.
+  const css: string[] = ["display:inline-block", `width:${w}px`, `height:${h}px`];
   let floatAttr = "";
   if (info.anchor) {
     const a = info.anchor;
@@ -456,15 +457,16 @@ function renderOne(ctx: DrawingRenderContext, node: XmlElement, at: DocPosition)
     const rank = ctx.zRank.get(node) ?? 0;
     css.push(`z-index:${info.wrap === "behindText" ? BEHIND_Z_BASE + rank : FRONT_Z_BASE + rank}`);
   }
-  if (info.hidden) css.push("display:none");
   const title = info.hyperlink
     ? ` title="${escapeAttr(info.hyperlink)}" data-wk-href="${escapeAttr(info.hyperlink)}"`
     : "";
   const label = info.description || info.name;
+  // `hidden` rather than `display:none`: the float layout pass rewrites `display`.
+  const hidden = info.hidden ? " hidden" : "";
   return (
     `<span class="wk-obj ${info.anchor ? "wk-obj-float" : "wk-obj-inline"}" contenteditable="false" data-wk-object="${info.kind}"` +
     ` data-wk-drawing="${index}" data-wk-at="${escapeAttr(JSON.stringify(at))}"${floatAttr}${title}` +
-    ` role="img" aria-label="${escapeAttr(label)}" style="${css.join(";")}">${inner}</span>`
+    ` role="img" aria-label="${escapeAttr(label)}"${hidden} style="${css.join(";")}">${inner}</span>`
   );
 }
 
