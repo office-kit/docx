@@ -21,6 +21,8 @@ import {
   type XmlElement,
 } from "@office-kit/docx";
 import { highlightCss } from "./highlight.js";
+import { fieldRunRoles, renderFieldStructureRun, renderSymbolRun } from "./render-fields.js";
+import { isMathElement, renderMath } from "./render-math.js";
 import {
   type BorderSpec,
   cellBorders,
@@ -195,6 +197,7 @@ function renderRun(
   block: number,
   inline: number,
   cell?: CellAnchor,
+  extraClass = "",
 ): string {
   const text = runText(run);
   const attrs = [
@@ -207,7 +210,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>`;
+  return `<span class="wk-run${extraClass}" ${attrs}>${escapeHtml(text) || "​"}</span>`;
 }
 
 /**
@@ -251,12 +254,25 @@ function renderParagraph(
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
+  // Fields, symbols and equations (Insert tab): see render-fields / render-math.
+  const fieldRoles = fieldRunRoles(para);
+  let mathIndex = 0;
+  const mathAnchor = (): string =>
+    `data-wk-math-block="${block}" data-wk-math="${mathIndex++}"${cell ? ` data-wk-math-cell="${cell.coord}" data-wk-math-para="${cell.para}"` : ""}`;
   let inner = para.children
-    .map((child) =>
-      child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
-        : renderRawInline(child),
-    )
+    .map((child) => {
+      if (child.kind !== "run") {
+        return isMathElement(child.node) ? renderMath(child.node, mathAnchor()) : renderRawInline(child);
+      }
+      const role = fieldRoles.get(child);
+      const css = runCss(styles.run(para, child));
+      const special = renderFieldStructureRun(child, role) ?? renderSymbolRun(child, css);
+      if (special !== undefined) {
+        runIndex++;
+        return special;
+      }
+      return renderRun(child, css, block, runIndex++, cell, role === "result" ? " wk-fresult" : "");
+    })
     .join("");
   if (runIndex === 0) inner = `​${inner}`;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
