@@ -63,7 +63,8 @@ export {
   createStyleResolver,
   pageGeometry,
 } from "./resolve.js";
-export { positionFromDom, readDomSelection, STORY_ATTR } from "./dom-selection.js";
+export { positionFromDom, readDomSelection, runPoint, STORY_ATTR } from "./dom-selection.js";
+export { layoutTabStops } from "./tab-layout.js";
 export {
   adjacentCellPosition,
   cellStart,

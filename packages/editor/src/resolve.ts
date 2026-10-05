@@ -23,6 +23,7 @@
 import {
   childElementsOf,
   type Docx,
+  getDocumentSetting,
   getElementAttr,
   getParagraphStyle,
   getRunProp,
@@ -54,6 +55,19 @@ export interface ResolvedShading {
   readonly fill: string;
   /** Pattern colour, hex RGB or `auto`. */
   readonly color: string;
+}
+
+// Word's implicit stops when settings carry no defaultTabStop: every half inch.
+const DEFAULT_TAB_STOP_TWIPS = 720;
+
+/** A custom tab stop (`w:tab`, §17.3.1.37) as the canvas lays it out. */
+export interface ResolvedTabStop {
+  /** Twips from the text column's leading edge. */
+  readonly position: number;
+  /** `start` / `end` are folded into `left` / `right`; `num` lays out as `left`. */
+  readonly align: "left" | "center" | "right" | "decimal";
+  /** ST_TabTlc; `none` draws nothing. */
+  readonly leader: string;
 }
 
 /** On-off run properties beyond bold / italic / strike, by their element name. */
@@ -189,6 +203,13 @@ export interface ResolvedParagraphFormat {
   readonly borders: Readonly<Partial<Record<ParagraphBorderSide, ResolvedBorder>>>;
   /** The list the paragraph belongs to, directly or through its style. */
   readonly numbering?: { readonly numId: number; readonly ilvl: number } | undefined;
+  /** Custom tab stops, by position; bar tabs are not stops and are left out. */
+  readonly tabs: readonly ResolvedTabStop[];
+  /**
+   * A drop cap frame (`w:framePr w:dropCap`, §17.3.1.11): the paragraph holds
+   * the letter, and the next paragraph wraps around it.
+   */
+  readonly dropCap?: { readonly kind: "drop" | "margin"; readonly hSpace: number } | undefined;
 }
 
 /** Paragraph / run properties a table style gives the text of a cell, weakest first. */
@@ -198,6 +219,8 @@ export interface CellTextFormat {
 }
 
 export interface StyleResolver {
+  /** settings `w:defaultTabStop` in twips: the interval of the implicit stops (§17.15.1.25). */
+  readonly defaultTabStop: number;
   /** A paragraph's formatting; `cell` adds a table style's formatting for text in a cell. */
   paragraph(para: WmlParagraph, cell?: CellTextFormat): ResolvedParagraphFormat;
   /** A run's formatting; without a run, the paragraph mark's (for empty paragraphs). */
@@ -559,6 +582,17 @@ function applyPPr(
         }
         break;
       }
+      case "tabs":
+        out.tabs = mergeTabs(out.tabs, childElementsOf(el));
+        break;
+      case "framePr": {
+        const kind = getElementAttr(el, "dropCap");
+        out.dropCap =
+          kind === "drop" || kind === "margin"
+            ? { kind, hSpace: intAttr(el, "hSpace") ?? 0 }
+            : undefined;
+        break;
+      }
       case "spacing": {
         const before = intAttr(el, "before");
         const after = intAttr(el, "after");
@@ -592,7 +626,45 @@ function emptyRun(): Mutable<ResolvedRunFormat> {
 }
 
 function emptyParagraph(): Mutable<ResolvedParagraphFormat> {
-  return { toggles: { ...PARAGRAPH_TOGGLE_DEFAULTS }, borders: {} };
+  return { toggles: { ...PARAGRAPH_TOGGLE_DEFAULTS }, borders: {}, tabs: [] };
+}
+
+const TAB_ALIGN: Readonly<Record<string, ResolvedTabStop["align"]>> = {
+  left: "left",
+  start: "left",
+  num: "left",
+  center: "center",
+  right: "right",
+  end: "right",
+  decimal: "decimal",
+};
+
+/**
+ * Tab stops accumulate down the style hierarchy: a level adds its stops, and
+ * a `clear` stop removes the inherited one at that position (§17.3.1.37).
+ */
+function mergeTabs(
+  inherited: readonly ResolvedTabStop[],
+  tabs: readonly XmlElement[],
+): ResolvedTabStop[] {
+  const byPosition = new Map(inherited.map((t) => [t.position, t]));
+  for (const tab of tabs) {
+    const position = intAttr(tab, "pos");
+    const val = getElementAttr(tab, "val");
+    if (position === undefined || val === undefined) continue;
+    const align = TAB_ALIGN[val];
+    if (align) {
+      byPosition.set(position, {
+        position,
+        align,
+        leader: getElementAttr(tab, "leader") ?? "none",
+      });
+    } else if (val === "clear") {
+      // A `bar` tab, the other value, draws a rule but stops nothing.
+      byPosition.delete(position);
+    }
+  }
+  return [...byPosition.values()].toSorted((a, b) => a.position - b.position);
 }
 
 /**
@@ -685,6 +757,7 @@ export function createStyleResolver(doc: Docx): StyleResolver {
   return {
     palette: ctx.palette,
     themeFonts: ctx.theme,
+    defaultTabStop: Number(getDocumentSetting(doc, "defaultTabStop").val) || DEFAULT_TAB_STOP_TWIPS,
     paragraph(para, cell) {
       return paragraphOf(getParagraphStyle(para), para.pPr, cell);
     },

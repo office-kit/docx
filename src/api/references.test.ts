@@ -7,6 +7,7 @@ import {
   ensureHeadingStyles,
   openDocx,
   paragraphs,
+  setPageSize,
   type Docx,
   toUint8Array,
 } from "./docx.js";
@@ -41,6 +42,7 @@ import {
   updateTables,
   type BibliographySource,
 } from "./references.js";
+import { PAGE_SIZE_A4 } from "../internal/wordprocessingml/index.js";
 import { validatePackage } from "./validator.js";
 
 function partXml(doc: Docx, name: string): string {
@@ -114,6 +116,20 @@ describe("table of contents", () => {
     expect(xml).toContain('w:leader="dot"');
     const styles = partXml(reopened, "/word/styles.xml");
     expect(styles).toContain('w:styleId="TOC2"');
+  });
+
+  it("ends the leader at the right margin, with Word's 1 in default margins", () => {
+    const doc = headingDoc();
+    // A4 width without w:pgMar: Word lays the section out with 1 in margins.
+    setPageSize(doc, PAGE_SIZE_A4);
+    const sectPr = doc.document.body.sectPr;
+    if (sectPr) {
+      sectPr.children = sectPr.children.filter(
+        (c) => !(c.kind === "element" && c.name.local === "pgMar"),
+      );
+    }
+    insertTableOfContents(doc, 0, {});
+    expect(bodyXml(doc)).toContain(`w:pos="${11906 - 2 * 1440}"`);
   });
 
   it("uses the page-number provider when given", () => {

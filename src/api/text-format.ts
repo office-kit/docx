@@ -407,7 +407,7 @@ const MAX_TAB_TWIPS = 31680;
 
 /** A custom tab stop (`<w:tab>` in `<w:tabs>`, §17.3.1.37). */
 export interface TabStop {
-  /** Twips from the paragraph's leading indent. */
+  /** Twips from the page margin (the text column's leading edge), not from the indent. */
   readonly position: number;
   readonly alignment: TabAlignment;
   readonly leader?: TabLeader;

@@ -27,6 +27,7 @@ import {
   paginate,
   type PaginatorSection,
   type ParagraphFlags,
+  layoutTabStops,
   renderBlocksHtml,
   renderDocumentHtml,
   type SectionModel,
@@ -108,7 +109,11 @@ function el(tag: string, cls: string): HTMLElement {
   return e;
 }
 
-/** Group the renderer's top-level elements by their `data-wk-block` index. */
+/**
+ * Group the renderer's top-level elements by their `data-wk-block` index. A
+ * drop cap goes with the next block: it floats into that paragraph's lines,
+ * and each block is its own formatting context.
+ */
 function blockElements(html: string, count: number): HTMLElement[] {
   const tpl = document.createElement("template");
   tpl.innerHTML = html;
@@ -119,6 +124,10 @@ function blockElements(html: string, count: number): HTMLElement[] {
     if (node instanceof HTMLElement) {
       const index = Number.parseInt(node.getAttribute("data-wk-block") ?? "", 10);
       if (Number.isInteger(index) && index >= 0 && index < count) current = index;
+      if (node.hasAttribute("data-wk-dropcap") && current + 1 < count) {
+        out[current + 1]?.appendChild(node);
+        continue;
+      }
     }
     out[current]?.appendChild(node);
   }
@@ -289,7 +298,9 @@ export class PageLayout {
       }
     }
 
-    // One read pass after all the writes above.
+    // Tabs widen to their stops before anything is measured: they move text
+    // to the next line. One read pass after the writes above otherwise.
+    layoutTabStops(this.galley);
     for (const story of this.headers.values()) story.height = outerHeight(story.el);
     for (const note of this.notes.values()) note.height = outerHeight(note.el);
     for (const item of this.items) {
@@ -331,6 +342,7 @@ export class PageLayout {
     // A clipped (split) block is measured through its master element, whose
     // full height the clip does not change.
     const before = item.height;
+    layoutTabStops(item.content);
     this.measureItem(item);
     return Math.abs(item.height - before) > 0.5 || item.breaks.length > 0;
   }
@@ -608,5 +620,6 @@ export class PageLayout {
     flow.append(...blockElements(renderDocumentHtml(doc), blocks.length));
     this.items = [];
     this.root.replaceChildren(flow);
+    layoutTabStops(flow);
   }
 }

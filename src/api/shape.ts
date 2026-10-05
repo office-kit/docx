@@ -33,6 +33,7 @@ import {
 } from "../internal/wordprocessingml/index.js";
 import type { XmlElement, XmlNode } from "../internal/xml/index.js";
 import { VML_NS } from "../internal/vml/namespaces.js";
+import { TEXT_PATH_SHAPETYPE_REF, textPathShapetype } from "../internal/vml/shapetypes.js";
 import { FILL_PATTERNS, type FillPattern, patternBitmap } from "../internal/vml/pattern.js";
 import {
   COORD_SIZE,
@@ -578,6 +579,7 @@ export function addWordArt(
   index: number = paragraph.children.length,
 ): XmlElement {
   const el = element("v:shape", {
+    type: TEXT_PATH_SHAPETYPE_REF,
     coordsize: `${COORD_SIZE},${COORD_SIZE}`,
     "o:spt": WORDART_SPT,
     path: WORDART_PATH,
@@ -592,7 +594,11 @@ export function addWordArt(
     bold: options.bold ?? false,
     italic: options.italic ?? false,
   });
-  insertRun(doc, paragraph, el, index);
+  const run = insertRun(doc, paragraph, el, index);
+  // Word shows a text path only through its shape type definition; it is
+  // repeated in each WordArt's pict, as Word itself does for pasted shapes.
+  const pict = run.pieces[0];
+  if (pict?.kind === "pict") (pict.node.children as XmlNode[]).unshift(textPathShapetype());
   return el;
 }
 

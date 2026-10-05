@@ -559,6 +559,7 @@ export const apiGroups: ApiGroup[] = [
         name: "contentControlBlocks",
         sig: "(block: WmlBlock) => readonly WmlBlock[] | undefined",
       },
+      { name: "wrappedRuns", sig: "(inline: WmlInline) => readonly WmlRun[] | undefined" },
       { name: "storyView", sig: "(doc, ref: StoryRef) => Docx | undefined" },
       { name: "storyKey", sig: "(ref: StoryRef) => string" },
       { name: "parseStoryKey", sig: "(key: string) => StoryRef | undefined" },

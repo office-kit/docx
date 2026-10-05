@@ -34,6 +34,35 @@ function runSpanLength(span: Element): number {
   return (span.textContent ?? "").replace(/\u200b/g, "").length;
 }
 
+function textBefore(span: Element, node: Node, offset: number): number {
+  const range = span.ownerDocument.createRange();
+  range.setStart(span, 0);
+  range.setEnd(node, offset);
+  return range.toString().replace(/\u200b/g, "").length;
+}
+
+/**
+ * The DOM point `offset` characters into a run span. The span holds text
+ * nodes and tab elements; a point next to a tab is placed in the text beside
+ * it, or between the span's children, never inside the (read-only) tab.
+ */
+export function runPoint(span: Element, offset: number): { node: Node; offset: number } {
+  let remaining = offset;
+  const nodes = span.childNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!node) continue;
+    const length = (node.textContent ?? "").replace(/\u200b/g, "").length;
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (remaining <= length) return { node, offset: remaining };
+    } else if (remaining === 0) {
+      return { node: span, offset: i };
+    }
+    remaining -= length;
+  }
+  return { node: span, offset: nodes.length };
+}
+
 /**
  * Resolve a DOM point that is *not* inside a run span — on the paragraph
  * element itself, or inside a read-only inline (hyperlink / field text) — to
@@ -78,9 +107,10 @@ export function positionFromDom(node: Node | null, offset: number): DocPosition 
   const para = paraAttr ? Number.parseInt(paraAttr, 10) : undefined;
   const inlineAttr = anchor.getAttribute("data-wk-inline");
   let inline = inlineAttr ? Number.parseInt(inlineAttr, 10) : undefined;
-  if (inline !== undefined && node === anchor) {
-    // The point is on the run span element, not its text: offset counts nodes.
-    offset = offset > 0 ? runSpanLength(anchor) : 0;
+  if (inline !== undefined) {
+    // A run's text spans several nodes once it holds a tab; count characters
+    // from the run's start (a point on an element counts child nodes).
+    offset = textBefore(anchor, node, offset);
   } else if (inline === undefined && anchor.classList.contains("wk-p")) {
     ({ inline, offset } = inlineAndOffsetInParagraph(anchor, node, offset));
   }

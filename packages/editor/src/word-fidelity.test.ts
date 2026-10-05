@@ -22,14 +22,18 @@ import {
   getRunProp,
   openDocx,
   paragraphs,
+  setDocumentSettingVal,
   setPageMargins,
   setPageSize,
   setParagraphAlignment,
   setParagraphIndent,
   setParagraphSpacing,
+  setParagraphStyle,
+  setParagraphTabs,
   setRunFormat,
   setRunValProp,
   setTableBorders,
+  stylesPart,
   toUint8Array,
   type WmlParagraph,
   type WmlRun,
@@ -88,6 +92,25 @@ function rPrNames(r: WmlRun): string[] {
 
 function pPrNames(p: WmlParagraph): string[] {
   return (p.pPr?.children ?? []).flatMap((c) => (c.kind === "element" ? [c.name.local] : []));
+}
+
+function w(
+  local: string,
+  attrs: Record<string, string> = {},
+  children: XmlElement[] = [],
+): XmlElement {
+  return {
+    kind: "element",
+    name: { uri: WML_NS, local, prefix: "w" },
+    attrs: Object.entries(attrs).map(([k, value]) => ({
+      name: { uri: WML_NS, local: k, prefix: "w" },
+      value,
+      isNamespaceDecl: false,
+    })),
+    children,
+    xmlSpace: "default",
+    selfClosing: children.length === 0,
+  };
 }
 
 describe("createStyleResolver", () => {
@@ -182,22 +205,6 @@ describe("createStyleResolver", () => {
       ?.abstractNums.flatMap((a) => childElementsOf(a))
       .find((c) => c.name.local === "lvl" && getElementAttr(c, "ilvl") === "0");
     if (!lvl) throw new Error("no level 0");
-    const w = (
-      local: string,
-      attrs: Record<string, string> = {},
-      children: XmlElement[] = [],
-    ): XmlElement => ({
-      kind: "element",
-      name: { uri: WML_NS, local, prefix: "w" },
-      attrs: Object.entries(attrs).map(([k, value]) => ({
-        name: { uri: WML_NS, local: k, prefix: "w" },
-        value,
-        isNamespaceDecl: false,
-      })),
-      children,
-      xmlSpace: "default",
-      selfClosing: children.length === 0,
-    });
     lvl.children.push(w("rPr", {}, [w("b"), w("color", { val: "C00000" })]));
     const html = renderDocumentHtml(doc);
     const label = /<span class="wk-list-label"[^>]*style="([^"]*)"/.exec(html)?.[1] ?? "";
@@ -221,6 +228,38 @@ describe("createStyleResolver", () => {
     expect(spans[0]).not.toContain("font-size:20pt");
     expect(spans[1]).toContain("font-weight:bold");
     expect(spans[1]).toContain("font-size:20pt");
+  });
+
+  it("accumulates tab stops down the style chain, and clears them (§17.3.1.37)", () => {
+    const doc = createDocx({ paragraphs: ["a\tb"] });
+    addStyle(doc, { type: "paragraph", styleId: "Tabbed", name: "Tabbed" });
+    const style = stylesPart(doc)?.styles.find((s) => getElementAttr(s, "styleId") === "Tabbed");
+    style?.children.push(
+      w("pPr", {}, [
+        w("tabs", {}, [
+          w("tab", { val: "right", leader: "dot", pos: "9000" }),
+          w("tab", { val: "center", pos: "4500" }),
+          w("tab", { val: "end", pos: "2000" }),
+        ]),
+      ]),
+    );
+    setParagraphStyle(para(doc, 0), "Tabbed");
+    setParagraphTabs(para(doc, 0), [
+      { position: 4500, alignment: "clear" },
+      { position: 1440, alignment: "bar" },
+    ]);
+    setDocumentSettingVal(doc, "defaultTabStop", "567");
+    const styles = createStyleResolver(doc);
+    expect(styles.defaultTabStop).toBe(567);
+    expect(styles.paragraph(para(doc, 0)).tabs).toEqual([
+      { position: 2000, align: "right", leader: "none" },
+      { position: 9000, align: "right", leader: "dot" },
+    ]);
+    // Each tab gets its own element, laid out against the paragraph's stops.
+    const html = renderDocumentHtml(doc);
+    expect(html).toContain('a<span class="wk-tab" contenteditable="false">\t</span>b');
+    expect(html).toContain("data-wk-tabs=");
+    expect(html).toContain("&quot;interval&quot;:567");
   });
 
   it("falls back to the default paragraph style for an unknown pStyle", () => {

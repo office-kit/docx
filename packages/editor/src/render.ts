@@ -18,6 +18,7 @@ import {
   type WmlInline,
   type WmlParagraph,
   type WmlRun,
+  wrappedRuns,
   type XmlElement,
 } from "@office-kit/docx";
 import { highlightCss } from "./highlight.js";
@@ -46,6 +47,8 @@ import {
   renderResolver,
   runEffectsCss,
   specialRunHtml,
+  tabStopsAttr,
+  textHtml,
   underlineStyleCss,
 } from "./render-format.js";
 import {
@@ -208,7 +211,26 @@ export function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunForm
     );
   }
   css.push(...paragraphBoxCss(fmt));
+  if (fmt.dropCap) css.push(...dropCapCss(fmt.dropCap));
   return css.join(";");
+}
+
+/**
+ * A drop cap floats at the start of the next paragraph's first lines; in the
+ * margin it takes no room from them and sits `hSpace` left of the text.
+ */
+function dropCapCss(dropCap: NonNullable<ResolvedParagraphFormat["dropCap"]>): string[] {
+  const space = dropCap.hSpace / TWIPS_PER_POINT;
+  return dropCap.kind === "drop"
+    ? ["float:left", `margin-right:${space}pt`]
+    : [
+        "float:left",
+        "width:0",
+        "display:flex",
+        "justify-content:flex-end",
+        "position:relative",
+        `left:${-space}pt`,
+      ];
 }
 
 /** Concatenate a run's textual pieces (text/tab/break become visible chars). */
@@ -267,12 +289,12 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}${deco.classes}" ${attrs}${deco.attrs}>${specialRunHtml(run) ?? (escapeHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}${deco.classes}" ${attrs}${deco.attrs}>${specialRunHtml(run) ?? (textHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
 }
 
 /**
  * Visible text of an unmodelled inline (`<w:hyperlink>`, a field run built in
- * memory, `<w:ins>`, `<w:sdt>`…): its `<w:t>` descendants. `<w:instrText>`
+ * memory, `<w:ins>`, `<w:sdt>`…): its `<w:t>` and `<w:tab>` descendants. `<w:instrText>`
  * (field codes) and `<w:delText>` (deleted revisions) are not visible text.
  */
 function rawVisibleText(el: XmlElement): string {
@@ -284,6 +306,8 @@ function rawVisibleText(el: XmlElement): string {
   if (el.name.uri === WML_NS && (el.name.local === "instrText" || el.name.local === "delText")) {
     return "";
   }
+  // Only reached inside runs: a paragraph's tab stops (`w:tabs/w:tab`) sit in pPr.
+  if (el.name.uri === WML_NS && el.name.local === "tab") return "\t";
   let out = "";
   for (const child of el.children) if (child.kind === "element") out += rawVisibleText(child);
   return out;
@@ -294,14 +318,25 @@ function rawVisibleText(el: XmlElement): string {
  * is not a `.wk-run`, so typing never writes into it and the canvas text sync
  * leaves it alone; the library round-trips the XML untouched.
  */
-function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
-  const text = rawVisibleText(inline.node);
+function renderRawInline(
+  inline: Extract<WmlInline, { kind: "raw" }>,
+  runStyle: (run: WmlRun) => string,
+): string {
+  // A hyperlink looks like its runs (Word's Hyperlink style, or none in a
+  // table of contents), so wrapped runs keep their own formatting.
+  const runs = wrappedRuns(inline);
+  const text = runs ? runs.map(runText).join("") : rawVisibleText(inline.node);
   const kind = inline.node.name.local === "hyperlink" ? "wk-link" : "wk-inline-raw";
   const instr = simpleFieldInstruction(inline.node);
   const field =
     instr === undefined ? "" : ` ${fieldAttrs({ type: fieldType(instr), instruction: instr })}`;
-  const span = `<span class="${kind}" contenteditable="false"${field}>${escapeHtml(text)}</span>`;
+  const span = `<span class="${kind}" contenteditable="false"${field}>${runs ? runs.map((run) => wrappedRunHtml(run, runStyle)).join("") : textHtml(text)}</span>`;
   return `${text ? span : ""}${noteMarksHtml(inline)}`;
+}
+
+function wrappedRunHtml(run: WmlRun, runStyle: (run: WmlRun) => string): string {
+  const text = runText(run);
+  return text ? `<span style="${escapeHtml(runStyle(run))}">${textHtml(text)}</span>` : "";
 }
 
 function renderParagraph(
@@ -313,16 +348,13 @@ function renderParagraph(
   cell?: CellAnchor,
   text?: CellTextFormat,
 ): string {
+  const paragraphFmt = styles.paragraph(para, text);
   const labelText = styles.listLabel(para);
   const label =
     labelText === undefined
       ? ""
-      : listLabelHtml(
-          labelText,
-          styles.paragraph(para, text),
-          runCss(styles.listLabelRun(para, text)),
-        );
-  const styleAttr = ` style="${escapeHtml(paragraphCss(styles.paragraph(para, text), styles.run(para, undefined, text)))}"`;
+      : listLabelHtml(labelText, paragraphFmt, runCss(styles.listLabelRun(para, text)));
+  const styleAttr = ` style="${escapeHtml(paragraphCss(paragraphFmt, styles.run(para, undefined, text)))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
@@ -339,7 +371,10 @@ function renderParagraph(
         review.inline(child.node);
         return isMathElement(child.node)
           ? renderMath(child.node, mathAnchor())
-          : renderRawInline(child);
+          : renderRawInline(child, (run) => {
+              const fmt = styles.run(para, run, text);
+              return runCss(fmt, isComplexScriptRun(fmt, runText(run)));
+            });
       }
       const role = fieldRoles.get(child);
       const fmt = styles.run(para, child, text);
@@ -376,8 +411,13 @@ function renderParagraph(
   // Floating objects go first so their static position is the paragraph's top.
   inner = label + paragraphFloatsHtml(para, doc, (i) => positionOf(block, i, cell)) + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
+  const tabsAttr = inner.includes('class="wk-tab"')
+    ? tabStopsAttr(paragraphFmt, styles.defaultTabStop)
+    : "";
+  // The canvas puts a drop cap with the paragraph it drops into (it floats there).
+  const dropCapAttr = paragraphFmt.dropCap ? " data-wk-dropcap" : "";
   const deco = review.paragraph(para);
-  return `<p class="wk-p${deco.classes}" data-wk-block="${block}"${cellAttr}${styleAttr}${deco.attrs}>${inner}</p>`;
+  return `<p class="wk-p${deco.classes}" data-wk-block="${block}"${cellAttr}${styleAttr}${tabsAttr}${dropCapAttr}${deco.attrs}>${inner}</p>`;
 }
 
 function renderBlock(

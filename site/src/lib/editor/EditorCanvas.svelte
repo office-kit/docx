@@ -8,6 +8,7 @@
   } from '@office-kit/docx-editor';
   import ShapeOverlay from './shapes/ShapeOverlay.svelte';
   import {
+    paragraphAt,
     positionFromDom,
     readDomSelection,
     runAtPath,
@@ -19,7 +20,7 @@
     sameStory,
     isTrackingRevisions,
   } from '@office-kit/docx-editor';
-  import { parseStoryKey, type WmlParagraph } from '@office-kit/docx';
+  import { getParagraphNumbering, parseStoryKey, type WmlParagraph } from '@office-kit/docx';
   import { getSession } from './session.svelte';
   import { t } from './i18n/index.svelte';
   import { PageLayout } from './canvas/page-layout';
@@ -383,6 +384,22 @@
     }
 
     // Enter splits the paragraph at the caret (Shift+Enter = soft line break).
+    // Tab types a tab character; at the start of a list item it moves the
+    // item down a level (Shift+Tab up), as in Word.
+    if (e.key === 'Tab' && !mod && !e.altKey) {
+      e.preventDefault();
+      // selectionchange may not have run since the last keystroke.
+      onSelChange();
+      const focus = model.selection?.focus;
+      const para = focus && paragraphAt(model.doc, focus);
+      if (para && getParagraphNumbering(para) && caretAtParagraphStart()) {
+        exec(commands.indentStepCommand, { direction: e.shiftKey ? 'decrease' : 'increase' });
+      } else if (!e.shiftKey) {
+        exec(commands.insertTextCommand, { text: '\t' });
+      }
+      return;
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       if (e.shiftKey) exec(commands.insertLineBreakCommand, { kind: 'line' });
@@ -820,9 +837,37 @@
     white-space: pre-wrap;
   }
 
-  .wk-canvas :global(.wk-link) {
-    color: #1a56c4;
-    text-decoration: underline;
+  /* layoutTabStops sizes each tab to its stop; the leader is text, so it
+     takes the run's font like Word's does, clipped to the tab's width. */
+  .wk-canvas :global(.wk-tab) {
+    display: inline-block;
+    clip-path: inset(0);
+    text-indent: 0;
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader])::before {
+    white-space: pre;
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader='dot'])::before {
+    content: '................................................................................................................................................................................................................................................................................................................................................................................................................';
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader='hyphen'])::before {
+    content: '----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------';
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader='underscore'])::before,
+  .wk-canvas :global(.wk-tab[data-leader='heavy'])::before {
+    content: '________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________';
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader='heavy'])::before {
+    font-weight: 700;
+  }
+
+  .wk-canvas :global(.wk-tab[data-leader='middleDot'])::before {
+    content: '················································································································································································································································································································································································································';
   }
 
   .wk-canvas :global(.wk-inline-raw) {

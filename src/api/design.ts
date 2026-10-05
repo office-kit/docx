@@ -6,6 +6,7 @@
  * Page borders are a section property; see `setSectionProperties`.
  */
 
+import { TEXT_PATH_SHAPETYPE_XML } from "../internal/vml/shapetypes.js";
 import {
   addPart,
   addRelationship,
@@ -937,15 +938,6 @@ const DEFAULT_TEXT_WIDTH_TWIPS = 9360;
 
 // The VML shape types Word writes with its watermarks: `#_x0000_t136`
 // (text path, ECMA-376 Part 4 §19.1.2.20) and `#_x0000_t75` (picture frame).
-const TEXT_SHAPETYPE =
-  '<v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e">' +
-  '<v:formulas><v:f eqn="sum #0 0 10800"/><v:f eqn="prod #0 2 1"/><v:f eqn="sum 21600 0 @1"/><v:f eqn="sum 0 0 @2"/>' +
-  '<v:f eqn="sum 21600 0 @3"/><v:f eqn="if @0 @3 0"/><v:f eqn="if @0 21600 @1"/><v:f eqn="if @0 0 @2"/>' +
-  '<v:f eqn="if @0 @4 21600"/><v:f eqn="mid @5 @6"/><v:f eqn="mid @8 @5"/><v:f eqn="mid @7 @8"/>' +
-  '<v:f eqn="mid @6 @7"/><v:f eqn="sum @6 0 @5"/></v:formulas>' +
-  '<v:path textpathok="t" o:connecttype="custom" o:connectlocs="@9,0;@10,10800;@11,21600;@12,10800" o:connectangles="270,180,90,0"/>' +
-  '<v:textpath on="t" fitshape="t"/><v:handles><v:h position="#0,bottomRight" xrange="6629,14971"/></v:handles>' +
-  '<o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype>';
 
 const PICTURE_SHAPETYPE =
   '<v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f">' +
@@ -1139,7 +1131,7 @@ export function setWatermark(doc: Docx, watermark: Watermark | undefined): void 
       ensureNamespace(root, "r", REL_NS);
       const block =
         watermark.kind === "text"
-          ? watermarkBlock(TEXT_SHAPETYPE, textWatermarkShape(watermark, i, textWidth), i)
+          ? watermarkBlock(TEXT_PATH_SHAPETYPE_XML, textWatermarkShape(watermark, i, textWidth), i)
           : watermarkBlock(
               PICTURE_SHAPETYPE,
               pictureWatermarkShape(watermark, i, addImagePart(doc, name, watermark)),

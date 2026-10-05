@@ -7,6 +7,7 @@ import {
   appendSectionBreak,
   createDocx,
   getRawPartRoot,
+  insertHyperlink,
   markRawPartDirty,
   openDocx,
   paragraphText,
@@ -27,6 +28,7 @@ import {
   storyBody,
   storyKey,
   storyView,
+  wrappedRuns,
 } from "./story.js";
 
 function partXml(bytes: Uint8Array, partName: string): string {
@@ -231,5 +233,22 @@ describe("contentControlBlocks", () => {
     expect(watermark?.kind === "paragraph" && watermark.children[0]?.kind === "run").toBe(true);
     // Other blocks are not content controls.
     expect(after && contentControlBlocks(after)).toBeUndefined();
+  });
+});
+
+describe("wrappedRuns", () => {
+  it("reads the runs inside a hyperlink, with their formatting", () => {
+    const doc = createDocx();
+    const para = appendParagraph(doc, "See ");
+    insertHyperlink(doc, para, 4, "the site", { url: "https://example.com/" });
+    const link = para.children.find((c) => c.kind === "raw");
+    const runs = link ? wrappedRuns(link) : undefined;
+    expect(runs?.map((r) => r.pieces)).toEqual([
+      [{ kind: "text", value: "the site", preserveSpace: false }],
+    ]);
+    expect(runs?.[0]?.rPr).toBeDefined();
+    // A plain run is not a wrapper.
+    const run = para.children[0];
+    expect(run && wrappedRuns(run)).toBeUndefined();
   });
 });

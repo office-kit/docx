@@ -163,6 +163,37 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Escape run text, giving each tab its own element: a tab is as wide as the
+ * gap to its tab stop, which only the canvas can measure (see tab-layout).
+ * The element is not editable, so the caret steps over a tab as one
+ * character and typing never lands inside it.
+ */
+export function textHtml(text: string): string {
+  return text
+    .split("\t")
+    .map(escapeHtml)
+    .join('<span class="wk-tab" contenteditable="false">\t</span>');
+}
+
+/** The tab stops a paragraph's tabs lay out against, read back by `layoutTabStops`. */
+export interface TabStopSpec {
+  /** Twips between implicit stops. */
+  readonly interval: number;
+  readonly stops: ResolvedParagraphFormat["tabs"];
+  /** A hanging indent is a stop too: the first tab of the line jumps to it. */
+  readonly hangingIndent?: number | undefined;
+}
+
+export function tabStopsAttr(fmt: ResolvedParagraphFormat, interval: number): string {
+  const spec: TabStopSpec = {
+    interval,
+    stops: fmt.tabs,
+    ...(fmt.hanging ? { hangingIndent: fmt.left ?? 0 } : {}),
+  };
+  return ` data-wk-tabs="${escapeHtml(JSON.stringify(spec))}"`;
+}
+
 /** Inner HTML for runs the plain text path cannot show (a phonetic guide), else `undefined`. */
 export function specialRunHtml(run: WmlRun): string | undefined {
   if (!run.pieces.some((p) => p.kind === "raw")) return undefined;

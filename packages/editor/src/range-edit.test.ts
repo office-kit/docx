@@ -117,7 +117,10 @@ describe("rendering unmodelled inlines", () => {
     addHyperlink(doc, "https://example.com", "Example <site>");
     appendField(doc, paragraphs(doc)[0]!, "PAGE", "7");
     const html = renderDocumentHtml(doc);
-    expect(html).toContain('class="wk-link" contenteditable="false">Example &lt;site&gt;</span>');
+    // Wrapped runs keep their own formatting (the Hyperlink style here).
+    expect(html).toMatch(
+      /class="wk-link" contenteditable="false"><span style="[^"]*">Example &lt;site&gt;<\/span><\/span>/,
+    );
     expect(html).toContain('class="wk-inline-raw" contenteditable="false">7</span>');
     expect(html).not.toContain("PAGE"); // field code (instrText) is not visible text
     // Raw inlines never get a run anchor, so typing cannot write into them.

@@ -31,12 +31,15 @@ import {
   type HeaderFooterType,
   makePropsElement,
   parseBody,
+  parseParagraph,
   WML_CONTENT_TYPES,
   WML_NS,
   WML_RELATIONSHIPS,
   type WmlBlock,
   type WmlBody,
   type WmlDocument,
+  type WmlInline,
+  type WmlRun,
   writeBodyChildren,
 } from "../internal/wordprocessingml/index.js";
 import { serializeXml, type XmlElement, type XmlNode } from "../internal/xml/index.js";
@@ -440,4 +443,43 @@ export function contentControlBlocks(block: WmlBlock): readonly WmlBlock[] | und
   );
   // sdtContent at block level holds the same children as w:body (§17.5.2.38).
   return content?.kind === "element" ? parseBody(content).blocks : [];
+}
+
+// Inline wrappers whose runs are the visible text: hyperlink (§17.16.22),
+// simple field (§17.16.19), smart tag (§17.5.1.9), custom XML (§17.5.1.3) and
+// the bidirectional overrides (§17.3.2.8, §17.3.2.3).
+const RUN_WRAPPERS: ReadonlySet<string> = new Set([
+  "hyperlink",
+  "fldSimple",
+  "smartTag",
+  "customXml",
+  "dir",
+  "bdo",
+]);
+
+/**
+ * The runs inside an inline wrapper — a hyperlink, a simple field, an inline
+ * content control (`<w:sdt>`), a smart tag, custom XML or a bidi override —
+ * in reading order, nested wrappers included; `undefined` when `inline` is
+ * not one. Like {@link contentControlBlocks}, a read-only view parsed on each
+ * call.
+ */
+export function wrappedRuns(inline: WmlInline): readonly WmlRun[] | undefined {
+  if (inline.kind !== "raw") return undefined;
+  const { node } = inline;
+  if (node.name.uri !== WML_NS) return undefined;
+  const container =
+    node.name.local === "sdt"
+      ? node.children.find(
+          (c): c is XmlElement =>
+            c.kind === "element" && c.name.uri === WML_NS && c.name.local === "sdtContent",
+        )
+      : RUN_WRAPPERS.has(node.name.local)
+        ? node
+        : undefined;
+  if (!container) return node.name.local === "sdt" ? [] : undefined;
+  // parseParagraph reads any element's children as paragraph content.
+  return parseParagraph(container).children.flatMap((child) =>
+    child.kind === "run" ? [child] : (wrappedRuns(child) ?? []),
+  );
 }

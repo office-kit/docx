@@ -5,9 +5,7 @@
  * the position is actually visible (on the preferred page for headers).
  */
 
-import { type DocPosition, STORY_ATTR, storyKeyOf } from "@office-kit/docx-editor";
-
-const ZWSP = /​/g;
+import { type DocPosition, runPoint, STORY_ATTR, storyKeyOf } from "@office-kit/docx-editor";
 
 /** Attribute selector for the paragraph a position lives in. */
 export function paragraphSelector(pos: DocPosition): string {
@@ -54,14 +52,9 @@ export interface DomPoint {
 }
 
 function pointIn(host: HTMLElement, pos: DocPosition): DomPoint {
-  const text = host.firstChild;
-  if (text && text.nodeType === Node.TEXT_NODE) {
-    const raw = text.textContent ?? "";
-    // The renderer puts a zero-width space in empty runs; clamp to real content.
-    const len = raw.replace(ZWSP, "").length || raw.length;
-    return { node: text, offset: Math.min(pos.offset ?? 0, len) };
-  }
-  return { node: host, offset: 0 };
+  return host.classList.contains("wk-run")
+    ? runPoint(host, pos.offset ?? 0)
+    : { node: host, offset: 0 };
 }
 
 function visible(point: DomPoint, host: HTMLElement): boolean {

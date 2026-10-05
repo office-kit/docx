@@ -28,7 +28,7 @@ import { blockAt, cellAt, paragraphAt } from "../doc-access.js";
 import type { EditorModel } from "../model.js";
 import { caretAt, type DocPosition, orderSelection } from "../selection.js";
 import { WML_NS } from "../wml-ns.js";
-import { runAtPath, setSimpleRunText } from "../text-edit.js";
+import { isPlainTextRun, plainRunText, runAtPath, setSimpleRunText } from "../text-edit.js";
 import {
   isTrackingRevisions,
   recordSplit,
@@ -128,17 +128,17 @@ function insertIntoRun(model: EditorModel, pos: DocPosition, text: string): DocP
   }
   if (!run) throw new Error("The caret run no longer exists.");
   if (text === "") return pos;
-  if (run.pieces.every((p) => p.kind === "text")) {
-    const current = run.pieces.map((p) => (p.kind === "text" ? p.value : "")).join("");
+  if (isPlainTextRun(run)) {
+    const current = plainRunText(run);
     const offset = Math.min(pos.offset ?? 0, current.length);
     setSimpleRunText(run, current.slice(0, offset) + text + current.slice(offset));
     return { ...pos, offset: offset + text.length };
   }
-  // A run holding a tab / break / field cannot take text in its middle. At its
+  // A run holding a break / field cannot take text in its middle. At its
   // edges, add a sibling run with the same formatting instead.
   const at = Math.min(pos.offset ?? 0, runTextLength(run));
   if (at !== 0 && at !== runTextLength(run)) {
-    throw new Error("Cannot insert text inside a run containing tabs, breaks, or fields.");
+    throw new Error("Cannot insert text inside a run containing breaks or fields.");
   }
   const sibling: WmlRun = {
     kind: "run",

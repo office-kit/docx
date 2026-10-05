@@ -321,6 +321,9 @@ describe("WordArt", () => {
     const { doc: back, xml } = roundTrip(doc);
     expect(xml).toContain("<v:textpath");
     expect(xml).toContain('string="Title"');
+    // Word draws nothing for a text path without its shape type definition.
+    expect(xml).toMatch(/<v:shapetype id="_x0000_t136"[^>]*o:spt="136"/);
+    expect(xml).toContain('type="#_x0000_t136"');
     const shape = only(back);
     expect(shapeKind(shape)).toBe("wordArt");
     expect(getWordArt(shape)).toEqual({

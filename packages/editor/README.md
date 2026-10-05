@@ -597,6 +597,11 @@ Run in Chrome and in Safari, with a Japanese IME:
   not the document).
 - Block-level content controls (`w:sdt`: cover pages, watermarks, Word's
   gallery tables of contents) are shown read-only on the canvas.
+- Tabs in a right-to-left paragraph are measured from the left edge; Word
+  measures them from the right.
+- A drop cap wraps the lines of the paragraph it starts. When that paragraph
+  is shorter than the drop cap, Word also wraps the next paragraph around the
+  letter; the canvas starts that paragraph below the letter.
 - Word for Mac draws 100 % zoom at 72 dpi; the canvas uses CSS points (96 dpi,
   like Word for Windows), so a page looks larger than in Word for Mac at the
   same zoom.

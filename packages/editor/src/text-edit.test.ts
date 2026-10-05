@@ -37,14 +37,25 @@ describe("setSimpleRunText", () => {
     expect(run.pieces[0]).toMatchObject({ kind: "text", preserveSpace: true });
   });
 
-  it("refuses to overwrite runs carrying non-text pieces", () => {
+  it("writes tabs as w:tab pieces and refuses runs carrying other pieces", () => {
     const run: WmlRun = {
       kind: "run",
       pieces: [{ kind: "tab" }, { kind: "text", value: "a", preserveSpace: false }],
       extras: [],
     };
-    expect(setSimpleRunText(run, "b")).toBe(false);
+    expect(setSimpleRunText(run, "b\tc")).toBe(true);
+    expect(run.pieces).toEqual([
+      { kind: "text", value: "b", preserveSpace: false },
+      { kind: "tab" },
+      { kind: "text", value: "c", preserveSpace: false },
+    ]);
+    const withBreak: WmlRun = {
+      kind: "run",
+      pieces: [{ kind: "break" }, { kind: "text", value: "a", preserveSpace: false }],
+      extras: [],
+    };
+    expect(setSimpleRunText(withBreak, "b")).toBe(false);
     // Original pieces untouched.
-    expect(run.pieces.length).toBe(2);
+    expect(withBreak.pieces.length).toBe(2);
   });
 });

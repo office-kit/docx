@@ -4,7 +4,7 @@
  * the span's text and writes it to the matching run here.
  */
 
-import type { Docx, WmlRun } from "@office-kit/docx";
+import type { Docx, WmlRun, WmlRunPiece } from "@office-kit/docx";
 import { paragraphAt } from "./doc-access.js";
 import type { DocPosition } from "./selection.js";
 
@@ -16,15 +16,31 @@ export function runAtPath(doc: Docx, pos: DocPosition): WmlRun | undefined {
   return runs[pos.inline ?? 0];
 }
 
+/** Whether a run holds only text and tabs, which the canvas edits as plain text (`\t` for a tab). */
+export function isPlainTextRun(run: WmlRun): boolean {
+  return run.pieces.every((p) => p.kind === "text" || p.kind === "tab");
+}
+
+/** A plain-text run's text, tabs as `\t`. */
+export function plainRunText(run: WmlRun): string {
+  return run.pieces
+    .map((p) => (p.kind === "text" ? p.value : p.kind === "tab" ? "\t" : ""))
+    .join("");
+}
+
 /**
- * Replace a run's text when it is a simple text-only run. Returns false (and
- * changes nothing) for runs carrying tabs, breaks, drawings, fields, etc. — the
- * canvas leaves those to command-level edits so nothing is silently dropped.
+ * Replace a run's text when it holds only text and tabs; each `\t` becomes a
+ * `<w:tab/>`. Returns false (and changes nothing) for runs carrying breaks,
+ * drawings, fields, etc. — the canvas leaves those to command-level edits so
+ * nothing is silently dropped.
  */
 export function setSimpleRunText(run: WmlRun, text: string): boolean {
-  const nonText = run.pieces.some((p) => p.kind !== "text");
-  if (nonText && run.pieces.length > 0) return false;
-  const preserveSpace = /^\s|\s$|\s\s/.test(text);
-  run.pieces = [{ kind: "text", value: text, preserveSpace }];
+  if (!isPlainTextRun(run)) return false;
+  const pieces: WmlRunPiece[] = [];
+  text.split("\t").forEach((value, i) => {
+    if (i > 0) pieces.push({ kind: "tab" });
+    if (value) pieces.push({ kind: "text", value, preserveSpace: /^\s|\s$|\s\s/.test(value) });
+  });
+  run.pieces = pieces;
   return true;
 }

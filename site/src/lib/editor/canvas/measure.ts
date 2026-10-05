@@ -5,6 +5,7 @@
  */
 
 import type { WmlParagraph } from "@office-kit/docx";
+import { runPoint } from "@office-kit/docx-editor";
 
 /** Rect units per layout px (the effective zoom) for an element. */
 export function zoomOf(el: HTMLElement): number {
@@ -113,13 +114,13 @@ export function breakOffsets(
   const origin = content.getBoundingClientRect().top - marginTop(content) * zoom;
   const out: Array<{ offset: number; kind: "page" | "column" }> = [];
   for (const br of breaks) {
-    const text = content.querySelector(`.wk-run[data-wk-inline="${br.inline}"]`)?.firstChild;
-    if (!text || text.nodeType !== Node.TEXT_NODE) continue;
+    const span = content.querySelector(`.wk-run[data-wk-inline="${br.inline}"]`);
+    if (!span) continue;
+    const { node, offset } = runPoint(span, br.char);
+    if (node.nodeType !== Node.TEXT_NODE || offset >= (node.textContent ?? "").length) continue;
     const range = document.createRange();
-    const at = Math.min(br.char, (text.textContent ?? "").length - 1);
-    if (at < 0) continue;
-    range.setStart(text, at);
-    range.setEnd(text, at + 1);
+    range.setStart(node, offset);
+    range.setEnd(node, offset + 1);
     const rect = range.getBoundingClientRect();
     out.push({ offset: (rect.bottom - origin) / zoom, kind: br.kind });
   }

@@ -109,13 +109,16 @@ export function ensureBodySectPr(doc: Docx): XmlElement {
   return doc.document.body.sectPr;
 }
 
+const DEFAULT_SIDE_MARGIN_TWIPS = 1440;
+
 /** The body text width of the last section (page width minus side margins), in twips. */
 export function textWidthTwips(doc: Docx): number {
   const sectPr = doc.document.body.sectPr;
   const width = Number(wAttr(childElement(sectPr, "pgSz"), "w"));
   const mar = childElement(sectPr, "pgMar");
-  const left = Number(wAttr(mar, "left") ?? 0);
-  const right = Number(wAttr(mar, "right") ?? 0);
+  // Word lays out a section without margins with 1 in on each side.
+  const left = Number(wAttr(mar, "left") ?? DEFAULT_SIDE_MARGIN_TWIPS);
+  const right = Number(wAttr(mar, "right") ?? DEFAULT_SIDE_MARGIN_TWIPS);
   if (!Number.isFinite(width) || width <= 0) return DEFAULT_TEXT_WIDTH_TWIPS;
   return Math.max(width - left - right, 0) || DEFAULT_TEXT_WIDTH_TWIPS;
 }

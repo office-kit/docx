@@ -36,7 +36,7 @@ describe("positionFromDom", () => {
     first!.children.push(...second!.children);
     doc.document.body.blocks.pop();
     const root = mount(renderDocumentHtml(doc));
-    const linkText = root.querySelector(".wk-link")!.firstChild!;
+    const linkText = root.querySelector(".wk-link span")!.firstChild!;
     expect(positionFromDom(linkText, 2)).toEqual({ block: 0, inline: 0, offset: 7 });
   });
 
