@@ -35,6 +35,10 @@
   // A contextual tab that stops applying (the caret left the table) falls back
   // to Home, as Word does.
   const current = $derived(visibleTabs.find((x) => x.id === tab) ?? TABS[0]);
+  // Opening a header or footer brings up its contextual tab, as in Word.
+  $effect(() => {
+    if (session.headerFooter) tab = 'headerFooter';
+  });
 
   onMount(() => {
     const measure = (): void => {
@@ -179,14 +183,7 @@
     {@render pane('left')}
     <div class="surface">
       {#if session.model}
-        <EditorCanvas
-          model={session.model}
-          version={session.version}
-          zoom={session.zoom}
-          onselectionchange={() => session.tick++}
-          onerror={(message) => (session.status = message)}
-          onedit={() => { session.edited(); session.status = ''; }}
-        />
+        <EditorCanvas model={session.model} />
       {:else}
         <p class="loading">Loading editor…</p>
       {/if}

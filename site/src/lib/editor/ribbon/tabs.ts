@@ -9,6 +9,7 @@ import type { MessageKey } from "../i18n/index.svelte";
 import type { EditorSession } from "../session.svelte";
 import DesignTab from "./tabs/DesignTab.svelte";
 import DrawTab from "./tabs/DrawTab.svelte";
+import HeaderFooterTab from "./tabs/HeaderFooterTab.svelte";
 import HomeTab from "./tabs/HomeTab.svelte";
 import InsertTab from "./tabs/InsertTab.svelte";
 import LayoutTab from "./tabs/LayoutTab.svelte";
@@ -45,4 +46,10 @@ export const TABS: readonly RibbonTab[] = [
   { id: "pictureFormat", label: "tab.pictureFormat", component: PictureFormatTab, when: never },
   { id: "tableDesign", label: "tab.tableDesign", component: TableDesignTab, when: never },
   { id: "tableLayout", label: "tab.tableLayout", component: TableLayoutTab, when: never },
+  {
+    id: "headerFooter",
+    label: "tab.headerFooter",
+    component: HeaderFooterTab,
+    when: (s) => s.story?.kind === "header" || s.story?.kind === "footer",
+  },
 ];

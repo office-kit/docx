@@ -7,6 +7,7 @@
 </script>
 
 <footer class="statusbar">
+  <span>{t('status.pageOf').replace('{0}', String(session.currentPage)).replace('{1}', String(session.pageCount))}</span>
   <span title={`${session.charCount} ${t('status.chars')}`}>{session.wordCount} {t('status.words')}</span>
   {#if session.status}<span class="status-msg" role="status">{session.status}</span>{/if}
   <div class="spacer"></div>
