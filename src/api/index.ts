@@ -81,6 +81,7 @@ export type {
   WmlParagraph,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
@@ -90,3 +91,7 @@ export type {
 // setters) need these names.
 export type { QName, XmlAttr, XmlElement, XmlNode } from "../internal/xml/index.js";
 export { VERSION } from "./version.js";
+export * from "./review.js";
+export * from "./protection.js";
+export * from "./compare.js";
+export * from "./view.js";

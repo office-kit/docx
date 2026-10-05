@@ -26,6 +26,8 @@ export interface DocumentAppProperties {
   company?: string;
   /** Manager / supervisor. */
   manager?: string;
+  /** Base URL that relative hyperlinks in the document resolve against. */
+  hyperlinkBase?: string;
 }
 
 export const APP_PROPERTIES_CONTENT_TYPE =
@@ -89,6 +91,9 @@ export function parseAppProperties(doc: XmlDocument): DocumentAppProperties {
       case "Manager":
         out.manager = value;
         break;
+      case "HyperlinkBase":
+        out.hyperlinkBase = value;
+        break;
       default:
         break;
     }
@@ -112,6 +117,8 @@ export function writeAppProperties(props: DocumentAppProperties): XmlDocument {
   if (props.lines !== undefined) children.push(textElement("Lines", String(props.lines)));
   if (props.company !== undefined) children.push(textElement("Company", props.company));
   if (props.manager !== undefined) children.push(textElement("Manager", props.manager));
+  if (props.hyperlinkBase !== undefined)
+    children.push(textElement("HyperlinkBase", props.hyperlinkBase));
 
   const root: XmlElement = {
     kind: "element",
