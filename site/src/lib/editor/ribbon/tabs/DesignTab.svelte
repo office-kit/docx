@@ -23,6 +23,7 @@
     themeColorValue,
     type StyleSetDefinition,
     type StyleSetStyle,
+    type ColorValue,
     type ThemeColorScheme,
   } from '@office-kit/docx';
   import RibbonIcon from '../../RibbonIcon.svelte';
@@ -31,7 +32,7 @@
   import Group from '../Group.svelte';
   import { getSession } from '../../session.svelte';
   import { t, type MessageKey } from '../../i18n/index.svelte';
-  import ThemeColorGrid, { type PickedColor } from '../../design-layout/ThemeColorGrid.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import { WATERMARK_PRESETS, type WatermarkPreset } from '../../design-layout/presets';
   import CustomColorsDialog from '../../design-layout/CustomColorsDialog.svelte';
   import CustomFontsDialog from '../../design-layout/CustomFontsDialog.svelte';
@@ -101,13 +102,16 @@
     return watermark?.kind === 'text' && watermark.text === t(p.key) && watermark.layout === p.layout;
   }
 
-  function applyPageColor(c: PickedColor): void {
+  // `w:background` stores tint / shade as two hex digits.
+  const hexByte = (n: number): string => n.toString(16).toUpperCase().padStart(2, '0');
+
+  function applyPageColor(c: ColorValue): void {
     session.apply(commands.pageColorCommand, {
       color: {
         color: c.rgb,
         ...(c.themeColor ? { themeColor: c.themeColor } : {}),
-        ...(c.themeShade ? { themeShade: c.themeShade } : {}),
-        ...(c.themeTint ? { themeTint: c.themeTint } : {}),
+        ...(c.themeShade === undefined ? {} : { themeShade: hexByte(c.themeShade) }),
+        ...(c.themeTint === undefined ? {} : { themeTint: hexByte(c.themeTint) }),
       },
     });
   }
@@ -252,9 +256,9 @@
   <SplitButton id="design.pageColor" size="large" tip={t('dsn.pageColor')} alignRight>
     {#snippet face()}<span class="page-color-face"><RibbonIcon name="pageColor" size={32} /><i style="background:{pageColor ? hex(pageColor.color) : 'transparent'}"></i></span>{/snippet}
     {#snippet menu()}
-      <ThemeColorGrid onpick={applyPageColor} />
-      <button class="mi" role="menuitem" onclick={() => session.apply(commands.pageColorCommand, { color: undefined })}>{t('dsn.pageColor.none')}</button>
-      <button class="mi" role="menuitem" onclick={() => session.openDialog('design.fillEffects')}>{t('dsn.pageColor.fill')}</button>
+      <ColorMenu onpick={applyPageColor} none={{ label: t('dsn.pageColor.none'), onpick: () => session.apply(commands.pageColorCommand, { color: undefined }) }}>
+        <button class="mi" role="menuitem" onclick={() => session.openDialog('design.fillEffects')}>{t('dsn.pageColor.fill')}</button>
+      </ColorMenu>
     {/snippet}
   </SplitButton>
   <Button size="large" icon="pageBorders" tip={t('dsn.pageBorders')} onclick={() => session.openDialog('design.pageBorders')} />

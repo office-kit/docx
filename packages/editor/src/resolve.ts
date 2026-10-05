@@ -8,11 +8,13 @@
  * Heading 1 paragraph reads "Calibri Light / 16 / bold" like it does in Word
  * instead of showing nothing because the run itself carries no `<w:rPr>`.
  *
+ * Toggle properties (`b`, `i`, `strike`, `caps` …, §17.7.3) toggle rather
+ * than override across the style levels — table style, paragraph style,
+ * character style — so a bold character style on a bold paragraph style
+ * gives regular text. Within one style's `basedOn` chain, and in direct
+ * formatting, they are plain values.
+ *
  * Simplifications, each one a place where Word can differ:
- * - Toggle properties (`b`, `i`, `strike`, …) are treated as plain overrides;
- *   the spec XORs them across style levels (§17.7.3), which only matters
- *   when two levels of the hierarchy both set the same toggle.
- * - Numbering-level run properties are not applied.
  * - Table style text formatting (passed in as {@link CellTextFormat}) sits
  *   between the document defaults and the paragraph style, as §17.7.2
  *   orders it.
@@ -83,9 +85,22 @@ export interface ResolvedRunFormat {
   readonly fontRole?: "body" | "headings" | undefined;
   /** Font for East Asian text (`w:eastAsia` / `w:eastAsiaTheme`). */
   readonly eastAsiaFont?: string | undefined;
+  /** Font for complex-script text (`w:cs` / `w:cstheme`): Arabic, Hebrew, Thai … */
+  readonly csFont?: string | undefined;
   readonly sizeHalfPoints?: number | undefined;
+  /** Size of complex-script text (`w:szCs`). */
+  readonly csSizeHalfPoints?: number | undefined;
   readonly bold: boolean;
   readonly italic: boolean;
+  /** Bold / italic of complex-script text (`w:bCs` / `w:iCs`). */
+  readonly csBold: boolean;
+  readonly csItalic: boolean;
+  /**
+   * The run is complex script whatever its characters (`w:cs`, §17.3.2.7),
+   * or right-to-left (`w:rtl`, §17.3.2.30), which is laid out as complex script.
+   */
+  readonly complexScript: boolean;
+  readonly rtl: boolean;
   readonly strike: boolean;
   /** The other on-off effects that are on. */
   readonly toggles: ReadonlySet<RunToggle>;
@@ -187,6 +202,11 @@ export interface StyleResolver {
   paragraph(para: WmlParagraph, cell?: CellTextFormat): ResolvedParagraphFormat;
   /** A run's formatting; without a run, the paragraph mark's (for empty paragraphs). */
   run(para: WmlParagraph, run?: WmlRun, cell?: CellTextFormat): ResolvedRunFormat;
+  /**
+   * The formatting of a list paragraph's number or bullet: the paragraph
+   * mark's run properties with the list level's on top (§17.9.24).
+   */
+  listLabelRun(para: WmlParagraph, cell?: CellTextFormat): ResolvedRunFormat;
   /** A paragraph or character style's own formatting, for gallery previews. */
   style(styleId: string): { paragraph: ResolvedParagraphFormat; run: ResolvedRunFormat };
   /** The document's theme colours (or Word's default theme). */
@@ -203,6 +223,9 @@ type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 export interface ThemeFonts {
   readonly major?: string | undefined;
   readonly minor?: string | undefined;
+  /** The theme's complex-script fonts (`a:cs`); usually empty, leaving the script's default. */
+  readonly majorCs?: string | undefined;
+  readonly minorCs?: string | undefined;
 }
 
 function child(el: XmlElement | undefined, local: string): XmlElement | undefined {
@@ -223,11 +246,17 @@ function onOff(el: XmlElement): boolean {
 /** `<a:latin typeface>` of the theme's major / minor font, if there is a theme. */
 export function readThemeFonts(doc: Docx): ThemeFonts {
   const scheme = child(child(themeRoot(doc), "themeElements"), "fontScheme");
-  const latin = (which: string): string | undefined => {
-    const typeface = child(child(scheme, which), "latin");
-    return typeface && getElementAttr(typeface, "typeface");
+  const typeface = (which: string, script: string): string | undefined => {
+    const font = child(child(scheme, which), script);
+    // An empty typeface means "the script's default font" (§20.1.4.1.16).
+    return (font && getElementAttr(font, "typeface")) || undefined;
   };
-  return { major: latin("majorFont"), minor: latin("minorFont") };
+  return {
+    major: typeface("majorFont", "latin"),
+    minor: typeface("minorFont", "latin"),
+    majorCs: typeface("majorFont", "cs"),
+    minorCs: typeface("minorFont", "cs"),
+  };
 }
 
 interface Context {
@@ -301,17 +330,75 @@ function applyFonts(out: Mutable<ResolvedRunFormat>, el: XmlElement, theme: Them
   } else if (eastAsia !== undefined) {
     out.eastAsiaFont = eastAsia;
   }
+  const csTheme = getElementAttr(el, "cstheme");
+  const cs = getElementAttr(el, "cs");
+  if (csTheme !== undefined) {
+    out.csFont = csTheme.startsWith("major") ? theme.majorCs : theme.minorCs;
+  } else if (cs !== undefined) {
+    out.csFont = cs;
+  }
+}
+
+// The toggle properties of §17.7.3. `dstrike` is not one of them.
+const XOR_TOGGLES: ReadonlySet<string> = new Set([
+  "b",
+  "bCs",
+  "i",
+  "iCs",
+  "strike",
+  "caps",
+  "smallCaps",
+  "outline",
+  "shadow",
+  "emboss",
+  "imprint",
+  "vanish",
+]);
+
+function flipToggle(out: Mutable<ResolvedRunFormat>, local: string): void {
+  const toggles = out.toggles as Set<RunToggle>;
+  if (local === "b") out.bold = !out.bold;
+  else if (local === "bCs") out.csBold = !out.csBold;
+  else if (local === "i") out.italic = !out.italic;
+  else if (local === "iCs") out.csItalic = !out.csItalic;
+  else if (local === "strike") out.strike = !out.strike;
+  else if (toggles.has(local as RunToggle)) toggles.delete(local as RunToggle);
+  else toggles.add(local as RunToggle);
+}
+
+/**
+ * One level of the style hierarchy (§17.7.2): its run properties, weakest
+ * first (a `basedOn` chain, or a table style's conditional formats). Within
+ * the level the strongest value of each property wins; a toggle property the
+ * level turns on then flips the state built up so far (§17.7.3).
+ */
+function applyStyleLevel(
+  out: Mutable<ResolvedRunFormat>,
+  rPrs: readonly (XmlElement | undefined)[],
+  ctx: Context,
+): void {
+  const toggled = new Map<string, boolean>();
+  for (const rPr of rPrs) {
+    if (!rPr) continue;
+    applyRPr(out, rPr, ctx, true);
+    for (const el of childElementsOf(rPr)) {
+      if (XOR_TOGGLES.has(el.name.local)) toggled.set(el.name.local, onOff(el));
+    }
+  }
+  for (const [local, on] of toggled) if (on) flipToggle(out, local);
 }
 
 function applyRPr(
   out: Mutable<ResolvedRunFormat>,
   rPr: XmlElement | undefined,
   ctx: Context,
+  skipXorToggles = false,
 ): void {
   if (!rPr) return;
   const toggles = out.toggles as Set<RunToggle>;
   for (const el of childElementsOf(rPr)) {
     const local = el.name.local;
+    if (skipXorToggles && XOR_TOGGLES.has(local)) continue;
     if (RUN_TOGGLES.has(local)) {
       if (onOff(el)) toggles.add(local as RunToggle);
       else toggles.delete(local as RunToggle);
@@ -324,6 +411,23 @@ function applyRPr(
       case "i":
         out.italic = onOff(el);
         break;
+      case "bCs":
+        out.csBold = onOff(el);
+        break;
+      case "iCs":
+        out.csItalic = onOff(el);
+        break;
+      case "cs":
+        out.complexScript = onOff(el);
+        break;
+      case "rtl":
+        out.rtl = onOff(el);
+        break;
+      case "szCs": {
+        const size = intAttr(el, "val");
+        if (size !== undefined) out.csSizeHalfPoints = size;
+        break;
+      }
       case "strike":
         out.strike = onOff(el);
         break;
@@ -475,7 +579,16 @@ function applyPPr(
 }
 
 function emptyRun(): Mutable<ResolvedRunFormat> {
-  return { bold: false, italic: false, strike: false, toggles: new Set() };
+  return {
+    bold: false,
+    italic: false,
+    strike: false,
+    csBold: false,
+    csItalic: false,
+    complexScript: false,
+    rtl: false,
+    toggles: new Set(),
+  };
 }
 
 function emptyParagraph(): Mutable<ResolvedParagraphFormat> {
@@ -524,6 +637,8 @@ export function createStyleResolver(doc: Docx): StyleResolver {
   const paragraphChain = (id: string | undefined): XmlElement[] =>
     id !== undefined && byId.has(id) ? chain(id) : chain(defaultParagraphStyle);
 
+  const styleRPrs = (styles: readonly XmlElement[]) => styles.map((s) => child(s, "rPr"));
+
   const levels = createNumberingResolver(doc);
   const layer = (
     styleId: string | undefined,
@@ -553,24 +668,33 @@ export function createStyleResolver(doc: Docx): StyleResolver {
     return listPPr ? layer(styleId, pPr, listPPr, cell) : base;
   };
 
+  const runOf = (para: WmlParagraph, run?: WmlRun, cell?: CellTextFormat) => {
+    const out = emptyRun();
+    applyRPr(out, defaultRPr, ctx);
+    applyStyleLevel(out, cell?.rPr ?? [], ctx);
+    applyStyleLevel(out, styleRPrs(paragraphChain(getParagraphStyle(para))), ctx);
+    if (run) {
+      const characterStyle = getRunProp(run, "rStyle").val;
+      applyStyleLevel(out, styleRPrs(chain(characterStyle)), ctx);
+      applyRPr(out, run.rPr, ctx);
+      out.characterStyle = characterStyle;
+    }
+    return out;
+  };
+
   return {
     palette: ctx.palette,
     themeFonts: ctx.theme,
     paragraph(para, cell) {
       return paragraphOf(getParagraphStyle(para), para.pPr, cell);
     },
-    run(para, run, cell) {
-      const out = emptyRun();
-      applyRPr(out, defaultRPr, ctx);
-      for (const rPr of cell?.rPr ?? []) applyRPr(out, rPr, ctx);
-      for (const style of paragraphChain(getParagraphStyle(para)))
-        applyRPr(out, child(style, "rPr"), ctx);
-      if (run) {
-        const characterStyle = getRunProp(run, "rStyle").val;
-        for (const style of chain(characterStyle)) applyRPr(out, child(style, "rPr"), ctx);
-        applyRPr(out, run.rPr, ctx);
-        out.characterStyle = characterStyle;
-      }
+    run: runOf,
+    listLabelRun(para, cell) {
+      const out = runOf(para, undefined, cell);
+      applyRPr(out, child(para.pPr, "rPr"), ctx);
+      const numbering = paragraphOf(getParagraphStyle(para), para.pPr, cell).numbering;
+      const level = numbering && levels.level(numbering.numId, numbering.ilvl);
+      applyRPr(out, child(level?.lvl, "rPr"), ctx);
       return out;
     },
     style(styleId) {
@@ -579,10 +703,8 @@ export function createStyleResolver(doc: Docx): StyleResolver {
       const paragraph = paragraphOf(isCharacter ? undefined : styleId, undefined);
       const run = emptyRun();
       applyRPr(run, defaultRPr, ctx);
-      const runChain = isCharacter
-        ? [...paragraphChain(undefined), ...chain(styleId)]
-        : paragraphChain(styleId);
-      for (const s of runChain) applyRPr(run, child(s, "rPr"), ctx);
+      applyStyleLevel(run, styleRPrs(paragraphChain(isCharacter ? undefined : styleId)), ctx);
+      if (isCharacter) applyStyleLevel(run, styleRPrs(chain(styleId)), ctx);
       return { paragraph, run };
     },
   };

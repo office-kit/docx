@@ -583,15 +583,20 @@ Run in Chrome and in Safari, with a Japanese IME:
   (atomic error).
 - Editor test files are excluded from `tsc` (`tsconfig.json`), and Vitest does
   not type-check, so type errors in tests are not caught.
-- `createStyleResolver` treats toggle properties (`b`, `i`, `strike`) as plain
-  overrides; ECMA-376 §17.7.3 XORs them when two style levels both set one.
-  Table-style conditional formatting (first row, banding) and numbering-level
-  run properties are not applied. Theme fonts resolve for Latin text only.
-- The `/editor` ribbon leaves out what the library cannot drive: the Draw and
-  Design tabs, Change Case, text effects, shading, borders, sort, theme colors
-  in the Font Color menu, and the Styles Pane. The style gallery offers Normal
-  and Heading 1–3. The canvas is one continuous page (no pagination), so the
-  status bar has no "Page 1 of 1".
+- A run that mixes scripts is one span on the canvas: complex-script
+  formatting (`bCs`, `iCs`, `szCs`, `cs` fonts) applies to the whole run when
+  it contains complex-script text, where Word formats each part separately.
+- The `/editor` ribbon follows Word for Mac tab by tab. It leaves out, or
+  shows disabled, what is not WordprocessingML content or needs a Microsoft
+  extension namespace outside ECMA-376 (which the library does not write):
+  Dictate, Add-ins, Editor, Read Aloud, Translate, Thesaurus, Immersive
+  Reader, Draw with Trackpad, 3D Models, Media, Change Provider, Resolve
+  comment (`w15:commentEx`), Block Authors, Remove Background and Artistic
+  Effects (`a14:`), the window commands (New Window, Arrange All, Split,
+  Switch Windows), Macros, and Set as Default (it writes the Normal template,
+  not the document).
+- Block-level content controls (`w:sdt`: cover pages, watermarks, Word's
+  gallery tables of contents) are shown read-only on the canvas.
 - Word for Mac draws 100 % zoom at 72 dpi; the canvas uses CSS points (96 dpi,
   like Word for Windows), so a page looks larger than in Word for Mac at the
   same zoom.

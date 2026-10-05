@@ -9,7 +9,6 @@
 
 import {
   type Docx,
-  getRawPartRoot,
   getSmartArt,
   runSmartArt,
   SMARTART_COLORS,
@@ -19,58 +18,9 @@ import {
   type SmartArtNode,
   type SmartArtStyle,
   type WmlRun,
-  type XmlElement,
-  xmlPartNames,
 } from "@office-kit/docx";
 import type { DocPosition } from "./selection.js";
-
-const A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main";
-
-/** Office theme colours, used when the document has no theme part. */
-const DEFAULT_THEME: Readonly<Record<string, string>> = {
-  dk1: "000000",
-  lt1: "FFFFFF",
-  dk2: "44546A",
-  lt2: "E7E6E6",
-  accent1: "4472C4",
-  accent2: "ED7D31",
-  accent3: "A5A5A5",
-  accent4: "FFC000",
-  accent5: "5B9BD5",
-  accent6: "70AD47",
-};
-
-const themeCache = new WeakMap<Docx, Readonly<Record<string, string>>>();
-
-/** The theme's colour scheme (`a:clrScheme`), by scheme colour name. */
-export function themeColors(doc: Docx): Readonly<Record<string, string>> {
-  const cached = themeCache.get(doc);
-  if (cached) return cached;
-  const out: Record<string, string> = { ...DEFAULT_THEME };
-  const name = xmlPartNames(doc).find((n) => /\/theme\/theme\d*\.xml$/.test(n));
-  const root = name ? getRawPartRoot(doc, name) : undefined;
-  const scheme = root && findA(root, "clrScheme");
-  for (const c of scheme?.children ?? []) {
-    if (c.kind !== "element") continue;
-    const color = c.children.find((x): x is XmlElement => x.kind === "element");
-    const val = color?.attrs.find(
-      (a) => a.name.local === (color.name.local === "sysClr" ? "lastClr" : "val"),
-    )?.value;
-    if (val && /^[0-9A-Fa-f]{6}$/.test(val)) out[c.name.local] = val.toUpperCase();
-  }
-  themeCache.set(doc, out);
-  return out;
-}
-
-function findA(el: XmlElement, local: string): XmlElement | undefined {
-  if (el.name.uri === A_NS && el.name.local === local) return el;
-  for (const c of el.children) {
-    if (c.kind !== "element") continue;
-    const found = findA(c, local);
-    if (found) return found;
-  }
-  return undefined;
-}
+import { themePalette } from "./theme-color.js";
 
 interface Box {
   readonly x: number;
@@ -97,8 +47,8 @@ function painter(
   colors: SmartArtColors | undefined,
   style: SmartArtStyle | undefined,
 ): Painter {
-  const theme = themeColors(doc);
-  const fills = SMARTART_COLORS[colors ?? "accent1_2"].fill.map((c) => `#${theme[c] ?? "4472C4"}`);
+  const theme = themePalette(doc);
+  const fills = SMARTART_COLORS[colors ?? "accent1_2"].fill.map((c) => `#${theme[c]}`);
   const s = SMARTART_STYLES[style ?? "simple1"];
   const shadows = [
     "",
@@ -108,9 +58,9 @@ function painter(
   ];
   return {
     fill: (i) => fills[i % fills.length] ?? "#4472C4",
-    line: `#${theme.lt1 ?? "FFFFFF"}`,
+    line: `#${theme.lt1}`,
     lineWidth: s.line >= 3 ? 2.25 : 1,
-    text: `#${theme.lt1 ?? "FFFFFF"}`,
+    text: `#${theme.lt1}`,
     shadow: shadows[s.effect] ?? "",
     accent: fills[0] ?? "#4472C4",
   };

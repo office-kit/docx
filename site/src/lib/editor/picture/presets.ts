@@ -421,32 +421,6 @@ export const ASPECT_RATIOS = {
   ],
 } as const;
 
-/** Word's "Standard Colors" row, and a row of theme colors. */
-export const STANDARD_COLORS = [
-  "C00000",
-  "FF0000",
-  "FFC000",
-  "FFFF00",
-  "92D050",
-  "00B050",
-  "00B0F0",
-  "0070C0",
-  "002060",
-  "7030A0",
-] as const;
-export const THEME_COLORS = [
-  "FFFFFF",
-  "000000",
-  "E7E6E6",
-  "44546A",
-  "4472C4",
-  "ED7D31",
-  "A5A5A5",
-  "FFC000",
-  "5B9BD5",
-  "70AD47",
-] as const;
-
 /** Chart Design ▸ Change Colors: Colorful palettes and Monochromatic ramps. */
 export const CHART_PALETTES: ReadonlyArray<{ id: string; colors: readonly string[] }> = [
   { id: "colorful1", colors: ["4472C4", "ED7D31", "A5A5A5", "FFC000", "5B9BD5", "70AD47"] },

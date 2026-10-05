@@ -47,7 +47,6 @@ export {
 export { drawingIndexAt, drawingPositionOf } from "./drawing-access.js";
 export { renderPictHtml, type VmlRenderContext, vmlPathPreviewSvg } from "./render-vml.js";
 export { type SvgSubpath, vmlPathToSvg } from "./vml-path.js";
-export { themeColors } from "./render-smartart.js";
 export { type InkPoint, type RecognizedShape, recognizeInkShape } from "./ink-shape.js";
 export {
   type OutlineOp,
@@ -108,13 +107,7 @@ export {
   resolvePageBackground,
   resolveSectionLayout,
 } from "./section-layout.js";
-export {
-  type PaletteColor,
-  type PaletteThemeColor,
-  resolveTheme,
-  THEME_PALETTE_COLUMNS,
-  themeSchemePalette,
-} from "./theme.js";
+export { resolveTheme } from "./theme.js";
 export * from "./insert-queries.js";
 export { renderMath } from "./render-math.js";
 export { symbolGlyph } from "./render-fields.js";

@@ -40,6 +40,7 @@ import {
   type ResolvedRunFormat,
 } from "./resolve.js";
 import {
+  listLabelHtml,
   paragraphBoxCss,
   type RenderResolver,
   renderResolver,
@@ -115,11 +116,29 @@ const HEX_COLOR = /^[0-9A-Fa-f]{6}$/;
  * only the ones that differ from Normal, because the run sits inside a
  * paragraph element that carries the paragraph mark's look.
  */
-export function runCss(fmt: ResolvedRunFormat): string {
+// Scripts Word formats with the complex-script properties (§17.3.2.7):
+// Hebrew, Arabic, Syriac, Thaana, N'Ko, the Indic scripts, Thai, Lao and
+// the Hebrew / Arabic presentation forms.
+const COMPLEX_SCRIPT = /[\u0590-\u08FF\u0900-\u0DFF\u0E00-\u0EFF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
+/**
+ * Whether a run is laid out with its complex-script formatting: it says so
+ * (`w:cs` / `w:rtl`), or its text is in a complex script. A run mixing scripts
+ * is one span on the canvas, so it takes the formatting of its script-specific
+ * characters; Word would format each part separately.
+ */
+export function isComplexScriptRun(fmt: ResolvedRunFormat, text: string): boolean {
+  return fmt.complexScript || fmt.rtl || COMPLEX_SCRIPT.test(text);
+}
+
+export function runCss(fmt: ResolvedRunFormat, complexScript = false): string {
+  const bold = complexScript ? fmt.csBold : fmt.bold;
+  const italic = complexScript ? fmt.csItalic : fmt.italic;
   const parts: string[] = [
-    `font-weight:${fmt.bold ? "bold" : "normal"}`,
-    `font-style:${fmt.italic ? "italic" : "normal"}`,
+    `font-weight:${bold ? "bold" : "normal"}`,
+    `font-style:${italic ? "italic" : "normal"}`,
   ];
+  if (fmt.rtl) parts.push("direction:rtl", "unicode-bidi:embed");
   const decoration: string[] = [];
   const underlined = fmt.underline !== undefined && fmt.underline !== "none";
   if (underlined) decoration.push("underline");
@@ -132,19 +151,40 @@ export function runCss(fmt: ResolvedRunFormat): string {
   if (fmt.color && HEX_COLOR.test(fmt.color)) parts.push(`color:#${fmt.color}`);
   const highlight = fmt.highlight === undefined ? undefined : highlightCss(fmt.highlight);
   if (highlight) parts.push(`background-color:${highlight}`);
-  parts.push(...fontCss(fmt));
+  parts.push(...fontCss(fmt, complexScript));
   const vertAlign = VERT_ALIGN_CSS[fmt.vertAlign ?? ""];
   if (vertAlign) parts.push(vertAlign);
   parts.push(...runEffectsCss(fmt));
   return parts.join(";");
 }
 
-function fontCss(fmt: ResolvedRunFormat): string[] {
+const GENERIC_FAMILIES: ReadonlySet<string> = new Set(["serif", "sans-serif", "monospace"]);
+
+const cssFontName = (font: string): string => `'${font.replace(/['"\\\n\r]/g, "")}'`;
+
+function fontCss(fmt: ResolvedRunFormat, complexScript = false): string[] {
   const parts: string[] = [];
-  if (fmt.sizeHalfPoints !== undefined) parts.push(`font-size:${fmt.sizeHalfPoints / 2}pt`);
-  if (fmt.font) {
-    const font = fmt.font.replace(/['"\\\n\r]/g, "");
-    parts.push(`font-family:'${font}',${FALLBACK_FAMILY[font] ?? "sans-serif"}`);
+  const size = complexScript ? (fmt.csSizeHalfPoints ?? fmt.sizeHalfPoints) : fmt.sizeHalfPoints;
+  if (size !== undefined) parts.push(`font-size:${size / 2}pt`);
+  // The browser picks a font per glyph down the list, which approximates
+  // Word's per-script fonts: Latin text in the Latin font (or its
+  // metric-compatible stand-in), CJK text in the East Asian font,
+  // complex-script text in the complex-script font.
+  const primary = complexScript ? (fmt.csFont ?? fmt.font) : fmt.font;
+  const others = [fmt.eastAsiaFont, complexScript ? undefined : fmt.csFont].filter(
+    (f): f is string => !!f && f !== primary,
+  );
+  if (primary || others.length > 0) {
+    // A generic family always matches, so it can only come last.
+    const fallback = (primary && FALLBACK_FAMILY[primary]?.split(",")) || ["sans-serif"];
+    const generic = fallback.filter((f) => GENERIC_FAMILIES.has(f));
+    const list = [
+      ...(primary ? [cssFontName(primary)] : []),
+      ...fallback.filter((f) => !GENERIC_FAMILIES.has(f)),
+      ...new Set(others.map(cssFontName)),
+      ...(generic.length > 0 ? generic : ["sans-serif"]),
+    ];
+    parts.push(`font-family:${list.join(",")}`);
   }
   return parts;
 }
@@ -273,7 +313,15 @@ function renderParagraph(
   cell?: CellAnchor,
   text?: CellTextFormat,
 ): string {
-  const label = styles.listLabel(para) ?? "";
+  const labelText = styles.listLabel(para);
+  const label =
+    labelText === undefined
+      ? ""
+      : listLabelHtml(
+          labelText,
+          styles.paragraph(para, text),
+          runCss(styles.listLabelRun(para, text)),
+        );
   const styleAttr = ` style="${escapeHtml(paragraphCss(styles.paragraph(para, text), styles.run(para, undefined, text)))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
@@ -294,7 +342,8 @@ function renderParagraph(
           : renderRawInline(child);
       }
       const role = fieldRoles.get(child);
-      const css = runCss(styles.run(para, child, text));
+      const fmt = styles.run(para, child, text);
+      const css = runCss(fmt, isComplexScriptRun(fmt, runText(child)));
       const special = renderFieldStructureRun(child, role) ?? renderSymbolRun(child, css);
       if (special !== undefined) {
         runIndex++;

@@ -14,7 +14,7 @@
   import { getSession } from '../../session.svelte';
   import { t, type MessageKey } from '../../i18n/index.svelte';
   import BordersShadingDialog from '../table/BordersShadingDialog.svelte';
-  import ColorMenu from '../table/ColorMenu.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import TableStyleDialog from '../table/TableStyleDialog.svelte';
   import TableStyleTile from '../table/TableStyleTile.svelte';
   import { DIALOGS, LINE_STYLES, LINE_WEIGHTS } from '../table/lines';
@@ -119,6 +119,11 @@
     { style: 'thickThinSmallGap', size: 18, color: 'auto' },
   ];
 
+  function setShading(fill: string): void {
+    tableTool.shading = fill;
+    session.apply(commands.shadeCellsCommand, { fill });
+  }
+
   /** Changing the pen arms Border Painter, as Word does. */
   function setPen(change: Partial<TableBorder>): void {
     tableTool.pen = { ...tableTool.pen, ...change };
@@ -172,7 +177,7 @@
   <SplitButton id="tbl-shading" size="large" tip={t('tbl.shading')} onclick={() => session.apply(commands.shadeCellsCommand, { fill: tableTool.shading })}>
     {#snippet face()}<span class="tbl-face"><RibbonIcon name="tblShading" size={32} /><i style="background:{shadingSwatch}"></i></span>{/snippet}
     {#snippet menu()}
-      <ColorMenu autoLabel="tbl.color.none" onpick={(fill) => { tableTool.shading = fill; session.apply(commands.shadeCellsCommand, { fill }); }} />
+      <ColorMenu auto={{ label: t('tbl.color.none'), chip: 'none', onpick: () => setShading('auto') }} onpick={(c) => setShading(c.rgb)} />
     {/snippet}
   </SplitButton>
 </Group>
@@ -202,7 +207,7 @@
   </div>
   <SplitButton id="tbl-pen-color" size="large" tip={t('tbl.penColor')} label={t('tbl.penColor')}>
     {#snippet face()}<span class="tbl-face"><RibbonIcon name="tblPen" size={32} /><i style="background:{penSwatch}"></i></span>{/snippet}
-    {#snippet menu()}<ColorMenu autoLabel="tbl.color.automatic" onpick={(color) => setPen({ color })} />{/snippet}
+    {#snippet menu()}<ColorMenu auto={{ label: t('tbl.color.automatic'), chip: 'auto', onpick: () => setPen({ color: 'auto' }) }} onpick={(c) => setPen({ color: c.rgb })} />{/snippet}
   </SplitButton>
   <SplitButton id="tbl-borders" size="large" tip={t('tbl.borders')} icon={lastBorder?.icon ?? 'tblBorders'} onclick={() => applyBorders(tableTool.borders)}>
     {#snippet menu()}

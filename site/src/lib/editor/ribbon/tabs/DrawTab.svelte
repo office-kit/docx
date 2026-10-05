@@ -10,7 +10,7 @@
   import SplitButton from '../SplitButton.svelte';
   import { getSession } from '../../session.svelte';
   import { t, type MessageKey } from '../../i18n/index.svelte';
-  import ColorMenu from '../../shapes/ColorMenu.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import { shapeTools, type Pen, type PenKind } from '../../shapes/tools.svelte';
 
   const session = getSession();
@@ -69,7 +69,7 @@
               <span class="wk-line-sample" style="border-top:{Math.max(1, w * 1.33)}px solid #{pen.color}"></span>{w} pt
             </button>
           {/each}
-          <ColorMenu onpick={(color) => { shapeTools.updatePen(pen.id, { color }); session.openMenu = null; }}>
+          <ColorMenu onpick={(c) => { shapeTools.updatePen(pen.id, { color: c.rgb }); session.openMenu = null; }}>
             <button class="mi" role="menuitem" disabled={shapeTools.pens.length <= 1} onclick={() => { session.openMenu = null; shapeTools.removePen(pen.id); }}>{t('draw.deletePen')}</button>
           </ColorMenu>
         {/snippet}

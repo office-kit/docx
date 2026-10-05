@@ -7,7 +7,11 @@
  */
 
 import {
+  addNumberedList,
   addStyle,
+  childElementsOf,
+  getElementAttr,
+  numberingPart,
   addTable,
   appendHeading,
   appendParagraph,
@@ -30,6 +34,7 @@ import {
   type WmlParagraph,
   type WmlRun,
   type WmlTable,
+  type XmlElement,
 } from "@office-kit/docx";
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
@@ -43,6 +48,7 @@ import {
   runCommand,
 } from "./index.js";
 import { compatibilityMode, resolveTable } from "./table-format.js";
+import { WML_NS } from "./wml-ns.js";
 
 function runsOf(para: WmlParagraph): WmlRun[] {
   return para.children.filter((c): c is WmlRun => c.kind === "run");
@@ -136,6 +142,85 @@ describe("createStyleResolver", () => {
       color: "FF0000",
       bold: false,
     });
+  });
+
+  it("toggles bold and italic across style levels but not within a basedOn chain (§17.7.3)", () => {
+    const doc = createDocx({ paragraphs: ["x"] });
+    addStyle(doc, { type: "paragraph", styleId: "Base", name: "Base", bold: true });
+    addStyle(doc, {
+      type: "paragraph",
+      styleId: "Derived",
+      name: "Derived",
+      basedOn: "Base",
+      bold: true,
+      italic: true,
+    });
+    addStyle(doc, { type: "character", styleId: "Strong2", name: "Strong2", bold: true });
+    setRunValProp(run(doc, 0), "rStyle", "Strong2");
+    const model = editorFor(doc);
+    caret(model, 0);
+    runCommand(model, commands.setParagraphStyleCommand, { styleId: "Derived" });
+    const styles = createStyleResolver(model.doc);
+    // Bold from the paragraph style chain (once, despite two styles) and from
+    // the character style cancel out; italic is only set at one level.
+    expect(styles.run(para(model.doc, 0), run(model.doc, 0))).toMatchObject({
+      bold: false,
+      italic: true,
+    });
+    expect(styles.run(para(model.doc, 0))).toMatchObject({ bold: true, italic: true });
+    // Direct formatting is absolute.
+    setRunValProp(run(model.doc, 0), "b", "1");
+    expect(createStyleResolver(model.doc).run(para(model.doc, 0), run(model.doc, 0)).bold).toBe(
+      true,
+    );
+  });
+
+  it("formats a list number with the level's run properties (§17.9.24)", () => {
+    const doc = createDocx({ paragraphs: [] });
+    addNumberedList(doc, ["one"]);
+    const lvl = numberingPart(doc)
+      ?.abstractNums.flatMap((a) => childElementsOf(a))
+      .find((c) => c.name.local === "lvl" && getElementAttr(c, "ilvl") === "0");
+    if (!lvl) throw new Error("no level 0");
+    const w = (
+      local: string,
+      attrs: Record<string, string> = {},
+      children: XmlElement[] = [],
+    ): XmlElement => ({
+      kind: "element",
+      name: { uri: WML_NS, local, prefix: "w" },
+      attrs: Object.entries(attrs).map(([k, value]) => ({
+        name: { uri: WML_NS, local: k, prefix: "w" },
+        value,
+        isNamespaceDecl: false,
+      })),
+      children,
+      xmlSpace: "default",
+      selfClosing: children.length === 0,
+    });
+    lvl.children.push(w("rPr", {}, [w("b"), w("color", { val: "C00000" })]));
+    const html = renderDocumentHtml(doc);
+    const label = /<span class="wk-list-label"[^>]*style="([^"]*)"/.exec(html)?.[1] ?? "";
+    expect(label).toContain("font-weight:bold");
+    expect(label).toContain("#C00000");
+    // The item's text is not affected.
+    expect(createStyleResolver(doc).run(para(doc, 0), run(doc, 0)).bold).toBe(false);
+  });
+
+  it("formats complex-script text with its own properties (§17.3.2)", () => {
+    const doc = createDocx({ paragraphs: ["Latin", "مرحبا"] });
+    for (const index of [0, 1]) {
+      const r = run(doc, index);
+      setRunValProp(r, "szCs", "40");
+      setRunValProp(r, "bCs", "1");
+    }
+    const html = renderDocumentHtml(doc);
+    const spans = [...html.matchAll(/<span class="wk-run"[^>]*style="([^"]*)"/g)].map((m) => m[1]);
+    // Latin text ignores the complex-script size and bold; Arabic uses them.
+    expect(spans[0]).toContain("font-weight:normal");
+    expect(spans[0]).not.toContain("font-size:20pt");
+    expect(spans[1]).toContain("font-weight:bold");
+    expect(spans[1]).toContain("font-size:20pt");
   });
 
   it("falls back to the default paragraph style for an unknown pStyle", () => {
@@ -482,6 +567,8 @@ describe("run rendering", () => {
     setRunValProp(run(model.doc, 1), "vertAlign", "superscript");
     const html = renderDocumentHtml(model.doc);
     expect(html).toContain("vertical-align:super");
-    expect(html).toContain("font-family:'Calibri',Carlito,sans-serif");
+    // Calibri's metric-compatible stand-in comes before the East Asian font
+    // (docDefaults: Times New Roman), and the generic family last.
+    expect(html).toContain("font-family:'Calibri',Carlito,'Times New Roman',sans-serif");
   });
 });

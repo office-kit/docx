@@ -125,24 +125,6 @@
 }
 
 /* Galleries and menus. */
-.wk-app .wk-color-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 16px);
-  gap: 0 4px;
-  padding: 2px 8px 6px;
-}
-.wk-app .wk-color-grid .chip.first-row {
-  margin-bottom: 4px;
-}
-.wk-app .wk-none-chip {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 8px;
-  vertical-align: -2px;
-  border: 1px solid #999;
-  background: linear-gradient(to top right, transparent 45%, #d00 47% 53%, transparent 55%);
-}
 .wk-app .wk-shape-gallery {
   width: 330px;
   max-height: 460px;

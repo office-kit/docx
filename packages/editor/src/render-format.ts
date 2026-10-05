@@ -176,16 +176,15 @@ export function specialRunHtml(run: WmlRun): string | undefined {
  * The label of a list paragraph, drawn where Word draws it: at the first-line
  * position, padded to the hanging indent so the text starts at the indent.
  */
-export function listLabelHtml(label: string, fmt: ResolvedParagraphFormat, color?: string): string {
+export function listLabelHtml(label: string, fmt: ResolvedParagraphFormat, runCss: string): string {
   const hanging = (fmt.hanging ?? 0) / TWIPS_PER_POINT;
-  const css = [`display:inline-block`, `min-width:${hanging}pt`, `text-indent:0`];
-  if (color && HEX_COLOR.test(color)) css.push(`color:#${color}`);
-  return `<span class="wk-list-label" contenteditable="false" style="${css.join(";")}">${escapeHtml(label)}</span>`;
+  const css = [runCss, `display:inline-block`, `min-width:${hanging}pt`, `text-indent:0`];
+  return `<span class="wk-list-label" contenteditable="false" style="${escapeHtml(css.join(";"))}">${escapeHtml(label)}</span>`;
 }
 
 /** The style resolver a render uses, plus the list counter for that render. */
 export interface RenderResolver extends StyleResolver {
-  /** The label of a list paragraph; call once per paragraph, in document order. */
+  /** The number or bullet of a list paragraph; call once per paragraph, in document order. */
   listLabel(para: WmlParagraph): string | undefined;
 }
 
@@ -199,8 +198,7 @@ export function renderResolver(doc: Docx, styles: StyleResolver): RenderResolver
       if (!numbering) return undefined;
       const label = count(numbering.numId, numbering.ilvl);
       if (!label) return undefined;
-      const fmt = styles.paragraph(para);
-      return listLabelHtml(label.text, fmt);
+      return label.text;
     },
   };
 }

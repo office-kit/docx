@@ -4,7 +4,7 @@
    * Draw Vertical Text Box) and the WordArt gallery.
    */
   import type { AddShapeOptions } from '@office-kit/docx';
-  import { commands, themeColors } from '@office-kit/docx-editor';
+  import { commands, DEFAULT_THEME_COLORS, themePalette } from '@office-kit/docx-editor';
   import SplitButton from './SplitButton.svelte';
   import { getSession } from '../session.svelte';
   import { t } from '../i18n/index.svelte';
@@ -12,7 +12,7 @@
   import { shapeTools } from '../shapes/tools.svelte';
 
   const session = getSession();
-  const theme = $derived(session.model && session.version >= 0 ? themeColors(session.model.doc) : {});
+  const theme = $derived(session.model && session.version >= 0 ? themePalette(session.model.doc) : DEFAULT_THEME_COLORS);
   const styles = $derived(wordArtStyles(theme));
 
   // Built-in text boxes: 3" × 1.5" floating at the top of the margin box, as Word's presets are.
@@ -39,7 +39,7 @@
         top: 0,
         wrap: 'topAndBottom',
         fill: { type: 'none' },
-        stroke: { color: theme.accent1 ?? '4472C4', weight: 1 },
+        stroke: { color: theme.accent1, weight: 1 },
         text: t('draw.quotePlaceholder'),
         textLayout: { anchor: 'middle' },
       }),
@@ -55,7 +55,7 @@
         horizontalRelativeTo: 'margin',
         verticalRelativeTo: 'margin',
         wrap: 'square',
-        fill: { type: 'solid', color: tint(theme.accent1 ?? '4472C4', 0.8) },
+        fill: { type: 'solid', color: tint(theme.accent1, 0.8) },
         stroke: null,
         text: t('draw.sidebarPlaceholder'),
       }),

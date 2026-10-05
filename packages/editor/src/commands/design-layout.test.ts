@@ -24,7 +24,7 @@ import { editorFor } from "../index.js";
 import type { EditorModel } from "../model.js";
 import { resolvePageBackground, resolveSectionLayout } from "../section-layout.js";
 import { caretAt } from "../selection.js";
-import { resolveTheme, themeSchemePalette } from "../theme.js";
+import { resolveTheme } from "../theme.js";
 import * as c from "./index.js";
 import { runCommand } from "./types.js";
 
@@ -236,17 +236,7 @@ describe("editor helpers", () => {
     ]);
   });
 
-  it("falls back to the Office theme and builds Word's 6×10 palette", () => {
-    const theme = resolveTheme(createDocx());
-    expect(theme.name).toBe("Office Theme");
-    const palette = themeSchemePalette(theme.colors);
-    expect(palette).toHaveLength(6);
-    expect(palette.every((row) => row.length === 10)).toBe(true);
-    expect(palette[0]?.[0]).toEqual({ themeColor: "background1", rgb: "FFFFFF" });
-    expect(palette[1]?.[0]).toMatchObject({
-      themeColor: "background1",
-      themeShade: "F2",
-      rgb: "F2F2F2",
-    });
+  it("falls back to the Office theme", () => {
+    expect(resolveTheme(createDocx()).name).toBe("Office Theme");
   });
 });

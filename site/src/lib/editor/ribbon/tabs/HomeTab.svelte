@@ -20,7 +20,7 @@
   import Button from '../Button.svelte';
   import SplitButton from '../SplitButton.svelte';
   import Group from '../Group.svelte';
-  import ColorMenu from './home/ColorMenu.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import { getSession } from '../../session.svelte';
   import { t, highlightName, type MessageKey } from '../../i18n/index.svelte';
   import { common, homeState, selectionFormats } from './home/state.svelte';
@@ -163,6 +163,15 @@
   function setShading(fill: ColorValue | undefined): void {
     home.shadingPen = fill;
     session.apply(commands.paragraphShadingColorCommand, { fill });
+  }
+
+  function setUnderlineColor(color: ColorValue | undefined): void {
+    session.apply(commands.setUnderlineColorCommand, { color });
+  }
+
+  function moreColors(pick: (color: ColorValue) => void): void {
+    home.moreColors = { initial: '000000', pick };
+    session.openDialog('home.moreColors');
   }
 
   function applyList(preset: ListPreset): void {
@@ -330,7 +339,7 @@
           <hr />
           <button class="mi" role="menuitem" onclick={() => session.openDialog('home.font')}>{t('home.underline.more')}</button>
           <div class="menu-head">{t('home.underline.color')}</div>
-          <ColorMenu none="auto" onpick={(color) => session.apply(commands.setUnderlineColorCommand, { color })} />
+          <ColorMenu auto={{ label: t('color.auto'), chip: 'auto', onpick: () => setUnderlineColor(undefined) }} onpick={setUnderlineColor} onmore={() => moreColors(setUnderlineColor)} />
         {/snippet}
       </SplitButton>
       <Button glyph="ab" glyphClass="strike" tip={t('tip.strike')} onclick={() => session.apply(commands.toggleStrikeCommand, undefined)} on={session.active(commands.toggleStrikeCommand)} disabled={!session.enabled(commands.toggleStrikeCommand)} />
@@ -357,7 +366,7 @@
       </SplitButton>
       <SplitButton id="home.fontColor" tip={t('tip.fontColor')} onclick={() => setFontColor(home.fontColorPen)} disabled={!session.enabled(commands.setColorCommand)}>
         {#snippet face()}<span class="swatch-icon"><span class="a">A</span><i style="background:{chip(home.fontColorPen)}"></i></span>{/snippet}
-        {#snippet menu()}<ColorMenu none="auto" onpick={setFontColor} />{/snippet}
+        {#snippet menu()}<ColorMenu auto={{ label: t('color.auto'), chip: 'auto', onpick: () => setFontColor(undefined) }} onpick={setFontColor} onmore={() => moreColors(setFontColor)} />{/snippet}
       </SplitButton>
       <Button icon="characterShading" tip={t('home.characterShading')} onclick={() => session.apply(commands.toggleCharacterShadingCommand, undefined)} on={session.active(commands.toggleCharacterShadingCommand)} disabled={!session.enabled(commands.toggleCharacterShadingCommand)} />
       <Button icon="encloseCharacters" tip={t('home.encloseCharacters')} onclick={() => session.openDialog('home.enclose')} disabled={!session.enabled(commands.encloseCharactersCommand)} />
@@ -462,7 +471,7 @@
       </SplitButton>
       <SplitButton id="home.shading" tip={t('home.shading')} onclick={() => setShading(home.shadingPen)} disabled={!session.enabled(commands.paragraphShadingColorCommand)}>
         {#snippet face()}<span class="swatch-icon"><RibbonIcon name="paragraphShading" size={18} /><i style="background:{chip(home.shadingPen)}"></i></span>{/snippet}
-        {#snippet menu()}<ColorMenu none="noColor" onpick={setShading} />{/snippet}
+        {#snippet menu()}<ColorMenu auto={{ label: t('highlight.none'), chip: 'none', onpick: () => setShading(undefined) }} onpick={setShading} onmore={() => moreColors(setShading)} />{/snippet}
       </SplitButton>
       <SplitButton id="home.borders" icon="paragraphBorders" tip={t('home.borders')} onclick={() => session.apply(commands.bordersPresetCommand, { preset: 'bottom' })} disabled={!session.enabled(commands.bordersPresetCommand)}>
         {#snippet menu()}

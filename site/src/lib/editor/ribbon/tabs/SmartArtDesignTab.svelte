@@ -13,7 +13,7 @@
     type SmartArtLayout,
     type SmartArtStyle,
   } from '@office-kit/docx';
-  import { applyOutlineOp, commands, outlineRows, outlineToNodes, themeColors, type OutlineOp } from '@office-kit/docx-editor';
+  import { applyOutlineOp, commands, outlineRows, outlineToNodes, DEFAULT_THEME_COLORS, themePalette, type OutlineOp } from '@office-kit/docx-editor';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
   import SplitButton from '../SplitButton.svelte';
@@ -26,7 +26,7 @@
   const session = getSession();
   const current = $derived(selectedSmartArt(session));
   const info = $derived(current && session.model ? getSmartArt(session.model.doc, current.ref) : undefined);
-  const theme = $derived(session.model && session.version >= 0 ? themeColors(session.model.doc) : {});
+  const theme = $derived(session.model && session.version >= 0 ? themePalette(session.model.doc) : DEFAULT_THEME_COLORS);
 
   const LAYOUTS = Object.keys(SMARTART_LAYOUTS).filter((k): k is SmartArtLayout => Object.hasOwn(SMARTART_LAYOUTS, k));
   const COLORS = Object.keys(SMARTART_COLORS).filter((k): k is SmartArtColors => Object.hasOwn(SMARTART_COLORS, k));
@@ -44,7 +44,7 @@
     ['accent6', 'draw.smartArt.accent6'],
   ];
 
-  const palette = (c: SmartArtColors): string[] => SMARTART_COLORS[c].fill.map((slot) => theme[slot] ?? '4472C4');
+  const palette = (c: SmartArtColors): string[] => SMARTART_COLORS[c].fill.map((slot) => theme[slot]);
 
   function outline(op: OutlineOp): void {
     if (!current || !info) return;
@@ -94,7 +94,7 @@
   <div class="gallery">
     {#each LAYOUTS as layout (layout)}
       <button class="wk-smartart-tile" class:selected={info?.layout === layout} title={t(`smartArt.${layout}`)} aria-label={t(`smartArt.${layout}`)} onclick={() => setLayout(layout)} disabled={!current}>
-        <SmartArtThumb {layout} colors={[theme.accent1 ?? '4472C4']} />
+        <SmartArtThumb {layout} colors={[theme.accent1]} />
       </button>
     {/each}
   </div>

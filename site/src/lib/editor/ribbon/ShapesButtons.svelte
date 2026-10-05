@@ -5,7 +5,7 @@
    * gallery (List, Process, Cycle, Hierarchy).
    */
   import { SMARTART_LAYOUTS, type SmartArtLayout, type SmartArtNode } from '@office-kit/docx';
-  import { commands, themeColors } from '@office-kit/docx-editor';
+  import { commands, DEFAULT_THEME_COLORS, themePalette } from '@office-kit/docx-editor';
   import SplitButton from './SplitButton.svelte';
   import { getSession } from '../session.svelte';
   import { t, type MessageKey } from '../i18n/index.svelte';
@@ -17,7 +17,7 @@
   type Props = { part: 'shapes' | 'smartArt' };
   const { part }: Props = $props();
   const session = getSession();
-  const accent = $derived(session.model && session.version >= 0 ? (themeColors(session.model.doc).accent1 ?? '4472C4') : '4472C4');
+  const accent = $derived((session.model && session.version >= 0 ? themePalette(session.model.doc) : DEFAULT_THEME_COLORS).accent1);
   // Word's new drawing canvas: 6" × 3".
   const CANVAS_WIDTH = 432;
   const CANVAS_HEIGHT = 216;

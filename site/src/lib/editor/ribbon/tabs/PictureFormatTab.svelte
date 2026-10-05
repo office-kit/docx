@@ -7,6 +7,7 @@
   import { commands, CROP_SHAPES, presetPath } from '@office-kit/docx-editor';
   import type { PictureShadow } from '@office-kit/docx';
   import RibbonIcon from '../../RibbonIcon.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import ArrangeGroup from '../ArrangeGroup.svelte';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
@@ -35,8 +36,6 @@
     SATURATIONS,
     SHADOWS,
     SOFT_EDGES,
-    STANDARD_COLORS,
-    THEME_COLORS,
     TRANSPARENCIES,
   } from '../../picture/presets';
 
@@ -210,15 +209,7 @@
           <button class="mi" class:checked={borderSection === 'dashes'} onclick={() => (borderSection = 'dashes')}>{t('pic.dashes')}</button>
         </div>
         {#if borderSection === 'colors'}
-          <div class="menu-head">{t('pic.themeColors')}</div>
-          <div class="grid ten">
-            {#each THEME_COLORS as c (c)}<button class="chip" style="background:#{c}" title="#{c}" aria-label="#{c}" onclick={() => setBorder({ color: c })}></button>{/each}
-          </div>
-          <div class="menu-head">{t('pic.standardColors')}</div>
-          <div class="grid ten">
-            {#each STANDARD_COLORS as c (c)}<button class="chip" style="background:#{c}" title="#{c}" aria-label="#{c}" onclick={() => setBorder({ color: c })}></button>{/each}
-          </div>
-          <label class="mi">{t('pic.moreColors')} <input type="color" onchange={(e) => setBorder({ color: e.currentTarget.value.slice(1).toUpperCase() })} /></label>
+          <ColorMenu onpick={(c) => setBorder({ color: c.rgb })} />
         {:else if borderSection === 'weight'}
           {#each BORDER_WEIGHTS as w (w)}
             <button class="mi check" class:checked={picture?.outline?.widthEmu === w * EMU_PER_PT} onclick={() => setBorder({ widthEmu: w * EMU_PER_PT })}>

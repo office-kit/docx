@@ -16,14 +16,14 @@
     type ShapeStroke,
     type TextBoxLayout,
   } from '@office-kit/docx';
-  import { commands, themeColors } from '@office-kit/docx-editor';
+  import { commands, DEFAULT_THEME_COLORS, themePalette } from '@office-kit/docx-editor';
   import ArrangeGroup from '../ArrangeGroup.svelte';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
   import SplitButton from '../SplitButton.svelte';
   import { getSession } from '../../session.svelte';
   import { t, type MessageKey } from '../../i18n/index.svelte';
-  import ColorMenu from '../../shapes/ColorMenu.svelte';
+  import ColorMenu from '../../ColorMenu.svelte';
   import ShapeGallery from '../../shapes/ShapeGallery.svelte';
   import { selectedShape, selectedSmartArt } from '../../shapes/selection';
   import { ARROW_STYLES, DASHES, fillCss, gradientVariations, OUTLINE_WEIGHTS, SHADOW_PRESETS, shapeStyles, wordArtStyles, type ShapeStylePreset } from '../../shapes/palette';
@@ -38,12 +38,12 @@
   const smartArt = $derived(selectedSmartArt(session));
   const kind = $derived(current && shapeKind(current.shape));
   const isWordArt = $derived(kind === 'wordArt');
-  const theme = $derived(session.model && session.version >= 0 ? themeColors(session.model.doc) : {});
+  const theme = $derived(session.model && session.version >= 0 ? themePalette(session.model.doc) : DEFAULT_THEME_COLORS);
   const styles = $derived(shapeStyles(theme));
   const artStyles = $derived(wordArtStyles(theme));
   const fill = $derived(current && getShapeFill(current.shape));
   const stroke = $derived(current && getShapeStroke(current.shape));
-  const fillColor = $derived(fill && 'color' in fill ? fill.color : (theme.accent1 ?? '4472C4'));
+  const fillColor = $derived(fill && 'color' in fill ? fill.color : theme.accent1);
   const textLayout = $derived(current && kind !== 'ink' && kind !== 'wordArt' && kind !== 'group' && kind !== 'canvas' ? getTextBoxLayout(current.shape) : undefined);
   const size = $derived.by(() => {
     if (current) return getShapeLayout(current.shape);
@@ -143,7 +143,7 @@
 <Group label={t('draw.shapeFill')}>
   <SplitButton id="sf.fill" size="large" icon="shapeFill" tip={t('draw.shapeFill')} label={t('draw.shapeFill')} onclick={() => setFill({ type: 'solid', color: fillColor })} disabled={!current}>
     {#snippet menu()}
-      <ColorMenu onpick={(color) => setFill({ type: 'solid', color })} noneLabel={t('draw.noFill')} onnone={() => setFill({ type: 'none' })}>
+      <ColorMenu onpick={(c) => setFill({ type: 'solid', color: c.rgb })} none={{ label: t('draw.noFill'), onpick: () => setFill({ type: 'none' }) }}>
         <label class="mi">{t('draw.fill.picture')}…<input type="file" accept="image/png,image/jpeg,image/gif" onchange={pictureFill} hidden /></label>
         <div class="menu-head">{t('draw.fill.gradient')}</div>
         <div class="grid five">
@@ -158,7 +158,7 @@
   <div class="rows">
     <SplitButton id="sf.outline" icon="shapeOutline" tip={t('draw.shapeOutline')} onclick={() => patchStroke({})} disabled={!current}>
       {#snippet menu()}
-        <ColorMenu onpick={(color) => patchStroke({ color })} noneLabel={t('draw.noOutline')} onnone={() => setStroke(null)}>
+        <ColorMenu onpick={(c) => patchStroke({ color: c.rgb })} none={{ label: t('draw.noOutline'), onpick: () => setStroke(null) }}>
           <div class="menu-head">{t('draw.weight')}</div>
           {#each OUTLINE_WEIGHTS as w (w)}
             <button class="mi check" class:checked={stroke?.weight === w} role="menuitem" onclick={() => patchStroke({ weight: w })}><span class="wk-line-sample" style="border-top:{Math.max(1, w * 1.33)}px solid"></span>{w} pt</button>
@@ -199,11 +199,11 @@
     {/snippet}
   </SplitButton>
   <SplitButton id="sf.textFill" size="large" icon="textFill" tip={t('draw.textFill')} disabled={!isWordArt}>
-    {#snippet menu()}<ColorMenu onpick={(color) => setFill({ type: 'solid', color })} noneLabel={t('draw.noFill')} onnone={() => setFill({ type: 'none' })} />{/snippet}
+    {#snippet menu()}<ColorMenu onpick={(c) => setFill({ type: 'solid', color: c.rgb })} none={{ label: t('draw.noFill'), onpick: () => setFill({ type: 'none' }) }} />{/snippet}
   </SplitButton>
   <div class="rows">
     <SplitButton id="sf.textOutline" icon="textOutline" tip={t('draw.textOutline')} disabled={!isWordArt}>
-      {#snippet menu()}<ColorMenu onpick={(color) => patchStroke({ color })} noneLabel={t('draw.noOutline')} onnone={() => setStroke(null)} />{/snippet}
+      {#snippet menu()}<ColorMenu onpick={(c) => patchStroke({ color: c.rgb })} none={{ label: t('draw.noOutline'), onpick: () => setStroke(null) }} />{/snippet}
     </SplitButton>
     <SplitButton id="sf.textEffects" icon="textEffects" tip={t('draw.textEffects')} disabled={!isWordArt}>
       {#snippet menu()}

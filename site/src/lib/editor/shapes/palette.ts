@@ -1,7 +1,7 @@
 /**
- * The colour, line and preset galleries of Shape Format and the Draw tab, in
- * Word's order: theme colour grid, standard colours, outline weights and
- * dashes, arrowheads, shadow presets, Shape Styles and WordArt Styles.
+ * The line and preset galleries of Shape Format and the Draw tab, in Word's
+ * order: outline weights and dashes, arrowheads, shadow presets, Shape Styles
+ * and WordArt Styles.
  */
 
 import type {
@@ -14,34 +14,8 @@ import type {
   ShapeStroke,
 } from "@office-kit/docx";
 import { SHAPE_PRESETS } from "@office-kit/docx";
+import type { ThemePalette } from "@office-kit/docx-editor";
 
-// Word's "Standard Colors" row.
-export const STANDARD_COLORS = [
-  "C00000",
-  "FF0000",
-  "FFC000",
-  "FFFF00",
-  "92D050",
-  "00B050",
-  "00B0F0",
-  "0070C0",
-  "002060",
-  "7030A0",
-] as const;
-
-/** The ten theme colours across the top of Word's palette, in its order. */
-export const THEME_SLOTS = [
-  "lt1",
-  "dk1",
-  "lt2",
-  "dk2",
-  "accent1",
-  "accent2",
-  "accent3",
-  "accent4",
-  "accent5",
-  "accent6",
-] as const;
 const ACCENTS = ["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"] as const;
 
 function channels(hex: string): [number, number, number] {
@@ -68,29 +42,6 @@ export function tint(hex: string, amount: number): string {
       ? [c[0] + (255 - c[0]) * amount, c[1] + (255 - c[1]) * amount, c[2] + (255 - c[2]) * amount]
       : [c[0] * (1 + amount), c[1] * (1 + amount), c[2] * (1 + amount)],
   );
-}
-
-/**
- * Word's theme colour grid: each theme colour over five variations (lighter
- * 80/60/40 %, darker 25/50 %; the light background colour gets darker
- * 5/15/25/35/50 % instead).
- */
-export function themeGrid(theme: Readonly<Record<string, string>>): string[][] {
-  const base = THEME_SLOTS.map((slot) => theme[slot] ?? "000000");
-  const rows: string[][] = [base];
-  const lighter = [0.8, 0.6, 0.4, -0.25, -0.5];
-  const fromWhite = [-0.05, -0.15, -0.25, -0.35, -0.5];
-  for (let r = 0; r < 5; r++) {
-    rows.push(
-      base.map((hex, i) => {
-        if (i === 0) return tint(hex, fromWhite[r] ?? 0);
-        const isDark = channels(hex).reduce((a, b) => a + b, 0) < 120;
-        // Black's variations are lighter shades of grey.
-        return tint(hex, isDark ? ([0.5, 0.35, 0.25, 0.15, 0.05][r] ?? 0) : (lighter[r] ?? 0));
-      }),
-    );
-  }
-  return rows;
 }
 
 export const OUTLINE_WEIGHTS = [0.25, 0.5, 0.75, 1, 1.5, 2.25, 3, 4.5, 6] as const;
@@ -164,9 +115,9 @@ export interface ShapeStylePreset {
  * Effect) over Dark 1 and the six accents, expressed with VML's fill, line and
  * shadow.
  */
-export function shapeStyles(theme: Readonly<Record<string, string>>): ShapeStylePreset[][] {
-  const columns = [theme.dk1 ?? "000000", ...ACCENTS.map((a) => theme[a] ?? "4472C4")];
-  const white = theme.lt1 ?? "FFFFFF";
+export function shapeStyles(theme: ThemePalette): ShapeStylePreset[][] {
+  const columns = [theme.dk1, ...ACCENTS.map((a) => theme[a])];
+  const white = theme.lt1;
   const soft: ShapeShadow = { color: "000000", offsetX: 0, offsetY: 2, opacity: 0.3 };
   const strong: ShapeShadow = { color: "000000", offsetX: 0, offsetY: 3, opacity: 0.5 };
   return [
@@ -212,12 +163,12 @@ export function shapeStyles(theme: Readonly<Record<string, string>>): ShapeStyle
 const solid = (color: string): ShapeFill => ({ type: "solid", color });
 
 /** WordArt Styles: fill, outline and shadow over the theme's text and accent colours. */
-export function wordArtStyles(theme: Readonly<Record<string, string>>): ShapeStylePreset[] {
-  const dark = theme.dk1 ?? "000000";
-  const white = theme.lt1 ?? "FFFFFF";
-  const a1 = theme.accent1 ?? "4472C4";
-  const a2 = theme.accent2 ?? "ED7D31";
-  const a4 = theme.accent4 ?? "FFC000";
+export function wordArtStyles(theme: ThemePalette): ShapeStylePreset[] {
+  const dark = theme.dk1;
+  const white = theme.lt1;
+  const a1 = theme.accent1;
+  const a2 = theme.accent2;
+  const a4 = theme.accent4;
   const shadow: ShapeShadow = { color: "000000", offsetX: 2, offsetY: 2, opacity: 0.35 };
   return [
     { fill: solid(dark), stroke: null, shadow: null, text: dark },
