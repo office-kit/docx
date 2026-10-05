@@ -27,6 +27,7 @@ import {
   openEditor,
   runCommand,
 } from "./index.js";
+import { caretAt } from "./selection.js";
 
 function editorWith(texts: string[]): EditorModel {
   const model = editorFor(createDocx({ paragraphs: texts }));
@@ -141,9 +142,25 @@ describe("replaceAllCommand", () => {
     expect(model.canUndo()).toBe(false);
   });
 
+  it("keeps a paragraph after a table that ends the document", () => {
+    const doc = createDocx({ paragraphs: ["intro"] });
+    addTable(doc, [["cell"]]);
+    const model = editorFor(doc);
+    expect(model.doc.document.body.blocks.map((b) => b.kind)).toEqual([
+      "paragraph",
+      "table",
+      "paragraph",
+    ]);
+    // Inserting a table at the end leaves the caret's paragraph after it, too.
+    model.setSelection(caretAt({ block: 2, inline: 0, offset: 0 }));
+    runCommand(model, commands.insertTableCommand, { rows: 1, cols: 1 });
+    expect(model.doc.document.body.blocks.at(-1)?.kind).toBe("paragraph");
+  });
+
   it("replaces inside table cells in the same undo step, and redo re-applies it", () => {
     const doc = createDocx({ paragraphs: ["cat"] });
     addTable(doc, [["cat cell"]]);
+    // The editor adds the paragraph Word keeps after a table that ends the body.
     const model = editorFor(doc);
     expect(
       runCommand(model, commands.replaceAllCommand, { query: "cat", replacement: "dog" }),
@@ -151,10 +168,10 @@ describe("replaceAllCommand", () => {
     const cell = (): string => getTableCellText(tables(model.doc)[0]!, 0, 0);
     expect(cell()).toBe("dog cell");
     model.undo();
-    expect([texts(model), cell()]).toEqual([["cat"], "cat cell"]);
+    expect([texts(model), cell()]).toEqual([["cat", ""], "cat cell"]);
     expect(model.canUndo()).toBe(false);
     model.redo();
-    expect([texts(model), cell()]).toEqual([["dog"], "dog cell"]);
+    expect([texts(model), cell()]).toEqual([["dog", ""], "dog cell"]);
     const reopened = openDocx(toUint8Array(model.doc));
     expect(getTableCellText(tables(reopened)[0]!, 0, 0)).toBe("dog cell");
   });
