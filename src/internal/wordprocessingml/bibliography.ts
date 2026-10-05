@@ -142,13 +142,14 @@ function readPeople(contributor: XmlElement | undefined): PersonName[] {
   return list.children
     .filter((c): c is XmlElement => c.kind === "element" && c.name.local === "Person")
     .map((p) => {
+      const person: { last: string; first?: string; middle?: string } = {
+        last: childText(p, "Last") ?? "",
+      };
       const first = childText(p, "First");
       const middle = childText(p, "Middle");
-      return {
-        last: childText(p, "Last") ?? "",
-        ...(first ? { first } : {}),
-        ...(middle ? { middle } : {}),
-      };
+      if (first) person.first = first;
+      if (middle) person.middle = middle;
+      return person;
     });
 }
 

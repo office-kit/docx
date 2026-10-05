@@ -807,10 +807,9 @@ export interface IndexEntryOptions {
 
 /** The XE instruction for an index entry. Colons inside entry text are escaped as `\:`. */
 export function indexEntryInstruction(entry: IndexEntryOptions): string {
-  const escapeColon = (s: string) => s.replace(/:/g, "\\:");
   const text = [entry.main, entry.subentry]
     .filter((s): s is string => !!s && s.trim() !== "")
-    .map((s) => escapeColon(s.trim()))
+    .map((s) => s.trim().replace(/:/g, "\\:"))
     .join(":");
   if (!text) throw new Error("An index entry needs main entry text.");
   const parts = ["XE", quotedFieldArg(text)];
@@ -1061,8 +1060,6 @@ function indexResult(
   const runIn = !!fieldSwitch(field.parsed, "r");
   const headings = fieldSwitch(field.parsed, "h");
   const tabs = entrySep === "\t" ? `${tabsXml(existingLeaderOr(field, "dot"), columnWidth(doc, Number(fieldSwitch(field.parsed, "c")?.arg ?? 1) || 1))}` : "";
-  const sorted = (m: Map<string, IndexNode>) =>
-    [...m.values()].toSorted((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   const pagesXml = (node: IndexNode): string => {
     const pages = node.pages.toSorted((a, b) => a.sortKey - b.sortKey);
     const parts = pages.map((p) => {
@@ -1078,7 +1075,7 @@ function indexResult(
   };
   const out: string[] = [];
   let letter = "";
-  for (const node of sorted(root)) {
+  for (const node of sortedNodes(root)) {
     if (headings) {
       const first = node.name[0]?.toUpperCase() ?? "";
       if (first !== letter) {
@@ -1087,7 +1084,7 @@ function indexResult(
       }
     }
     if (runIn) {
-      const subs = sorted(node.children)
+      const subs = sortedNodes(node.children)
         .map((c) => `${textRunXml(c.name)}${pagesXml(c)}`)
         .join(textRunXml("; "));
       const sep = subs ? textRunXml(node.pages.length ? "; " : ": ") : "";
@@ -1096,11 +1093,17 @@ function indexResult(
     }
     const emit = (n: IndexNode, level: number): void => {
       out.push(`<w:p><w:pPr><w:pStyle w:val="Index${level}"/>${tabs}</w:pPr>${textRunXml(n.name)}${pagesXml(n)}</w:p>`);
-      for (const c of sorted(n.children)) emit(c, Math.min(level + 1, MAX_LEVEL));
+      for (const c of sortedNodes(n.children)) emit(c, Math.min(level + 1, MAX_LEVEL));
     };
     emit(node, 1);
   }
   return paragraphsFromXml(out.join(""));
+}
+
+function sortedNodes(m: ReadonlyMap<string, IndexNode>): IndexNode[] {
+  return [...m.values()].toSorted((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
 }
 
 function existingLeaderOr(field: FlowField, fallback: TabLeader): TabLeader {

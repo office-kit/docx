@@ -16,7 +16,7 @@ import { WML_NS } from "./namespaces.js";
 import { parseParagraph, parseWmlDocument } from "./parser.js";
 import type { WmlBlock, WmlBody, WmlInline, WmlParagraph, WmlRun, WmlRunPiece } from "./types.js";
 import { paragraphToElement } from "./writer.js";
-import { type FieldInstruction, parseFieldInstruction } from "./field-code.js";
+import { type FieldInstruction, parseFieldInstruction, quotedFieldArg } from "./field-code.js";
 
 const W_DECL = `xmlns:w="${WML_NS}"`;
 const R_DECL = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -305,12 +305,17 @@ function instrTextOf(run: WmlRun): string {
 /**
  * Every field in the flow in document order (by where it begins), with
  * nesting depth. Normalizes the paragraphs' field runs first.
+ *
+ * A field nested in another's code contributes its current result to the
+ * outer instruction, the way Word evaluates `IF { MERGEFIELD x } = "a" …`:
+ * update inner fields first, then rescan to evaluate the outer one.
  */
 export function scanFields(flow: readonly ParagraphRef[]): FlowField[] {
   interface Open {
     begin: FieldPosition;
     instruction: string;
     separate: FieldPosition | undefined;
+    result: string;
     order: number;
   }
   const stack: Open[] = [];
@@ -341,12 +346,26 @@ export function scanFields(flow: readonly ParagraphRef[]): FlowField[] {
         if (piece.kind === "fieldChar") {
           const at = { ref, inline: i };
           if (piece.charType === "begin") {
-            stack.push({ begin: at, instruction: "", separate: undefined, order: order++ });
+            stack.push({
+              begin: at,
+              instruction: "",
+              separate: undefined,
+              result: "",
+              order: order++,
+            });
           } else if (piece.charType === "separate") {
             const top = stack.at(-1);
             if (top) top.separate = at;
           } else {
             const top = stack.pop();
+            const parent = stack.at(-1);
+            if (top && parent && !parent.separate) {
+              // A nested result is one operand even when it contains spaces
+              // (`IF { MERGEFIELD Country } = "United States" …`), so it is
+              // quoted unless it already sits inside a quoted argument.
+              const insideQuotes = (parent.instruction.replace(/\\./g, "").match(/"/g) ?? []).length % 2 === 1;
+              parent.instruction += insideQuotes ? top.result : quotedFieldArg(top.result);
+            }
             if (top) {
               done.push({
                 instruction: top.instruction,
@@ -364,6 +383,9 @@ export function scanFields(flow: readonly ParagraphRef[]): FlowField[] {
           // Instruction text after the separator belongs to a nested field's
           // result, not to this field's code.
           if (top && !top.separate) top.instruction += instrTextOf({ ...inline, pieces: [piece] });
+        } else if (piece.kind === "text" || piece.kind === "tab") {
+          const top = stack.at(-1);
+          if (top?.separate) top.result += piece.kind === "tab" ? "\t" : piece.value;
         }
       }
     });
@@ -580,11 +602,12 @@ export function visibleParagraphText(paragraph: WmlParagraph): string {
 /** The visible text of a slice of a paragraph's inlines. */
 export function visibleInlinesText(inlines: readonly WmlInline[]): string {
   let acc = "";
-  // Field codes (between begin and separate) are not visible text.
+  // Field codes (between begin and separate), and the results of fields
+  // nested in them, are not visible text.
   const inCode: boolean[] = [];
   for (const inline of inlines) {
     if (inline.kind === "raw") {
-      if (!inCode.at(-1)) acc += xmlText(inline.node);
+      if (!inCode.includes(true)) acc += xmlText(inline.node);
       continue;
     }
     for (const piece of inline.pieces) {
@@ -598,7 +621,7 @@ export function visibleInlinesText(inlines: readonly WmlInline[]): string {
         }
         continue;
       }
-      if (inCode.at(-1)) continue;
+      if (inCode.includes(true)) continue;
       if (piece.kind === "text") acc += piece.value;
       else if (piece.kind === "tab") acc += "\t";
     }

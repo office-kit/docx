@@ -6,6 +6,7 @@
 
 export * from "./docx.js";
 export * from "./references.js";
+export * from "./mailings.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,
