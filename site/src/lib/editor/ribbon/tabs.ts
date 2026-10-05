@@ -21,6 +21,7 @@ import PictureFormatTab from "./tabs/PictureFormatTab.svelte";
 import ReferencesTab from "./tabs/ReferencesTab.svelte";
 import ReviewTab from "./tabs/ReviewTab.svelte";
 import ShapeFormatTab from "./tabs/ShapeFormatTab.svelte";
+import SmartArtDesignTab from "./tabs/SmartArtDesignTab.svelte";
 import TableDesignTab from "./tabs/TableDesignTab.svelte";
 import TableLayoutTab from "./tabs/TableLayoutTab.svelte";
 import ViewTab from "./tabs/ViewTab.svelte";
@@ -33,10 +34,10 @@ export interface RibbonTab {
   readonly when?: (session: EditorSession) => boolean;
 }
 
-const never = (): boolean => false;
 // `tick` is read so the tab appears and disappears as the caret moves.
 const inTable = (s: EditorSession): boolean =>
   s.tick >= 0 && !!s.model && !!tableSelection(s.model);
+const SHAPE_FORMAT_KINDS: ReadonlySet<string> = new Set(["shape", "textBox", "smartArt", "ink"]);
 
 export const TABS: readonly RibbonTab[] = [
   // Word puts Outlining first, ahead of Home, while the Outline view is on.
@@ -55,7 +56,18 @@ export const TABS: readonly RibbonTab[] = [
   { id: "mailings", label: "tab.mailings", component: MailingsTab },
   { id: "review", label: "tab.review", component: ReviewTab },
   { id: "view", label: "tab.view", component: ViewTab },
-  { id: "shapeFormat", label: "tab.shapeFormat", component: ShapeFormatTab, when: never },
+  {
+    id: "smartArtDesign",
+    label: "draw.tab.smartArtDesign",
+    component: SmartArtDesignTab,
+    when: (s) => s.selectedObject?.kind === "smartArt",
+  },
+  {
+    id: "shapeFormat",
+    label: "tab.shapeFormat",
+    component: ShapeFormatTab,
+    when: (s) => SHAPE_FORMAT_KINDS.has(s.selectedObject?.kind ?? ""),
+  },
   {
     id: "pictureFormat",
     label: "tab.pictureFormat",

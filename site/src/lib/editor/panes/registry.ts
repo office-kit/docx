@@ -15,6 +15,8 @@ import NotesPane from "./NotesPane.svelte";
 import AltTextPane from "./AltTextPane.svelte";
 import FormatPicturePane from "./FormatPicturePane.svelte";
 import SelectionPane from "./SelectionPane.svelte";
+import FormatShapePane from "./FormatShapePane.svelte";
+import SmartArtTextPane from "./SmartArtTextPane.svelte";
 import XmlPane from "./XmlPane.svelte";
 
 export const PANES: Readonly<Record<string, Component>> = {
@@ -30,4 +32,6 @@ export const PANES: Readonly<Record<string, Component>> = {
   altText: AltTextPane,
   formatPicture: FormatPicturePane,
   selection: SelectionPane,
+  formatShape: FormatShapePane,
+  smartArtText: SmartArtTextPane,
 };

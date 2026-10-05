@@ -45,6 +45,17 @@ export {
   readFloat,
 } from "./float-layout.js";
 export { drawingIndexAt, drawingPositionOf } from "./drawing-access.js";
+export { renderPictHtml, type VmlRenderContext, vmlPathPreviewSvg } from "./render-vml.js";
+export { type SvgSubpath, vmlPathToSvg } from "./vml-path.js";
+export { themeColors } from "./render-smartart.js";
+export { type InkPoint, type RecognizedShape, recognizeInkShape } from "./ink-shape.js";
+export {
+  type OutlineOp,
+  type OutlineRow,
+  applyOutlineOp,
+  outlineToNodes,
+  outlineRows,
+} from "./smartart-outline.js";
 export {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,

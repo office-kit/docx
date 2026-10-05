@@ -28,6 +28,7 @@ export type FeatureGroup =
   | "references"
   | "mailings"
   | "review"
+  | "shape"
   | "advanced"
   | "design"
   | "layout"

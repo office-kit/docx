@@ -1,11 +1,12 @@
 <script lang="ts">
   /**
    * Insert ▸ Illustrations, in Word's order: Pictures, Shapes, Icons,
-   * SmartArt, Chart, Screenshot. The pictures area owns Pictures, Icons,
-   * Chart and Screenshot; Shapes and SmartArt live in the marked slots.
+   * SmartArt, Chart, Screenshot. Shapes and SmartArt come from
+   * ShapesButtons.
    */
   import Button from './Button.svelte';
   import SplitButton from './SplitButton.svelte';
+  import ShapesButtons from './ShapesButtons.svelte';
   import ChartTypeDialog from '../picture/ChartTypeDialog.svelte';
   import IconsDialog from '../picture/IconsDialog.svelte';
   import { getSession } from '../session.svelte';
@@ -37,26 +38,19 @@
   }
 </script>
 
-<!-- pictures area: Pictures -->
 <SplitButton id="ill.pictures" size="large" icon="illPictures" tip={t('ill.pictures')}>
   {#snippet menu()}
     <button class="mi" role="menuitem" onclick={() => { session.openMenu = null; fileInput?.click(); }}>{t('ill.pictureFromFile')}</button>
   {/snippet}
 </SplitButton>
 <input bind:this={fileInput} type="file" accept="image/*" multiple onchange={onFiles} hidden />
-<!-- end pictures area -->
 
-<!-- shapes area: Shapes -->
-<!-- end shapes area -->
+<ShapesButtons part="shapes" />
 
-<!-- pictures area: Icons -->
 <Button size="large" icon="illIcons" tip={t('ill.icons')} onclick={() => session.openDialog('picture.icons')} />
-<!-- end pictures area -->
 
-<!-- shapes area: SmartArt -->
-<!-- end shapes area -->
+<ShapesButtons part="smartArt" />
 
-<!-- pictures area: Chart, Screenshot -->
 <Button size="large" icon="illChart" tip={t('ill.chart')} onclick={() => session.openDialog('chart.insert')} />
 <SplitButton id="ill.screenshot" size="large" icon="illScreenshot" tip={t('ill.screenshot')}>
   {#snippet menu()}
@@ -65,4 +59,3 @@
 </SplitButton>
 <IconsDialog />
 <ChartTypeDialog mode="insert" />
-<!-- end pictures area -->

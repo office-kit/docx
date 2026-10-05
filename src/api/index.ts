@@ -12,6 +12,8 @@ export * from "./insert.js";
 export * from "./references.js";
 export * from "./mailings.js";
 export * from "./picture.js";
+export * from "./shape.js";
+export * from "./smartart.js";
 export { type ValidationIssue, validatePackage } from "./validator.js";
 export {
   appendTableRow,

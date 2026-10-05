@@ -52,6 +52,8 @@ import {
   isDrawingOnlyRun,
   runDrawingsHtml,
 } from "./render-drawing.js";
+import { paragraphFloatsHtml, runObjectsHtml } from "./render-vml.js";
+import type { DocPosition } from "./selection.js";
 import { WML_NS } from "./wml-ns.js";
 import { deletedRunText, type ReviewDecorations, reviewDecorations } from "./render-revisions.js";
 
@@ -112,7 +114,7 @@ const HEX_COLOR = /^[0-9A-Fa-f]{6}$/;
  * only the ones that differ from Normal, because the run sits inside a
  * paragraph element that carries the paragraph mark's look.
  */
-function runCss(fmt: ResolvedRunFormat): string {
+export function runCss(fmt: ResolvedRunFormat): string {
   const parts: string[] = [
     `font-weight:${fmt.bold ? "bold" : "normal"}`,
     `font-style:${fmt.italic ? "italic" : "normal"}`,
@@ -146,7 +148,7 @@ function fontCss(fmt: ResolvedRunFormat): string[] {
   return parts;
 }
 
-function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): string {
+export function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): string {
   const css = fontCss(mark);
   const align = ALIGN_TO_CSS[fmt.alignment ?? ""];
   if (align) css.push(`text-align:${align}`);
@@ -263,6 +265,7 @@ function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
 
 function renderParagraph(
   para: WmlParagraph,
+  doc: Docx,
   styles: RenderResolver,
   review: ReviewDecorations,
   block: number,
@@ -299,7 +302,10 @@ function renderParagraph(
       const inline = runIndex++;
       // A picture-only run gets no editable span: typing there could not be
       // written back into the run, so the caret lives in the text around it.
-      if (isDrawingOnlyRun(child)) return pictureObjectsHtml(child, block, inline, cell);
+      const objects =
+        pictureObjectsHtml(child, block, inline, cell) +
+        runObjectsHtml(child, doc, positionOf(block, inline, cell));
+      if (isDrawingOnlyRun(child)) return objects;
       textRuns++;
       const field = fields.get(i);
       return (
@@ -312,12 +318,13 @@ function renderParagraph(
           cell,
           field ? fieldAttrs(field) : "",
           role === "result" ? " wk-fresult" : "",
-        ) + pictureObjectsHtml(child, block, inline, cell)
+        ) + objects
       );
     })
     .join("");
   if (textRuns === 0) inner = `​${inner}`;
-  inner = label + inner;
+  // Floating objects go first so their static position is the paragraph's top.
+  inner = label + paragraphFloatsHtml(para, doc, (i) => positionOf(block, i, cell)) + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
   const deco = review.paragraph(para);
   return `<p class="wk-p${deco.classes}" data-wk-block="${block}"${cellAttr}${styleAttr}${deco.attrs}>${inner}</p>`;
@@ -332,13 +339,13 @@ function renderBlock(
 ): string {
   switch (blockNode.kind) {
     case "paragraph":
-      return renderParagraph(blockNode, styles, review, block);
+      return renderParagraph(blockNode, doc, styles, review, block);
     case "table":
       return renderTable(blockNode, {
         doc,
         block,
         paragraph: (para, anchor, text) =>
-          renderParagraph(para, styles, review, block, anchor, text),
+          renderParagraph(para, doc, styles, review, block, anchor, text),
       });
     default:
       // Raw / unmodelled block: show a non-editable marker; the library still
@@ -354,15 +361,13 @@ let drawingContext: DrawingRenderContext | undefined;
 
 function pictureObjectsHtml(run: WmlRun, block: number, inline: number, cell?: CellAnchor): string {
   if (!drawingContext || !run.pieces.some((p) => p.kind === "drawing")) return "";
-  const at = cell
-    ? { block, cell: parseCellCoord(cell.coord), para: cell.para, inline }
-    : { block, inline };
-  return runDrawingsHtml(drawingContext, run, at);
+  return runDrawingsHtml(drawingContext, run, positionOf(block, inline, cell));
 }
 
-function parseCellCoord(coord: string): { row: number; col: number } {
-  const [row = 0, col = 0] = coord.split(",").map(Number);
-  return { row, col };
+function positionOf(block: number, inline: number, cell?: CellAnchor): DocPosition {
+  if (!cell) return { block, inline };
+  const [row = 0, col = 0] = cell.coord.split(",").map(Number);
+  return { block, cell: { row, col }, para: cell.para, inline };
 }
 
 /** Render the whole document body to an HTML string for the canvas. */

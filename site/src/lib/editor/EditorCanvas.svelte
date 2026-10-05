@@ -6,6 +6,7 @@
     DocPosition,
     Selection as EditorSelection,
   } from '@office-kit/docx-editor';
+  import ShapeOverlay from './shapes/ShapeOverlay.svelte';
   import {
     positionFromDom,
     readDomSelection,
@@ -591,6 +592,7 @@
   <div bind:this={galley} class="wk-galley wk-canvas" aria-hidden="true"></div>
 </div>
 <ObjectSelection {canvas} />
+<ShapeOverlay {canvas} />
 
 <style>
   .wk-page {
