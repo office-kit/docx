@@ -4,10 +4,18 @@
  */
 
 import type { Component } from "svelte";
+import AccessibilityPane from "./AccessibilityPane.svelte";
+import CommentsPane from "./CommentsPane.svelte";
 import NavigationPane from "./NavigationPane.svelte";
+import RestrictEditingPane from "./RestrictEditingPane.svelte";
+import ReviewingPane from "./ReviewingPane.svelte";
 import XmlPane from "./XmlPane.svelte";
 
 export const PANES: Readonly<Record<string, Component>> = {
   navigation: NavigationPane,
   xml: XmlPane,
+  comments: CommentsPane,
+  reviewing: ReviewingPane,
+  accessibility: AccessibilityPane,
+  restrictEditing: RestrictEditingPane,
 };

@@ -53,6 +53,7 @@ export {
 } from "./review-nav.js";
 export { BODY_TEXT_LEVEL, outlineLevelOf } from "./outline.js";
 export { AUTHOR_COLORS } from "./render-revisions.js";
+export { isEditingLocked, PROTECTED_MESSAGE, protectionRefusal } from "./protection-guard.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, paragraphAt, paragraphsInRange } from "./doc-access.js";
 export { type RunRef, runsInRange } from "./selection-runs.js";

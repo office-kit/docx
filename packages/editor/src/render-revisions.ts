@@ -1,7 +1,7 @@
 /**
  * Review markup on the canvas: tracked insertions and deletions, changed
- * paragraphs (for the change bar), comment ranges, proofing language and the
- * Outline view's levels, as classes and `data-*` attributes on the rendered
+ * paragraphs (for the change bar), comment ranges, editable exceptions of a
+ * protected document, proofing language and the Outline view's levels, as classes and `data-*` attributes on the rendered
  * runs and paragraphs.
  *
  * Which of them show — Simple Markup, All Markup, No Markup, Original — is
@@ -72,6 +72,8 @@ export function reviewDecorations(doc: Docx): ReviewDecorations {
   const colorOf = (author: string | undefined): number =>
     (authors.get(author ?? "") ?? 0) % AUTHOR_COLORS;
   const openComments = new Set<string>();
+  // Exception ranges stay editable while protection locks the rest.
+  const openPermissions = new Set<string>();
 
   return {
     inline(node) {
@@ -80,6 +82,8 @@ export function reviewDecorations(doc: Docx): ReviewDecorations {
       if (id === undefined) return;
       if (node.name.local === "commentRangeStart") openComments.add(id);
       else if (node.name.local === "commentRangeEnd") openComments.delete(id);
+      else if (node.name.local === "permStart") openPermissions.add(id);
+      else if (node.name.local === "permEnd") openPermissions.delete(id);
     },
     run(run) {
       const classes: string[] = [];
@@ -96,6 +100,10 @@ export function reviewDecorations(doc: Docx): ReviewDecorations {
       if (openComments.size > 0) {
         classes.push("wk-commented");
         attrs.push(`data-wk-comment="${escapeAttr([...openComments].join(" "))}"`);
+      }
+      if (openPermissions.size > 0) {
+        classes.push("wk-perm");
+        attrs.push('contenteditable="true"');
       }
       const language = getRunLanguage(run).latin;
       if (language) attrs.push(`lang="${escapeAttr(language)}"`);
