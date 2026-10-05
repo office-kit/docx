@@ -5,6 +5,7 @@ import { createDocx, openDocx, paragraphs, toUint8Array } from "./docx.js";
 import {
   addSmartArt,
   getSmartArt,
+  removeSmartArt,
   runSmartArt,
   SMARTART_LAYOUTS,
   type SmartArtLayout,
@@ -106,5 +107,25 @@ describe("editing SmartArt", () => {
       width: 300,
       height: 150,
     });
+  });
+});
+
+describe("removeSmartArt", () => {
+  it("drops the run, the parts and their relationships", () => {
+    const { doc, run } = setup();
+    const p = paragraphs(doc)[0];
+    if (!p) throw new Error("no paragraph");
+    expect(removeSmartArt(doc, p, run)).toBe(true);
+    const reopened = openDocx(toUint8Array(doc));
+    expect(validatePackage(reopened.opc)).toEqual([]);
+    expect(smartArts(reopened)).toEqual([]);
+    expect(getPart(reopened.opc, "/word/diagrams/data1.xml")).toBeUndefined();
+    const rels = partRelationships(reopened.opc, "/word/document.xml");
+    expect(
+      relationshipsByType(
+        rels,
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData",
+      ),
+    ).toEqual([]);
   });
 });

@@ -16,6 +16,8 @@ import {
   hasPart,
   partRelationships,
   relationshipById,
+  removePart,
+  removeRelationship,
 } from "../internal/opc/index.js";
 import { REL_NS, type WmlParagraph, type WmlRun } from "../internal/wordprocessingml/index.js";
 import { parseXml, type XmlElement } from "../internal/xml/index.js";
@@ -480,4 +482,27 @@ export function setSmartArtSize(ref: SmartArtRef, width: number, height: number)
     for (const c of el.children) if (c.kind === "element") visit(c);
   };
   visit(ref.drawing);
+}
+
+/**
+ * Delete a SmartArt graphic: its run leaves `paragraph`, and the four diagram
+ * parts go with their relationships so the package keeps no orphans.
+ */
+export function removeSmartArt(doc: Docx, paragraph: WmlParagraph, run: WmlRun): boolean {
+  const ref = runSmartArt(doc, run);
+  const relIdsEl = ref && findRelIds(ref.drawing);
+  const index = paragraph.children.indexOf(run);
+  if (!ref || !relIdsEl || index < 0) return false;
+  paragraph.children.splice(index, 1);
+  const rels = partRelationships(doc.opc, doc.partName);
+  for (const attr of relIdsEl.attrs) {
+    if (attr.name.uri === REL_NS) removeRelationship(rels, attr.value);
+  }
+  for (const kind of PART_KINDS) {
+    removePart(doc.opc, ref.parts[kind]);
+    doc.rawParts.delete(ref.parts[kind]);
+    doc.rawPartsDirty.delete(ref.parts[kind]);
+  }
+  doc.dirty = true;
+  return true;
 }

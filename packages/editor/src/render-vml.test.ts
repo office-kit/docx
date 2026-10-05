@@ -4,6 +4,7 @@ import {
   getShapeLayout,
   getShapeWrap,
   getSmartArt,
+  paragraphText,
   shapeText,
   smartArts,
   toUint8Array,
@@ -22,7 +23,9 @@ import {
   insertWordArtCommand,
   shapeFillCommand,
   shapeLayoutCommand,
-  shapeTextRunCommand,
+  shapeMergeTextCommand,
+  shapeSplitTextCommand,
+  shapeTextEditCommand,
   shapeWrapCommand,
   smartArtNodesCommand,
   ungroupShapesCommand,
@@ -115,11 +118,18 @@ describe("shape commands and rendering", () => {
     expect(html).toContain('data-wk-object="textBox"');
     expect(html).toContain('contenteditable="true"');
     expect(html).toContain('data-wk-txbx-run="0,0"');
-    runCommand(m, shapeTextRunCommand, { at, para: 0, run: 0, text: "New" });
+    runCommand(m, shapeTextEditCommand, { at, paragraphs: [["New"]] });
+    runCommand(m, shapeSplitTextCommand, { at, para: 0, run: 0, offset: 1 });
+    {
+      const [box] = vmlShapes(m.doc);
+      if (!box) throw new Error("missing");
+      expect(shapeText(box)).toHaveLength(2);
+    }
+    runCommand(m, shapeMergeTextCommand, { at, para: 1 });
     const [shape] = vmlShapes(m.doc);
     if (!shape) throw new Error("missing");
-    const run = shapeText(shape)[0]?.children[0];
-    expect(run?.kind === "run" && run.pieces[0]).toMatchObject({ value: "New" });
+    const first = shapeText(shape)[0];
+    expect(first && paragraphText(first)).toBe("New");
   });
 
   it("renders WordArt as stretched SVG text and ink as a stroke", () => {

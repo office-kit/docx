@@ -285,6 +285,7 @@ export const apiGroups: ApiGroup[] = [
       { name: "setSmartArtColors" },
       { name: "setSmartArtStyle" },
       { name: "setSmartArtSize" },
+      { name: "removeSmartArt" },
       { name: "SMARTART_LAYOUTS" },
       { name: "SMARTART_COLORS" },
       { name: "SMARTART_STYLES" },

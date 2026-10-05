@@ -21,6 +21,7 @@ import {
   groupShapes,
   linkTextBoxes,
   removeShape,
+  removeSmartArt,
   runShape,
   runSmartArt,
   setShapeAltText,
@@ -304,16 +305,75 @@ export const shapeTextCommand = shapeCommand<{ text: string | readonly WmlParagr
 );
 
 /**
- * Typing inside a text box on the canvas: replace one run's text. Runs that
- * hold more than text (tabs, fields) are left alone, as body typing does.
+ * Typing inside a text box on the canvas: the new text of each run, paragraph
+ * by paragraph, as the canvas shows it. A paragraph without runs that gained
+ * text gets one; runs holding more than text (tabs, fields) are left alone,
+ * as body typing does.
  */
-export const shapeTextRunCommand = shapeCommand<{ para: number; run: number; text: string }>(
-  "shape.textRun",
+export const shapeTextEditCommand = shapeCommand<{ paragraphs: ReadonlyArray<readonly string[]> }>(
+  "shape.textEdit",
   "Typing",
-  (_doc, shape, { para, run, text }) => {
+  (_doc, shape, { paragraphs }) => {
+    const current = shapeText(shape);
+    current.forEach((para, p) => {
+      const texts = paragraphs[p];
+      if (!texts) return;
+      const runs = para.children.filter((c): c is WmlRun => c.kind === "run");
+      if (runs.length === 0) {
+        const text = texts.join("");
+        if (text) para.children.push({ kind: "run", pieces: [], extras: [] });
+      }
+      const live = para.children.filter((c): c is WmlRun => c.kind === "run");
+      live.forEach((run, r) => {
+        const text = runs.length === 0 ? texts.join("") : texts[r];
+        if (text !== undefined) setSimpleRunText(run, text);
+      });
+    });
+    setShapeText(shape, current);
+  },
+);
+
+/** Enter inside a text box: split the paragraph at the caret. */
+export const shapeSplitTextCommand = shapeCommand<{ para: number; run: number; offset: number }>(
+  "shape.splitText",
+  "New paragraph",
+  (_doc, shape, { para, run, offset }) => {
     const paragraphs = shapeText(shape);
-    const target = paragraphs[para]?.children.filter((c): c is WmlRun => c.kind === "run")[run];
-    if (!target || !setSimpleRunText(target, text)) return;
+    const target = paragraphs[para];
+    if (!target) return;
+    const runs = target.children.filter((c): c is WmlRun => c.kind === "run");
+    const split = runs[run];
+    const tail: WmlRun[] = runs.slice(run + 1);
+    if (split) {
+      const text = split.pieces.map((p) => (p.kind === "text" ? p.value : "")).join("");
+      const after: WmlRun = { ...structuredClone(split), pieces: [] };
+      setSimpleRunText(after, text.slice(offset));
+      setSimpleRunText(split, text.slice(0, offset));
+      tail.unshift(after);
+    }
+    target.children = target.children.filter((c) => c.kind !== "run" || !tail.includes(c));
+    const next: WmlParagraph = {
+      kind: "paragraph",
+      ...(target.pPr ? { pPr: structuredClone(target.pPr) } : {}),
+      children: tail,
+      extras: [],
+    };
+    paragraphs.splice(para + 1, 0, next);
+    setShapeText(shape, paragraphs);
+  },
+);
+
+/** Backspace at the start of a text box paragraph: join it onto the previous one. */
+export const shapeMergeTextCommand = shapeCommand<{ para: number }>(
+  "shape.mergeText",
+  "Join paragraphs",
+  (_doc, shape, { para }) => {
+    const paragraphs = shapeText(shape);
+    const prev = paragraphs[para - 1];
+    const target = paragraphs[para];
+    if (!prev || !target) return;
+    prev.children.push(...target.children);
+    paragraphs.splice(para, 1);
     setShapeText(shape, paragraphs);
   },
 );
@@ -393,6 +453,20 @@ function smartArtCommand<P>(
   };
 }
 
+/** Delete a selected SmartArt graphic along with its diagram parts. */
+export const deleteSmartArtCommand: Command<{ at: DocPosition }> = {
+  id: "smartArt.delete",
+  group: "shape",
+  label: "Delete SmartArt",
+  run(model, { at }) {
+    const run = runAtPath(model.doc, at);
+    const para = paragraphAt(model.doc, at);
+    if (!run || !para || !removeSmartArt(model.doc, para, run)) {
+      throw new Error("No SmartArt at the selected position");
+    }
+  },
+};
+
 /** Text Pane. */
 export const smartArtNodesCommand = smartArtCommand<{ nodes: readonly SmartArtNode[] }>(
   "smartArt.nodes",
@@ -437,7 +511,9 @@ export const shapeCommands = [
   changeShapeCommand,
   shapePointsCommand,
   shapeTextCommand,
-  shapeTextRunCommand,
+  shapeTextEditCommand,
+  shapeSplitTextCommand,
+  shapeMergeTextCommand,
   textBoxLayoutCommand,
   linkTextBoxCommand,
   shapeAltTextCommand,
@@ -445,6 +521,7 @@ export const shapeCommands = [
   wordArtTextCommand,
   groupShapesCommand,
   ungroupShapesCommand,
+  deleteSmartArtCommand,
   smartArtNodesCommand,
   smartArtLayoutCommand,
   smartArtColorsCommand,

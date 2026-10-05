@@ -30,6 +30,8 @@ export { renderDocumentHtml, paragraphPlainText } from "./render.js";
 export { highlightCss } from "./highlight.js";
 export { renderPictHtml, type VmlRenderContext, vmlPathPreviewSvg } from "./render-vml.js";
 export { type SvgSubpath, vmlPathToSvg } from "./vml-path.js";
+export { themeColors } from "./render-smartart.js";
+export { type InkPoint, type RecognizedShape, recognizeInkShape } from "./ink-shape.js";
 export {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,
