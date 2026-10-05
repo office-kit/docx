@@ -23,10 +23,15 @@ export {
   type DocPosition,
   type OrderedSelection,
   type Selection,
+  type StoryRef,
   caretAt,
   orderSelection,
+  sameStory,
+  storyKeyOf,
 } from "./selection.js";
-export { renderDocumentHtml, paragraphPlainText } from "./render.js";
+export { renderDocumentHtml, renderBlocksHtml, paragraphPlainText } from "./render.js";
+export { PAGE_FIELDS, fieldFormatSwitch, fieldType } from "./render-fields.js";
+export * from "./layout/index.js";
 export { highlightCss } from "./highlight.js";
 export {
   type ResolvedParagraphFormat,
@@ -36,10 +41,10 @@ export {
   createStyleResolver,
   pageGeometry,
 } from "./resolve.js";
-export { positionFromDom, readDomSelection } from "./dom-selection.js";
+export { positionFromDom, readDomSelection, STORY_ATTR } from "./dom-selection.js";
 export { runAtPath, setSimpleRunText } from "./text-edit.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
-export { blocks, paragraphAt, paragraphsInRange } from "./doc-access.js";
+export { blocks, bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
 export { type RunRef, runsInRange } from "./selection-runs.js";
 
 // Coverage / capability ledger — the completeness-guarantee surface.

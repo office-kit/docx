@@ -772,7 +772,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:endnotes` | `rawpart.setChildVal` |
 | `w:entryMacro` | `rawpart.setChildVal` |
 | `w:equation` | `rawpart.setChildVal` |
-| `w:evenAndOddHeaders` | `settings.evenAndOddHeaders` |
+| `w:evenAndOddHeaders` | `stories.differentOddEven` |
 | `w:exitMacro` | `rawpart.setChildVal` |
 | `w:family` | `rawpart.setChildVal` |
 | `w:ffData` | `rawpart.setChildVal` |
@@ -785,7 +785,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:fldSimple` | `references.field` |
 | `w:font` | `rawpart.setChildVal` |
 | `w:fonts` | `rawpart.setChildVal` |
-| `w:footerReference` | `headerFooter.addFooter` |
+| `w:footerReference` | `stories.linkToPrevious` |
 | `w:footnote` | `references.footnote` |
 | `w:footnoteLayoutLikeWW8` | `rawpart.setChildVal` |
 | `w:footnotePr` | `rawpart.setChildVal` |
@@ -802,7 +802,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:framePr` | `rawpart.setChildVal` |
 | `w:frameset` | `rawpart.setChildVal` |
 | `w:framesetSplitbar` | `rawpart.setChildVal` |
-| `w:ftr` | `headerFooter.addFooter` |
+| `w:ftr` | `stories.editHeaderFooter` |
 | `w:gallery` | `rawpart.setChildVal` |
 | `w:glossaryDocument` | `rawpart.setChildVal` |
 | `w:gridAfter` | `table.row_gridAfter` |
@@ -813,10 +813,10 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:growAutofit` | `rawpart.setChildVal` |
 | `w:guid` | `rawpart.setChildVal` |
 | `w:gutterAtTop` | `settings.gutterAtTop` |
-| `w:hdr` | `headerFooter.addHeader` |
+| `w:hdr` | `stories.editHeaderFooter` |
 | `w:hdrShapeDefaults` | `rawpart.setChildVal` |
 | `w:header` | `rawpart.setChildVal` |
-| `w:headerReference` | `headerFooter.addHeader` |
+| `w:headerReference` | `stories.linkToPrevious` |
 | `w:headers` | `rawpart.setChildVal` |
 | `w:headerSource` | `rawpart.setChildVal` |
 | `w:helpText` | `rawpart.setChildVal` |
@@ -1115,7 +1115,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:textInput` | `rawpart.setChildVal` |
 | `w:themeFontLang` | `rawpart.setChildVal` |
 | `w:title` | `rawpart.setChildVal` |
-| `w:titlePg` | `section.titlePg` |
+| `w:titlePg` | `stories.differentFirstPage` |
 | `w:tl2br` | `rawpart.setChildVal` |
 | `w:tmpl` | `rawpart.setChildVal` |
 | `w:top` | `rawpart.setChildVal` |

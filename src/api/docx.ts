@@ -115,6 +115,7 @@ import {
   writeWmlDocument,
 } from "../internal/wordprocessingml/index.js";
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../internal/xml/index.js";
+import { discardStoriesOfPart, runStoryFlushes, storyViewOwner } from "./story-registry.js";
 import { type ValidationIssue, validatePackage } from "./validator.js";
 
 const DOCUMENT_PART_FALLBACK = "/word/document.xml";
@@ -1143,7 +1144,10 @@ export function getRawPartRoot(doc: Docx, partName: string): XmlElement | undefi
 
 /** Mark a raw-edited part for re-serialization on the next {@link toUint8Array}. */
 export function markRawPartDirty(doc: Docx, partName: string): void {
-  doc.rawPartsDirty.add(partName);
+  const owner = storyViewOwner(doc);
+  owner.rawPartsDirty.add(partName);
+  // A typed story parsed from this part would overwrite the raw edit on save.
+  discardStoriesOfPart(owner, partName);
 }
 
 /**
@@ -3236,7 +3240,11 @@ export function clone(doc: Docx): Docx {
  * their `*Part` accessors, which set the matching `*Dirty` flag, so those keep
  * their dirty fast-path.
  */
-function flushPendingParts(doc: Docx): void {
+function flushPendingParts(input: Docx): void {
+  const doc = storyViewOwner(input);
+  // Header / footer / note stories write into the raw roots and note caches
+  // flushed below, so they go first.
+  runStoryFlushes(doc);
   // A part opened by the raw-XML editor is authoritative for its own bytes, so
   // skip the semantic flush for it (its raw root is serialized below instead).
   const owned = doc.rawParts;

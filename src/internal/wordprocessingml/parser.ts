@@ -36,7 +36,11 @@ export function parseWmlDocument(xmlDoc: XmlDocument): WmlDocumentType {
   };
 }
 
-function parseBody(body: XmlElement): WmlBody {
+/**
+ * Parse any element whose children are block-level content (`<w:body>`,
+ * `<w:hdr>`, `<w:ftr>`, `<w:footnote>`, `<w:comment>`, `<w:txbxContent>` …).
+ */
+export function parseBody(body: XmlElement): WmlBody {
   const blocks: WmlBlock[] = [];
   const extras: PassThrough[] = [];
   let sectPr: XmlElement | undefined;

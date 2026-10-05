@@ -21,6 +21,8 @@ import {
   type XmlElement,
 } from "@office-kit/docx";
 import { highlightCss } from "./highlight.js";
+import { fieldAttrs, fieldResultRuns, fieldType, simpleFieldInstruction } from "./render-fields.js";
+import { noteMarksHtml, ownNoteMarkHtml } from "./render-notes.js";
 import {
   type BorderSpec,
   cellBorders,
@@ -195,19 +197,21 @@ function renderRun(
   block: number,
   inline: number,
   cell?: CellAnchor,
+  extraAttrs = "",
 ): string {
   const text = runText(run);
   const attrs = [
     `data-wk-block="${block}"`,
     cellAttrs(cell),
     `data-wk-inline="${inline}"`,
+    extraAttrs,
     style ? `style="${escapeHtml(style)}"` : "",
   ]
     .filter(Boolean)
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>${noteMarksHtml(run)}`;
 }
 
 /**
@@ -236,9 +240,12 @@ function rawVisibleText(el: XmlElement): string {
  */
 function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
   const text = rawVisibleText(inline.node);
-  if (!text) return "";
   const kind = inline.node.name.local === "hyperlink" ? "wk-link" : "wk-inline-raw";
-  return `<span class="${kind}" contenteditable="false">${escapeHtml(text)}</span>`;
+  const instr = simpleFieldInstruction(inline.node);
+  const field =
+    instr === undefined ? "" : ` ${fieldAttrs({ type: fieldType(instr), instruction: instr })}`;
+  const span = `<span class="${kind}" contenteditable="false"${field}>${escapeHtml(text)}</span>`;
+  return `${text ? span : ""}${noteMarksHtml(inline)}`;
 }
 
 function renderParagraph(
@@ -251,12 +258,20 @@ function renderParagraph(
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
+  const fields = fieldResultRuns(para);
   let inner = para.children
-    .map((child) =>
-      child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
-        : renderRawInline(child),
-    )
+    .map((child, i) => {
+      if (child.kind !== "run") return renderRawInline(child);
+      const field = fields.get(i);
+      return renderRun(
+        child,
+        runCss(styles.run(para, child)),
+        block,
+        runIndex++,
+        cell,
+        field ? fieldAttrs(field) : "",
+      );
+    })
     .join("");
   if (runIndex === 0) inner = `​${inner}`;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
@@ -354,8 +369,16 @@ function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, bloc
 
 /** Render the whole document body to an HTML string for the canvas. */
 export function renderDocumentHtml(doc: Docx): string {
+  return renderBlocksHtml(doc, doc.document.body.blocks);
+}
+
+/**
+ * Render a block list — the body's or a story's — one top-level element per
+ * block, each tagged with its `data-wk-block` index.
+ */
+export function renderBlocksHtml(doc: Docx, blocks: readonly WmlBlock[]): string {
   const styles = createStyleResolver(doc);
-  return doc.document.body.blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
+  return blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
 }
 
 /** Plain-text extraction of a paragraph (used for tests / accessibility). */

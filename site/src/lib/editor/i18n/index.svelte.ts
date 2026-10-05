@@ -10,6 +10,7 @@
 
 import type { Messages } from "./define.js";
 import { LOCALES, type LocaleId } from "./locales.js";
+import canvas from "./messages/canvas.js";
 import core from "./messages/core.js";
 import design from "./messages/design.js";
 import draw from "./messages/draw.js";
@@ -38,6 +39,7 @@ const MODULES = [
   view,
   table,
   picture,
+  canvas,
 ] as const;
 
 type KeysOf<M> = M extends Messages<infer K> ? K : never;

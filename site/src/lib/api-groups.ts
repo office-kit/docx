@@ -245,6 +245,25 @@ export const apiGroups: ApiGroup[] = [
     ],
   },
   {
+    title: "Stories & section headers",
+    description:
+      "Headers, footers, footnotes, endnotes and comments as typed block content, and which header/footer each section shows.",
+    entries: [
+      { name: "storyBody", sig: "(doc, ref: StoryRef) => WmlBody | undefined" },
+      { name: "storyView", sig: "(doc, ref: StoryRef) => Docx | undefined" },
+      { name: "storyKey", sig: "(ref: StoryRef) => string" },
+      { name: "parseStoryKey", sig: "(key: string) => StoryRef | undefined" },
+      { name: "sectionProperties", sig: "(doc) => Array<XmlElement | undefined>" },
+      {
+        name: "resolveHeaderFooter",
+        sig: "(doc, section, kind, type) => { partName, section } | undefined",
+      },
+      { name: "ensureHeaderFooter", sig: "(doc, section, kind, type) => string" },
+      { name: "isHeaderFooterLinked", sig: "(doc, section, kind, type) => boolean" },
+      { name: "setHeaderFooterLinked", sig: "(doc, section, kind, type, linked) => void" },
+    ],
+  },
+  {
     title: "Page-size & margin constants",
     description: "Ready-made values for setPageSize and setPageMargins, plus the library version.",
     entries: [

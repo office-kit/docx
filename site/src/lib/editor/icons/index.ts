@@ -5,6 +5,7 @@
  * same shape.
  */
 
+import canvas from "./canvas.js";
 import core from "./core.js";
 import design from "./design.js";
 import draw from "./draw.js";
@@ -34,6 +35,7 @@ export const ICONS = {
   ...view,
   ...table,
   ...picture,
+  ...canvas,
 };
 
 export type IconName = keyof typeof ICONS;

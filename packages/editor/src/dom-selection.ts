@@ -4,7 +4,14 @@
  * the module in Node (tests) doesn't touch `window`.
  */
 
+import { parseStoryKey } from "@office-kit/docx";
 import type { CellCoord, DocPosition, Selection } from "./selection.js";
+
+/**
+ * The attribute a story's container carries (`header:/word/header1.xml`,
+ * `footnote:2` …); positions inside it address that story.
+ */
+export const STORY_ATTR = "data-wk-story";
 
 function parseCell(value: string | null): CellCoord | undefined {
   if (!value) return undefined;
@@ -77,7 +84,10 @@ export function positionFromDom(node: Node | null, offset: number): DocPosition 
   } else if (inline === undefined && anchor.classList.contains("wk-p")) {
     ({ inline, offset } = inlineAndOffsetInParagraph(anchor, node, offset));
   }
+  const storyKey = anchor.closest(`[${STORY_ATTR}]`)?.getAttribute(STORY_ATTR);
+  const story = storyKey ? parseStoryKey(storyKey) : undefined;
   return {
+    ...(story ? { story } : {}),
     block,
     ...(cell ? { cell } : {}),
     ...(cell && para !== undefined && !Number.isNaN(para) ? { para } : {}),

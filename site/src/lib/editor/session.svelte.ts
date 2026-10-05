@@ -8,12 +8,16 @@
 import { getContext, setContext } from "svelte";
 import {
   caretAt,
+  commands,
   runCommand,
   type Command,
   type DocPosition,
   type EditorModel,
+  type PageKind,
+  type Selection,
+  type StoryRef,
 } from "@office-kit/docx-editor";
-import { text as documentText } from "@office-kit/docx";
+import { text as documentText, type WmlParagraph } from "@office-kit/docx";
 
 // Word's zoom range: 10 % – 500 %.
 export const MIN_ZOOM = 0.1;
@@ -34,6 +38,19 @@ export interface SelectedObject {
   readonly kind: "picture" | "shape" | "textBox" | "chart" | "smartArt" | "equation" | "ink";
   /** The run (or inline) that holds the object. */
   readonly at: DocPosition;
+}
+
+/** The header or footer open for editing: which section's, and for which page kind. */
+export interface HeaderFooterTarget {
+  readonly section: number;
+  readonly kind: "header" | "footer";
+  readonly type: PageKind;
+}
+
+/** What the canvas reports about a laid-out page. */
+export interface PageSummary {
+  readonly section: number;
+  readonly kind: PageKind;
 }
 
 /** Panes docked beside the page, in Word's positions. */
@@ -70,6 +87,19 @@ export class EditorSession {
   pageCount = $state(1);
   currentPage = $state(1);
   selectedObject = $state<SelectedObject | null>(null);
+  /** The laid-out pages, reported by the canvas after each layout (Print Layout only). */
+  pages = $state<readonly PageSummary[]>([]);
+  /** The header/footer being edited (Header & Footer tab), or null. */
+  headerFooter = $state<HeaderFooterTarget | null>(null);
+  /** Header & Footer ▸ Show Document Text. */
+  showDocumentText = $state(true);
+  /**
+   * The page a body paragraph is laid out on (1-based), set by the canvas;
+   * undefined outside Print Layout. Used by field updates (TOC, PAGEREF).
+   */
+  pageOfParagraph: ((paragraph: WmlParagraph) => number) | undefined = undefined;
+  // Where the caret was in the body before a header/footer was opened.
+  private bodySelection: Selection | null = null;
   wordCount = $state(0);
   charCount = $state(0);
 
@@ -128,8 +158,41 @@ export class EditorSession {
       next.setSelection(caretAt({ block: 0, inline: 0, offset: 0 }));
     }
     this.model = next;
+    this.headerFooter = null;
+    this.bodySelection = null;
     this.fileName = fileName;
     this.status = "";
+    this.changed();
+  }
+
+  /** The story the selection is in (header, footer, note …), or undefined for the body. */
+  get story(): StoryRef | undefined {
+    return this.tick >= 0 ? this.model?.story : undefined;
+  }
+
+  /**
+   * Open the current page's header or footer for editing (Insert ▸ Header ▸
+   * Edit Header, or a double-click in the header area), creating it if the
+   * section has none.
+   */
+  editHeaderFooter(kind: "header" | "footer", page = this.currentPage - 1): void {
+    const model = this.model;
+    if (!model) return;
+    const summary = this.pages[page] ?? { section: 0, kind: "default" as const };
+    const target: HeaderFooterTarget = { section: summary.section, kind, type: summary.kind };
+    if (!model.story) this.bodySelection = model.selection;
+    this.apply(commands.editHeaderFooterCommand, target);
+    if (model.story) this.headerFooter = target;
+  }
+
+  /** Header & Footer ▸ Close Header and Footer (or Esc): back to the body. */
+  closeHeaderFooter(): void {
+    const model = this.model;
+    this.headerFooter = null;
+    this.showDocumentText = true;
+    if (!model) return;
+    model.setSelection(this.bodySelection ?? caretAt({ block: 0, inline: 0, offset: 0 }));
+    this.bodySelection = null;
     this.changed();
   }
 
