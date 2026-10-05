@@ -112,19 +112,29 @@ function selectionWindows(model: EditorModel): ParaWindow[] {
   return sel ? rangeWindows(model.doc, orderSelection(sel)) : [];
 }
 
+/** A run together with the paragraph that holds it (for style resolution). */
+export interface RunRef {
+  readonly run: WmlRun;
+  readonly para: WmlParagraph;
+}
+
 /** Runs with at least one character inside the windows. */
-function runsCovered(wins: ParaWindow[]): WmlRun[] {
-  const out: WmlRun[] = [];
+function runRefsCovered(wins: ParaWindow[]): RunRef[] {
+  const out: RunRef[] = [];
   for (const w of wins) {
     let cursor = 0;
     for (const run of paragraphRuns(w.para)) {
       const s = cursor;
       const e = cursor + runTextLength(run);
       cursor = e;
-      if (e > s && s < w.endChar && e > w.startChar) out.push(run);
+      if (e > s && s < w.endChar && e > w.startChar) out.push({ run, para: w.para });
     }
   }
   return out;
+}
+
+function runsCovered(wins: ParaWindow[]): WmlRun[] {
+  return runRefsCovered(wins).map((ref) => ref.run);
 }
 
 /**
@@ -142,6 +152,11 @@ export function runsInRange(doc: Docx, sel: OrderedSelection): WmlRun[] {
 
 /** Runs overlapping the selection — read-only, for active/enabled state. */
 export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
+  return overlappingSelectionRunRefs(model).map((ref) => ref.run);
+}
+
+/** {@link overlappingSelectionRuns} with each run's paragraph. */
+export function overlappingSelectionRunRefs(model: EditorModel): RunRef[] {
   const sel = model.selection;
   if (!sel) return [];
   const { start, end } = orderSelection(sel);
@@ -151,10 +166,10 @@ export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
     const para = paragraphAt(model.doc, start);
     if (!para) return [];
     const runs = paragraphRuns(para);
-    const at = runs[start.inline ?? 0];
-    return at ? [at] : runs.slice(0, 1);
+    const at = runs[start.inline ?? 0] ?? runs[0];
+    return at ? [{ run: at, para }] : [];
   }
-  return runsCovered(selectionWindows(model));
+  return runRefsCovered(selectionWindows(model));
 }
 
 /**
@@ -162,20 +177,24 @@ export function overlappingSelectionRuns(model: EditorModel): WmlRun[] {
  * the selection boundaries first so a partial selection formats only the
  * selected characters. Keeps the same text selected afterwards.
  */
-export function applyToSelectionRuns(model: EditorModel, applyFn: (run: WmlRun) => void): void {
+export function applyToSelectionRuns(
+  model: EditorModel,
+  applyFn: (run: WmlRun, para: WmlParagraph) => void,
+): void {
   const sel = model.selection;
   if (!sel) return;
   const { start, end } = orderSelection(sel);
 
   // Collapsed caret: apply to the whole caret run (there is no range to isolate).
   if (isCollapsed(start, end)) {
-    for (const run of overlappingSelectionRuns(model)) applyFn(run);
+    for (const { run, para } of overlappingSelectionRunRefs(model)) applyFn(run, para);
     return;
   }
 
   const wins = selectionWindows(model);
   for (const w of wins) {
-    for (const run of isolateParagraphRunRange(w.para, w.startChar, w.endChar)) applyFn(run);
+    for (const run of isolateParagraphRunRange(w.para, w.startChar, w.endChar))
+      applyFn(run, w.para);
   }
 
   // Re-anchor the selection to the isolated run boundaries (single paragraph).

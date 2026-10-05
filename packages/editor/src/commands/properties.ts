@@ -50,7 +50,6 @@ const RUN_ONOFF: { local: string; label: string }[] = [
 
 /** Single-value `<w:rPr>` elements. */
 const RUN_VAL: { local: string; label: string }[] = [
-  { local: "vertAlign", label: "Superscript/subscript" }, // baseline | superscript | subscript
   { local: "em", label: "Emphasis mark" }, // none | dot | comma | circle | underDot
   { local: "position", label: "Character position" }, // signed half-points
   { local: "kern", label: "Kerning" }, // half-points
@@ -162,11 +161,19 @@ function paraVal({
   };
 }
 
-export const runPropertyCommands = [...RUN_ONOFF.map(runToggle), ...RUN_VAL.map(runVal)];
+// Named separately because the ribbon's Subscript / Superscript buttons use it.
+const VERT_ALIGN = { local: "vertAlign", label: "Superscript/subscript" }; // baseline | superscript | subscript
+export const setVertAlignCommand = runVal(VERT_ALIGN);
+
+export const runPropertyCommands = [
+  ...RUN_ONOFF.map(runToggle),
+  setVertAlignCommand,
+  ...RUN_VAL.map(runVal),
+];
 export const paragraphPropertyCommands = [...PARA_ONOFF.map(paraToggle), ...PARA_VAL.map(paraVal)];
 
 /** The set of `w:<local>` element names these commands make editable. */
-export const RUN_PROPERTY_ELEMENTS = [...RUN_ONOFF, ...RUN_VAL].map((e) => e.local);
+export const RUN_PROPERTY_ELEMENTS = [...RUN_ONOFF, VERT_ALIGN, ...RUN_VAL].map((e) => e.local);
 export const PARA_PROPERTY_ELEMENTS = [...PARA_ONOFF, ...PARA_VAL].map((e) => e.local);
 
 export const propertyCommands = [...runPropertyCommands, ...paragraphPropertyCommands];

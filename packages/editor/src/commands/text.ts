@@ -6,24 +6,47 @@
  */
 
 import {
-  getRunFormat,
+  childElementsOf,
+  clearRunFormat,
+  getRunProp,
   type HighlightColor,
   replaceText,
   type RunFormatting,
   setRunFormat,
+  setRunOnOff,
+  setParagraphValProp,
+  setRunValProp,
+  type WmlParagraph,
   type WmlRun,
 } from "@office-kit/docx";
+import { paragraphAt, paragraphsInRange } from "../doc-access.js";
 import type { EditorModel } from "../model.js";
-import { applyToSelectionRuns, overlappingSelectionRuns } from "../selection-runs.js";
+import { createStyleResolver, type ResolvedRunFormat } from "../resolve.js";
+import { orderSelection } from "../selection.js";
+import {
+  applyToSelectionRuns,
+  overlappingSelectionRunRefs,
+  overlappingSelectionRuns,
+} from "../selection-runs.js";
 import type { Command } from "./types.js";
 
-/** True when every run overlapping the selection has the given boolean on. */
-function allHave(runs: WmlRun[], key: "bold" | "italic" | "strike"): boolean {
-  return runs.length > 0 && runs.every((r) => getRunFormat(r)[key] === true);
+type ToggleKey = "bold" | "italic" | "strike";
+const TOGGLE_ELEMENT: Record<ToggleKey, string> = { bold: "b", italic: "i", strike: "strike" };
+
+function isUnderlined(fmt: ResolvedRunFormat): boolean {
+  return fmt.underline !== undefined && fmt.underline !== "none";
 }
 
-function allUnderlined(runs: WmlRun[]): boolean {
-  return runs.length > 0 && runs.every((r) => (getRunFormat(r).underline ?? "none") !== "none");
+/**
+ * True when every run overlapping the selection *shows* the property, style
+ * included — Word presses Bold for a Heading 1 caret even though the run
+ * itself carries no `<w:b>`.
+ */
+function allShow(model: EditorModel, shows: (fmt: ResolvedRunFormat) => boolean): boolean {
+  const refs = overlappingSelectionRunRefs(model);
+  if (refs.length === 0) return false;
+  const styles = createStyleResolver(model.doc);
+  return refs.every(({ run, para }) => shows(styles.run(para, run)));
 }
 
 function applyToRuns(model: EditorModel, patch: RunFormatting): void {
@@ -34,18 +57,29 @@ function applyToRuns(model: EditorModel, patch: RunFormatting): void {
   applyToSelectionRuns(model, (run) => setRunFormat(run, patch));
 }
 
-/** Build a boolean toggle command (bold / italic / strike). */
-function toggleBool(id: string, key: "bold" | "italic" | "strike", label: string): Command<void> {
+/**
+ * Build a boolean toggle command (bold / italic / strike). Turning a property
+ * off drops the direct element, and writes an explicit `w:val="0"` only when
+ * the style would otherwise still apply it — what Word writes.
+ */
+function toggleBool(id: string, key: ToggleKey, label: string): Command<void> {
+  const local = TOGGLE_ELEMENT[key];
   return {
     id,
     group: "text",
     label,
     run(model) {
-      const next = !allHave(overlappingSelectionRuns(model), key);
-      applyToSelectionRuns(model, (run) => setRunFormat(run, { [key]: next }));
+      const next = !allShow(model, (fmt) => fmt[key]);
+      const styles = createStyleResolver(model.doc);
+      applyToSelectionRuns(model, (run, para) => {
+        setRunOnOff(run, local, false);
+        if (styles.run(para, run)[key] === next) return;
+        if (next) setRunOnOff(run, local, true);
+        else setRunValProp(run, local, "0");
+      });
     },
     isEnabled: (model) => overlappingSelectionRuns(model).length > 0,
-    isActive: (model) => allHave(overlappingSelectionRuns(model), key),
+    isActive: (model) => allShow(model, (fmt) => fmt[key]),
   };
 }
 
@@ -58,11 +92,16 @@ export const toggleUnderlineCommand: Command<void> = {
   group: "text",
   label: "Underline",
   run(model) {
-    const next = allUnderlined(overlappingSelectionRuns(model)) ? "none" : "single";
-    applyToSelectionRuns(model, (run) => setRunFormat(run, { underline: next }));
+    const next = !allShow(model, isUnderlined);
+    const styles = createStyleResolver(model.doc);
+    applyToSelectionRuns(model, (run, para) => {
+      setRunValProp(run, "u", undefined);
+      if (isUnderlined(styles.run(para, run)) === next) return;
+      setRunValProp(run, "u", next ? "single" : "none");
+    });
   },
   isEnabled: (model) => overlappingSelectionRuns(model).length > 0,
-  isActive: (model) => allUnderlined(overlappingSelectionRuns(model)),
+  isActive: (model) => allShow(model, isUnderlined),
 };
 
 /** Set a specific underline style (single/double/wave/dotted/thick). */
@@ -152,22 +191,53 @@ export const setHighlightCommand: Command<{ color: HighlightColor }> = {
   isEnabled: (model) => overlappingSelectionRuns(model).length > 0,
 };
 
-/** Clear all direct run formatting in the selection. */
+// Word's Clear All Formatting leaves highlighting alone (observed in Word for
+// Mac: the highlight survives while every other run property goes).
+const KEPT_RUN_PROPERTY = "highlight";
+// A section break lives in the last paragraph's pPr; it is layout, not formatting.
+const KEPT_PARAGRAPH_PROPERTY = "sectPr";
+
+function clearRunFormatting(run: WmlRun): void {
+  const highlight = getRunProp(run, KEPT_RUN_PROPERTY).val;
+  clearRunFormat(run);
+  if (highlight !== undefined) setRunValProp(run, KEPT_RUN_PROPERTY, highlight);
+}
+
+/** Back to the Normal style with no direct paragraph formatting. */
+function clearParagraphFormatting(para: WmlParagraph): void {
+  if (!para.pPr) return;
+  for (const el of childElementsOf(para.pPr)) {
+    if (el.name.local !== KEPT_PARAGRAPH_PROPERTY)
+      setParagraphValProp(para, el.name.local, undefined);
+  }
+}
+
+/**
+ * Clear All Formatting, as Word does it (checked against Word for Mac):
+ * - a caret resets its paragraph to Normal with no direct paragraph
+ *   formatting, and leaves the runs alone;
+ * - a range drops every character property of the selected text except the
+ *   highlight, and resets the paragraphs whose paragraph mark it includes —
+ *   every paragraph but the last one, where the range ends before the mark.
+ */
 export const clearFormattingCommand: Command<void> = {
   id: "text.clearFormat",
   group: "text",
+  label: "Clear All Formatting",
   run(model) {
-    applyToSelectionRuns(model, (run) =>
-      setRunFormat(run, {
-        bold: false,
-        italic: false,
-        strike: false,
-        underline: "none",
-      }),
-    );
+    const sel = model.selection;
+    if (!sel) return;
+    const ordered = orderSelection(sel);
+    if (ordered.collapsed) {
+      const para = paragraphAt(model.doc, sel.focus);
+      if (para) clearParagraphFormatting(para);
+      return;
+    }
+    const paras = paragraphsInRange(model.doc, ordered);
+    applyToSelectionRuns(model, clearRunFormatting);
+    for (const para of paras.slice(0, -1)) clearParagraphFormatting(para);
   },
-  label: "Clear formatting",
-  isEnabled: (model) => overlappingSelectionRuns(model).length > 0,
+  isEnabled: (model) => model.selection !== null,
 };
 
 /**

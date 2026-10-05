@@ -96,6 +96,49 @@ See [`examples/edit-and-save.mjs`](./examples/edit-and-save.mjs) for a
 load → edit → save script that uses only the published entry points and can
 safely be re-run on its own output.
 
+## Matching Microsoft Word
+
+The `/editor` ribbon follows Word for Mac 16 (light appearance): the Quick
+Access Toolbar and a search field in the title bar; the Home, Insert, Layout,
+References, Mailings, Review and View tabs with Comments and Download at the
+right; a ribbon without group captions; Paste / Cut / Copy; font and size
+combo boxes; Increase / Decrease Font Size; Clear All Formatting; Bold,
+Italic, Underline (with its styles menu), Strikethrough, Subscript,
+Superscript; Text Highlight Color and Font Color split buttons with Word's
+palettes; Bullets, Numbering, Decrease / Increase Indent, Show/Hide ¶; the four
+alignments; Line and Paragraph Spacing; a style gallery; a status bar with the
+word count and a zoom slider. Labels and tooltips use the wording of Word's own
+localized UI in all six languages. Colors and sizes were measured from Word's
+window.
+
+What the ribbon reports and what the commands write were checked against Word
+itself (Word for Mac 16, driven through AppleScript and the saved XML read
+back):
+
+- **Effective formatting.** The ribbon shows the style-resolved value, as Word
+  does: a caret in a Heading 1 reads Calibri / 20 with Bold and Align Left
+  pressed. `createStyleResolver` merges the document defaults, the paragraph
+  style's `basedOn` chain, the character style chain and direct formatting;
+  theme fonts show as "Calibri (Body)". The canvas renders the same values, so
+  headings take their color, size and spacing from `styles.xml`.
+- **Toggles over a style.** Bold on a bold Heading 1 writes `<w:b w:val="0"/>`;
+  turning it back on removes the override. Underline writes `w:u="none"` the
+  same way.
+- **Clear All Formatting.** A caret resets its paragraph to Normal and removes
+  direct paragraph formatting, leaving the runs. A range removes every
+  character property except the highlight, and resets the paragraphs whose
+  paragraph mark it includes. Section properties stay.
+- **Increase / Decrease Indent** step the effective left indent to the next
+  0.5 in; **Line Spacing** writes an auto multiple and keeps the paragraph's own
+  space before / after.
+- **Page and tables.** The page uses the section's paper size and margins
+  (Letter and 1 in when the document has none, as Word saves it), with Word's
+  crop marks. Tables use their own width, grid and cell margins and draw only
+  the borders the document defines; in Compatibility Mode the cell text, not
+  the border, sits on the margin.
+
+Side-by-side screenshots are in `docs/qa/editor-20261005/`.
+
 ## Building and consuming the package
 
 The package exports only `dist/index.mjs` / `dist/index.d.mts`. It has no
@@ -167,14 +210,14 @@ but has not been run.
 | Find / Replace All (and the body part of the `Everywhere` variants) include table-cell paragraphs; one undo step, redo, save → reopen                                                                                                                                               | `src/api/table-text-search.test.ts`, `history.test.ts`, examples                                        | PASS (2026-10-03T20:48Z)                                                          |
 | `getRunFormat` converts unit font sizes (`12pt` → 24) exactly; non-whole / invalid sizes stay unset; the XML keeps them                                                                                                                                                             | `src/api/run-format-size-units.test.ts`                                                                 | PASS (2026-10-03T20:48Z)                                                          |
 | `runsInRange` returns exactly the covered runs; ribbon shows "Mixed" for a different middle run, and choosing a value unifies the range (Undo / Redo)                                                                                                                               | `packages/editor/src/range-runs.test.ts`, Chromium (below)                                              | PASS (2026-10-03T20:50Z)                                                          |
-| Saved file opens cleanly in Word                                                                                                                                                                                                                                                    | Word                                                                                                    | NOT RUN                                                                           |
+| Saved file opens cleanly in Word, and Word shows the same ribbon state and layout as `/editor` for it                                                                                                                                                                               | Word for Mac 16, `docs/qa/editor-20261005/`                                                             | PASS (2026-10-05T09:03Z, Word for Mac 16, light appearance)                       |
 | Local serial `build:packages` (core → preview → editor), then root/editor/preview `tsc` and site `svelte-check`                                                                                                                                                                     | commands in the run log                                                                                 | PASS (2026-10-03T19:00Z)                                                          |
 | Clean checkout / CI `static` + deploy-site / publish produce and use editor `dist/`                                                                                                                                                                                                 | CI                                                                                                      | NOT RUN                                                                           |
 | Packaged example runs twice on its own output (0 replacements on re-run)                                                                                                                                                                                                            | commands above                                                                                          | PASS (2026-10-03T19:00Z)                                                          |
-| Full `vitest` run (all existing suites, incl. any golden XML comparison)                                                                                                                                                                                                            | full `vitest` run                                                                                       | NOT RUN                                                                           |
+| Full `vitest` run (all existing suites, incl. any golden XML comparison)                                                                                                                                                                                                            | `pnpm test`                                                                                             | PASS (2026-10-05, 94 files / 791 tests, 8 skipped)                                |
 | Repository gates `pnpm format:check`, `pnpm lint`                                                                                                                                                                                                                                   | run log (UI fix)                                                                                        | PASS (2026-10-03T19:35Z)                                                          |
 | Repository gate `pnpm check:api-page` (34 pre-existing missing entries + `HIGHLIGHT_COLORS` added to `site/src/lib/api-groups.ts`)                                                                                                                                                  | run log (Highlight fix check)                                                                           | PASS (2026-10-03T19:52Z)                                                          |
-| Repository gate `pnpm check:tree-shake`                                                                                                                                                                                                                                             | CI `static`                                                                                             | NOT RUN                                                                           |
+| Repository gate `pnpm check:tree-shake`                                                                                                                                                                                                                                             | `pnpm check:tree-shake`                                                                                 | PASS (2026-10-05)                                                                 |
 | Tarball contents (`dist/`, `README.md`, `LICENSE`)                                                                                                                                                                                                                                  | `pnpm --filter @office-kit/docx-editor pack --dry-run`                                                  | NOT RUN                                                                           |
 
 ### Run log (2026-10-03, local)
@@ -540,10 +583,18 @@ Run in Chrome and in Safari, with a Japanese IME:
   (atomic error).
 - Editor test files are excluded from `tsc` (`tsconfig.json`), and Vitest does
   not type-check, so type errors in tests are not caught.
-- The ribbon shows only _direct_ run formatting and `pStyle`. The public API
-  has no resolver for inherited formatting (styles / document defaults), so
-  inherited values are labelled "Default (inherited)" and never guessed. A
-  range is judged by every run it covers (`runsInRange`).
+- `createStyleResolver` treats toggle properties (`b`, `i`, `strike`) as plain
+  overrides; ECMA-376 §17.7.3 XORs them when two style levels both set one.
+  Table-style conditional formatting (first row, banding) and numbering-level
+  run properties are not applied. Theme fonts resolve for Latin text only.
+- The `/editor` ribbon leaves out what the library cannot drive: the Draw and
+  Design tabs, Change Case, text effects, shading, borders, sort, theme colors
+  in the Font Color menu, and the Styles Pane. The style gallery offers Normal
+  and Heading 1–3. The canvas is one continuous page (no pagination), so the
+  status bar has no "Page 1 of 1".
+- Word for Mac draws 100 % zoom at 72 dpi; the canvas uses CSS points (96 dpi,
+  like Word for Windows), so a page looks larger than in Word for Mac at the
+  same zoom.
 - The generic raw setters of `@office-kit/docx` (`setRunValProp`,
   `setElementValProp`, `setStyleValProp`) write any value for any element by
   design, so they can still author an invalid `w:highlight`. Only the typed
