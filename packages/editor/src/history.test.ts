@@ -111,12 +111,15 @@ describe("atomic commands", () => {
     const model = editorWith(["a"]);
     for (const url of ["javascript:alert(1)", "data:text/html,x", "https://", "not a url"]) {
       expect(() =>
-        runCommand(model, commands.insertHyperlinkCommand, { url, text: "x" }),
+        runCommand(model, commands.insertLinkCommand, { text: "x", target: { url } }),
       ).toThrow();
     }
-    expect(model.doc.document.body.blocks).toHaveLength(1);
-    runCommand(model, commands.insertHyperlinkCommand, { url: "https://example.com", text: "x" });
-    expect(model.doc.document.body.blocks).toHaveLength(2);
+    expect(model.canUndo()).toBe(false);
+    runCommand(model, commands.insertLinkCommand, {
+      text: "x",
+      target: { url: "https://example.com" },
+    });
+    expect(model.canUndo()).toBe(true);
   });
 });
 

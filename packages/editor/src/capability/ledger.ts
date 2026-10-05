@@ -140,16 +140,16 @@ const EDIT_MAP: Record<string, string> = {
   "w:ftr": "headerFooter.addFooter",
 
   // --- references (commands/references.ts) ---
-  "w:bookmarkStart": "references.bookmark",
-  "w:bookmarkEnd": "references.bookmark",
-  "w:hyperlink": "references.hyperlink",
+  "w:bookmarkStart": "insert.bookmark",
+  "w:bookmarkEnd": "insert.bookmark",
+  "w:hyperlink": "insert.link",
   "w:footnoteReference": "references.footnote",
   "w:endnoteReference": "references.endnote",
   "w:footnote": "references.footnote",
   "w:endnote": "references.endnote",
-  "w:fldSimple": "references.field",
-  "w:fldChar": "references.field",
-  "w:instrText": "references.field",
+  "w:fldSimple": "insert.field",
+  "w:fldChar": "insert.field",
+  "w:instrText": "insert.field",
 
   // --- review: comments + tracked changes (commands/review.ts) ---
   "w:comment": "review.addComment",

@@ -614,8 +614,8 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:bookFoldPrinting` | `layout.pageSetup` |
 | `w:bookFoldPrintingSheets` | `layout.pageSetup` |
 | `w:bookFoldRevPrinting` | `settings.bookFoldRevPrinting` |
-| `w:bookmarkEnd` | `references.bookmark` |
-| `w:bookmarkStart` | `references.bookmark` |
+| `w:bookmarkEnd` | `insert.bookmark` |
+| `w:bookmarkStart` | `insert.bookmark` |
 | `w:bordersDoNotSurroundFooter` | `settings.bordersDoNotSurroundFooter` |
 | `w:bordersDoNotSurroundHeader` | `settings.bordersDoNotSurroundHeader` |
 | `w:bottom` | `rawpart.setChildVal` |
@@ -783,7 +783,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:flatBorders` | `rawpart.setChildVal` |
 | `w:fldChar` | `insert.field` |
 | `w:fldData` | `rawpart.setChildVal` |
-| `w:fldSimple` | `references.field` |
+| `w:fldSimple` | `insert.field` |
 | `w:font` | `rawpart.setChildVal` |
 | `w:fonts` | `rawpart.setChildVal` |
 | `w:footerReference` | `stories.linkToPrevious` |
@@ -830,7 +830,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:hps` | `text.ruby` |
 | `w:hpsBaseText` | `text.ruby` |
 | `w:hpsRaise` | `text.ruby` |
-| `w:hyperlink` | `references.hyperlink` |
+| `w:hyperlink` | `insert.link` |
 | `w:hyphenationZone` | `layout.hyphenation` |
 | `w:i` | `text.italic` |
 | `w:iCs` | `text.italic` |

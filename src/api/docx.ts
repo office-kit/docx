@@ -2206,6 +2206,9 @@ export function appendLineBreak(
  * Add a named bookmark covering a paragraph. Returns the assigned numeric
  * bookmark id; the same name must not be reused without removing the
  * existing bookmark first (Word will deduplicate silently otherwise).
+ *
+ * @deprecated Use {@link insertBookmark}, which also covers part of a
+ * paragraph or a span across paragraphs and rejects duplicate names.
  */
 export function addBookmark(doc: Docx, name: string, paragraph: WmlParagraph): number {
   const id = allocateBookmarkId(doc);
@@ -3048,6 +3051,9 @@ export interface AddTableOfContentsOptions {
  *
  * Word recomputes the actual entries on first open — until then the
  * placeholder text is shown.
+ *
+ * @deprecated Use {@link insertTableOfContents}, which inserts at any body
+ * position and writes the entries Word would compute.
  */
 export function addTableOfContents(
   doc: Docx,
@@ -3079,6 +3085,9 @@ export function addTableOfContents(
  * Append a MERGEFIELD field referencing `fieldName` to `paragraph`. The
  * placeholder text Word shows is `«fieldName»` by default, matching
  * Word's own UI; pass `displayText` to override.
+ *
+ * @deprecated Use {@link insertMergeField}, which inserts at any character
+ * offset and accepts every column name Word does.
  */
 export function appendMergeField(
   doc: Docx,
