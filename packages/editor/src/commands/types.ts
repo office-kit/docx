@@ -24,6 +24,7 @@ export type FeatureGroup =
   | "headerFooter"
   | "references"
   | "review"
+  | "shape"
   | "advanced";
 
 /**

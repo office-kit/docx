@@ -244,7 +244,7 @@ export const apiGroups: ApiGroup[] = [
       { name: "setShapeMoveWithText" },
       { name: "getShapeFill" },
       { name: "setShapeFill" },
-      { name: "shapeFillImage" },
+      { name: "vmlImageData" },
       { name: "FILL_PATTERNS" },
       { name: "getShapeStroke" },
       { name: "setShapeStroke" },

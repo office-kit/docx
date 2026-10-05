@@ -28,6 +28,8 @@ export {
 } from "./selection.js";
 export { renderDocumentHtml, paragraphPlainText } from "./render.js";
 export { highlightCss } from "./highlight.js";
+export { renderPictHtml, type VmlRenderContext, vmlPathPreviewSvg } from "./render-vml.js";
+export { type SvgSubpath, vmlPathToSvg } from "./vml-path.js";
 export {
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,

@@ -31,6 +31,8 @@ import {
   resolveTable,
   type StyleResolver,
 } from "./resolve.js";
+import { paragraphFloatsHtml, runObjectsHtml } from "./render-vml.js";
+import type { DocPosition } from "./selection.js";
 import { WML_NS } from "./wml-ns.js";
 
 const ALIGN_TO_CSS: Record<string, string> = {
@@ -98,7 +100,7 @@ const HEX_COLOR = /^[0-9A-Fa-f]{6}$/;
  * only the ones that differ from Normal, because the run sits inside a
  * paragraph element that carries the paragraph mark's look.
  */
-function runCss(fmt: ResolvedRunFormat): string {
+export function runCss(fmt: ResolvedRunFormat): string {
   const parts: string[] = [
     `font-weight:${fmt.bold ? "bold" : "normal"}`,
     `font-style:${fmt.italic ? "italic" : "normal"}`,
@@ -129,7 +131,7 @@ function fontCss(fmt: ResolvedRunFormat): string[] {
   return parts;
 }
 
-function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): string {
+export function paragraphCss(fmt: ResolvedParagraphFormat, mark: ResolvedRunFormat): string {
   const css = fontCss(mark);
   const align = ALIGN_TO_CSS[fmt.alignment ?? ""];
   if (align) css.push(`text-align:${align}`);
@@ -210,6 +212,12 @@ function renderRun(
   return `<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>`;
 }
 
+function positionOf(block: number, inline: number, cell?: CellAnchor): DocPosition {
+  if (!cell) return { block, inline };
+  const [row = 0, col = 0] = cell.coord.split(",").map(Number);
+  return { block, cell: { row, col }, para: cell.para, inline };
+}
+
 /**
  * Visible text of an unmodelled inline (`<w:hyperlink>`, a field run built in
  * memory, `<w:ins>`, `<w:sdt>`…): its `<w:t>` descendants. `<w:instrText>`
@@ -243,6 +251,7 @@ function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
 
 function renderParagraph(
   para: WmlParagraph,
+  doc: Docx,
   styles: StyleResolver,
   block: number,
   cell?: CellAnchor,
@@ -252,13 +261,18 @@ function renderParagraph(
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
   let inner = para.children
-    .map((child) =>
-      child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
-        : renderRawInline(child),
-    )
+    .map((child) => {
+      if (child.kind !== "run") return renderRawInline(child);
+      const inline = runIndex++;
+      return (
+        renderRun(child, runCss(styles.run(para, child)), block, inline, cell) +
+        runObjectsHtml(child, doc, positionOf(block, inline, cell))
+      );
+    })
     .join("");
   if (runIndex === 0) inner = `​${inner}`;
+  // Floating objects go first so their static position is the paragraph's top.
+  inner = paragraphFloatsHtml(para, doc, (inline) => positionOf(block, inline, cell)) + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
   return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
 }
@@ -321,7 +335,7 @@ function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: n
             `border-right:${borderCss(own.right ?? (c === lastCol ? outer.right : outer.insideV))}`,
           ].join(";");
           const body = cell.paragraphs
-            .map((p, para) => renderParagraph(p, styles, block, { coord, para }))
+            .map((p, para) => renderParagraph(p, doc, styles, block, { coord, para }))
             .join("");
           return `<td class="wk-td" data-wk-block="${block}" data-wk-cell="${coord}" style="${escapeHtml(css)}">${body}</td>`;
         })
@@ -342,7 +356,7 @@ function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: n
 function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, block: number): string {
   switch (blockNode.kind) {
     case "paragraph":
-      return renderParagraph(blockNode, styles, block);
+      return renderParagraph(blockNode, doc, styles, block);
     case "table":
       return renderTable(blockNode, doc, styles, block);
     default:

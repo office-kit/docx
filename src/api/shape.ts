@@ -1104,15 +1104,22 @@ function isFillPattern(name: string): name is FillPattern {
   return Object.hasOwn(FILL_PATTERNS, name);
 }
 
-/** Picture-fill bytes, for renderers (`undefined` when the relationship is missing). */
-export function shapeFillImage(
+/**
+ * The image a VML element references by relationship id (a picture or
+ * pattern fill's `r:id`, or `v:imagedata`), for renderers. `partName` is the
+ * part holding the VML (a header, for a watermark). `undefined` when the
+ * relationship or its target is missing.
+ */
+export function vmlImageData(
   doc: Docx,
   relId: string,
+  partName: string = doc.partName,
 ): { bytes: Uint8Array; contentType: string } | undefined {
-  const rel = relationshipById(partRelationships(doc.opc, doc.partName), relId);
-  if (!rel) return undefined;
-  const partName = `/word/${rel.target.replace(/^\.\//, "")}`;
-  const part = getPart(doc.opc, partName);
+  const rel = relationshipById(partRelationships(doc.opc, partName), relId);
+  if (!rel || rel.targetMode === "External") return undefined;
+  const folder = partName.slice(0, partName.lastIndexOf("/") + 1);
+  const target = rel.target.startsWith("/") ? rel.target : `${folder}${rel.target.replace(/^\.\//, "")}`;
+  const part = getPart(doc.opc, target);
   return part ? { bytes: part.data, contentType: part.contentType ?? "" } : undefined;
 }
 
