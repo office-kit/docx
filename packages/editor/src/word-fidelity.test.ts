@@ -626,6 +626,12 @@ describe("run rendering", () => {
   });
 });
 
+// Inline styles of the rendered paragraphs / runs, in document order.
+const styleOf = (html: string, index: number): string =>
+  [...html.matchAll(/<p class="wk-p"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
+const runStyleOf = (html: string, index: number): string =>
+  [...html.matchAll(/<span class="wk-run"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
+
 describe("East Asian typography (measured in Japanese Word for Mac 16)", () => {
   /** A Japanese paragraph in 游明朝 10.5 pt, Word's Japanese default. */
   function japanese(texts: string[]): Docx {
@@ -637,11 +643,6 @@ describe("East Asian typography (measured in Japanese Word for Mac 16)", () => {
     }
     return doc;
   }
-  const styleOf = (html: string, index: number): string =>
-    [...html.matchAll(/<p class="wk-p"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
-  const runStyleOf = (html: string, index: number): string =>
-    [...html.matchAll(/<span class="wk-run"[^>]*style="([^"]*)"/g)][index]?.[1] ?? "";
-
   it("snaps lines to the line grid by the font's own line height (§17.6.5)", () => {
     const doc = japanese(["本文", "見出し"]);
     setRunValProp(run(doc, 1), "sz", "56");
