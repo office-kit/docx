@@ -116,6 +116,9 @@ import {
 } from "../internal/wordprocessingml/index.js";
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../internal/xml/index.js";
 import { type ValidationIssue, validatePackage } from "./validator.js";
+import { maxDocPrId, placementOf } from "../internal/drawingml/layout.js";
+import { picOf, syncXfrmExtent } from "../internal/drawingml/picture.js";
+import { child as childByName, WP_NS } from "../internal/drawingml/xml.js";
 
 const DOCUMENT_PART_FALLBACK = "/word/document.xml";
 
@@ -1050,18 +1053,23 @@ export function imageDrawings(doc: Docx): XmlElement[] {
 /**
  * Resize the image at `index` (in {@link imageDrawings} order) to `cxEmu` ×
  * `cyEmu` EMU (914400 per inch). Updates both the layout extent (`wp:extent`)
- * and the picture transform extent (`a:ext`).
+ * and the picture transform extent (`a:ext`). Charts have no transform; they
+ * scale to the extent.
  */
 export function setImageSizeEmu(doc: Docx, index: number, cxEmu: number, cyEmu: number): void {
   const drawing = imageDrawings(doc)[index];
   if (!drawing) return;
-  for (const local of ["extent", "ext"]) {
-    const el = findDescendantByLocal(drawing, local);
-    if (el) {
-      setLocalAttr(el, "cx", String(Math.round(cxEmu)));
-      setLocalAttr(el, "cy", String(Math.round(cyEmu)));
-    }
+  if (!(cxEmu > 0 && cyEmu > 0 && Number.isFinite(cxEmu) && Number.isFinite(cyEmu))) {
+    throw new Error(`Invalid size ${cxEmu} × ${cyEmu} EMU.`);
   }
+  const extent = childByName(placementOf(drawing), WP_NS, "extent");
+  if (extent) {
+    setLocalAttr(extent, "cx", String(Math.round(cxEmu)));
+    setLocalAttr(extent, "cy", String(Math.round(cyEmu)));
+  }
+  // Only the transform's own a:ext: a docPr / blip extLst also holds <a:ext> elements.
+  const pic = picOf(drawing);
+  if (pic) syncXfrmExtent(pic, cxEmu, cyEmu);
   doc.dirty = true;
 }
 
@@ -2560,10 +2568,13 @@ function relativeMediaTarget(doc: Docx, partName: string): string {
 }
 
 function allocateDocPrId(doc: Docx): number {
-  // docPr ids must be unique across the document. We bump a counter that
-  // starts from the current max we can see in pass-through drawing nodes
-  // and from the relationships set length as a coarse upper bound.
-  return Math.max(1, allRelationships(documentRelationships(doc)).length + 1);
+  // docPr ids must be unique across the document: start above every id the
+  // body's drawings already use (and above the relationship count, which
+  // bounds the ids of drawings this library added).
+  return Math.max(
+    maxDocPrId(imageDrawings(doc)) + 1,
+    allRelationships(documentRelationships(doc)).length + 1,
+  );
 }
 
 /**
