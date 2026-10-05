@@ -18,7 +18,6 @@ import {
   emptyCellLike,
   emptyParagraphLike,
   ensureTcPr,
-  ensureTrPr,
   gridAfterOf,
   gridBeforeOf,
   gridColumnCount,
@@ -510,7 +509,7 @@ function splitColumns(table: WmlTable, original: TableCellPlacement, count: numb
     }
     const left = widths.slice(0, firstGrid).reduce((a, b) => a + b, 0);
     for (let k = 1; k < count; k++) edges.add(Math.round(left + (total * k) / count));
-    regrid(table, [...edges].sort((a, b) => a - b));
+    regrid(table, [...edges].toSorted((a, b) => a - b));
     widths = gridWidths(table);
     const placed = cellPlacements(table)[start.row]?.[start.cell];
     if (!placed) return;
@@ -791,6 +790,10 @@ export interface TablePosition {
 // What Word writes when "Around" is first chosen: ⅛ in to the sides of the text.
 const DEFAULT_FROM_TEXT = 180;
 
+function twips(v: number | undefined): string | undefined {
+  return v === undefined ? undefined : String(Math.round(v));
+}
+
 /** Make the table float with text wrapping around it, or (undefined) put it back in line. */
 export function setTablePosition(table: WmlTable, position: TablePosition | undefined): void {
   const tblPr = tblPrOf(table);
@@ -799,8 +802,6 @@ export function setTablePosition(table: WmlTable, position: TablePosition | unde
     removeWChild(tblPr, "tblOverlap");
     return;
   }
-  const twips = (v: number | undefined): string | undefined =>
-    v === undefined ? undefined : String(Math.round(v));
   upsertWChild(
     tblPr,
     wEl("tblpPr", {

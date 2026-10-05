@@ -17,18 +17,15 @@ import {
   type WmlInline,
   type WmlParagraph,
   type WmlRun,
-  type WmlTable,
   type XmlElement,
 } from "@office-kit/docx";
 import { highlightCss } from "./highlight.js";
+import { type CellAnchor, renderTable } from "./render-table.js";
 import {
-  type BorderSpec,
-  cellBorders,
+  type CellTextFormat,
   createStyleResolver,
   type ResolvedParagraphFormat,
   type ResolvedRunFormat,
-  type ResolvedTableFormat,
-  resolveTable,
   type StyleResolver,
 } from "./resolve.js";
 import { WML_NS } from "./wml-ns.js";
@@ -175,16 +172,6 @@ function runText(run: WmlRun): string {
   return out;
 }
 
-/**
- * Where a paragraph sits inside a table: its cell (`"row,col"`) and its index
- * among that cell's paragraphs. Without the index, every paragraph of a
- * multi-paragraph cell would map back to the first one.
- */
-interface CellAnchor {
-  readonly coord: string;
-  readonly para: number;
-}
-
 function cellAttrs(cell: CellAnchor | undefined): string {
   return cell ? `data-wk-cell="${cell.coord}" data-wk-para="${cell.para}"` : "";
 }
@@ -246,15 +233,16 @@ function renderParagraph(
   styles: StyleResolver,
   block: number,
   cell?: CellAnchor,
+  text?: CellTextFormat,
 ): string {
-  const styleAttr = ` style="${escapeHtml(paragraphCss(styles.paragraph(para), styles.run(para)))}"`;
+  const styleAttr = ` style="${escapeHtml(paragraphCss(styles.paragraph(para, text), styles.run(para, undefined, text)))}"`;
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
   let inner = para.children
     .map((child) =>
       child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
+        ? renderRun(child, runCss(styles.run(para, child, text)), block, runIndex++, cell)
         : renderRawInline(child),
     )
     .join("");
@@ -263,88 +251,16 @@ function renderParagraph(
   return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
 }
 
-// ST_Border styles CSS can draw; the many art borders fall back to solid.
-const BORDER_STYLE_CSS: Readonly<Record<string, string>> = {
-  double: "double",
-  dotted: "dotted",
-  dashed: "dashed",
-  dashSmallGap: "dashed",
-  dotDash: "dashed",
-  dotDotDash: "dotted",
-};
-const NO_BORDER: ReadonlySet<string> = new Set(["none", "nil"]);
-const EIGHTHS_PER_POINT = 8;
-// ST_TblWidth `pct` is in fiftieths of a percent (§17.18.90).
-const PCT_UNITS_PER_PERCENT = 50;
-
-function borderCss(spec: BorderSpec | undefined): string {
-  if (!spec || NO_BORDER.has(spec.style)) return "none";
-  const color = HEX_COLOR.test(spec.color) ? `#${spec.color}` : "#000";
-  // A zero size still draws Word's thinnest line (¼ pt).
-  const width = Math.max(spec.size, 2) / EIGHTHS_PER_POINT;
-  return `${width}pt ${BORDER_STYLE_CSS[spec.style] ?? "solid"} ${color}`;
-}
-
-function tableWidthCss(format: ResolvedTableFormat): string {
-  const width = format.width;
-  if (width?.type === "dxa" && width.value > 0) return `width:${width.value / TWIPS_PER_POINT}pt`;
-  if (width?.type === "pct" && width.value > 0)
-    return `width:${width.value / PCT_UNITS_PER_PERCENT}%`;
-  return "";
-}
-
-/**
- * A table as Word lays it out: its preferred width and grid columns, and only
- * the borders the document defines (directly or through its table style) —
- * a table without borders shows none, as in Word with gridlines hidden.
- */
-function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: number): string {
-  const format = resolveTable(doc, table);
-  const margins = format.cellMargins;
-  const padding = [margins.top ?? 0, margins.right ?? 0, margins.bottom ?? 0, margins.left ?? 0]
-    .map((twips) => `${twips / TWIPS_PER_POINT}pt`)
-    .join(" ");
-  const lastRow = table.rows.length - 1;
-  const rows = table.rows
-    .map((row, r) => {
-      const lastCol = row.cells.length - 1;
-      const cells = row.cells
-        .map((cell, c) => {
-          const coord = `${r},${c}`;
-          const own = cellBorders(cell.tcPr);
-          const outer = format.borders;
-          const css = [
-            `padding:${padding}`,
-            `border-top:${borderCss(own.top ?? (r === 0 ? outer.top : outer.insideH))}`,
-            `border-bottom:${borderCss(own.bottom ?? (r === lastRow ? outer.bottom : outer.insideH))}`,
-            `border-left:${borderCss(own.left ?? (c === 0 ? outer.left : outer.insideV))}`,
-            `border-right:${borderCss(own.right ?? (c === lastCol ? outer.right : outer.insideV))}`,
-          ].join(";");
-          const body = cell.paragraphs
-            .map((p, para) => renderParagraph(p, styles, block, { coord, para }))
-            .join("");
-          return `<td class="wk-td" data-wk-block="${block}" data-wk-cell="${coord}" style="${escapeHtml(css)}">${body}</td>`;
-        })
-        .join("");
-      return `<tr class="wk-tr">${cells}</tr>`;
-    })
-    .join("");
-  const cols = format.columns.length
-    ? `<colgroup>${format.columns.map((w) => `<col style="width:${w / TWIPS_PER_POINT}pt">`).join("")}</colgroup>`
-    : "";
-  const tableCss = [tableWidthCss(format), `margin-left:${format.leftEdge / TWIPS_PER_POINT}pt`]
-    .filter(Boolean)
-    .join(";");
-  const styleAttr = ` style="${tableCss}"`;
-  return `<table class="wk-table" data-wk-block="${block}"${styleAttr}>${cols}<tbody>${rows}</tbody></table>`;
-}
-
 function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, block: number): string {
   switch (blockNode.kind) {
     case "paragraph":
       return renderParagraph(blockNode, styles, block);
     case "table":
-      return renderTable(blockNode, doc, styles, block);
+      return renderTable(blockNode, {
+        doc,
+        block,
+        paragraph: (para, anchor, text) => renderParagraph(para, styles, block, anchor, text),
+      });
     default:
       // Raw / unmodelled block: show a non-editable marker; the library still
       // round-trips the underlying XML.

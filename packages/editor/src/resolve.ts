@@ -12,7 +12,10 @@
  * - Toggle properties (`b`, `i`, `strike`, …) are treated as plain overrides;
  *   the spec XORs them across style levels (§17.7.3), which only matters
  *   when two levels of the hierarchy both set the same toggle.
- * - Table styles and numbering-level run properties are not applied.
+ * - Numbering-level run properties are not applied.
+ * - Table style text formatting (passed in as {@link CellTextFormat}) sits
+ *   between the document defaults and the paragraph style, as §17.7.2
+ *   orders it.
  */
 
 import {
@@ -25,7 +28,6 @@ import {
   stylesPart,
   type WmlParagraph,
   type WmlRun,
-  type WmlTable,
   type XmlElement,
   xmlPartNames,
 } from "@office-kit/docx";
@@ -62,10 +64,17 @@ export interface ResolvedParagraphFormat {
   readonly lineRule?: string | undefined;
 }
 
+/** Paragraph / run properties a table style gives the text of a cell, weakest first. */
+export interface CellTextFormat {
+  readonly pPr: readonly XmlElement[];
+  readonly rPr: readonly XmlElement[];
+}
+
 export interface StyleResolver {
-  paragraph(para: WmlParagraph): ResolvedParagraphFormat;
+  /** A paragraph's formatting; `cell` adds a table style's formatting for text in a cell. */
+  paragraph(para: WmlParagraph, cell?: CellTextFormat): ResolvedParagraphFormat;
   /** A run's formatting; without a run, the paragraph mark's (for empty paragraphs). */
-  run(para: WmlParagraph, run?: WmlRun): ResolvedRunFormat;
+  run(para: WmlParagraph, run?: WmlRun, cell?: CellTextFormat): ResolvedRunFormat;
 }
 
 // ST_OnOff false values (§17.17.4); a bare `<w:b/>` means on.
@@ -247,16 +256,18 @@ export function createStyleResolver(doc: Docx): StyleResolver {
   };
 
   return {
-    paragraph(para) {
+    paragraph(para, cell) {
       const out: Mutable<ResolvedParagraphFormat> = {};
       applyPPr(out, defaultPPr);
+      for (const pPr of cell?.pPr ?? []) applyPPr(out, pPr);
       for (const style of paragraphChain(para)) applyPPr(out, child(style, "pPr"));
       applyPPr(out, para.pPr);
       return out;
     },
-    run(para, run) {
+    run(para, run, cell) {
       const out: Mutable<ResolvedRunFormat> = { bold: false, italic: false, strike: false };
       applyRPr(out, defaultRPr, theme);
+      for (const rPr of cell?.rPr ?? []) applyRPr(out, rPr, theme);
       for (const style of paragraphChain(para)) applyRPr(out, child(style, "rPr"), theme);
       if (run) {
         for (const style of chain(getRunProp(run, "rStyle").val))
@@ -306,181 +317,4 @@ export function pageGeometry(doc: Docx): PageGeometry {
     bottom: Math.abs(read(margins, "bottom", DEFAULT_PAGE.bottom)),
     left: read(margins, "left", DEFAULT_PAGE.left),
   };
-}
-
-/** One side of a table or cell border (`<w:top w:val w:sz w:color/>`). */
-export interface BorderSpec {
-  /** ST_Border, e.g. `single`, `double`, `dotted`; `none` / `nil` draw nothing. */
-  readonly style: string;
-  /** Eighths of a point. */
-  readonly size: number;
-  /** Hex RGB or `auto`. */
-  readonly color: string;
-}
-
-export type BorderSide = "top" | "left" | "bottom" | "right" | "insideH" | "insideV";
-export type CellMarginSide = "top" | "left" | "bottom" | "right";
-
-export interface ResolvedTableFormat {
-  /** Preferred table width (`w:tblW`); `undefined` lets the content decide. */
-  readonly width?: { readonly type: string; readonly value: number } | undefined;
-  /** Grid column widths in twips (`w:tblGrid`). */
-  readonly columns: readonly number[];
-  readonly borders: Readonly<Partial<Record<BorderSide, BorderSpec>>>;
-  /** Default cell margins in twips (`w:tblCellMar`). */
-  readonly cellMargins: Readonly<Partial<Record<CellMarginSide, number>>>;
-  /**
-   * Where the table's left edge sits, in twips from the text margin. Word 2013
-   * and later (compatibility mode 15) place the border at `w:tblInd`; older
-   * modes place the first cell's *text* there, so the border moves left by
-   * the cell margin — what Word shows for a document in Compatibility Mode.
-   */
-  readonly leftEdge: number;
-}
-
-const BORDER_SIDES: readonly BorderSide[] = [
-  "top",
-  "left",
-  "bottom",
-  "right",
-  "insideH",
-  "insideV",
-];
-// `start` / `end` are the bidi-aware names for `left` / `right`.
-const SIDE_ALIASES: Readonly<Record<string, BorderSide>> = { start: "left", end: "right" };
-
-function readBorders(container: XmlElement | undefined): Partial<Record<BorderSide, BorderSpec>> {
-  const out: Partial<Record<BorderSide, BorderSpec>> = {};
-  if (!container) return out;
-  for (const el of childElementsOf(container)) {
-    const side = SIDE_ALIASES[el.name.local] ?? el.name.local;
-    if (!(BORDER_SIDES as readonly string[]).includes(side)) continue;
-    out[side as BorderSide] = {
-      style: getElementAttr(el, "val") ?? "none",
-      size: intAttr(el, "sz") ?? 0,
-      color: getElementAttr(el, "color") ?? "auto",
-    };
-  }
-  return out;
-}
-
-function readCellMargins(
-  container: XmlElement | undefined,
-): Partial<Record<CellMarginSide, number>> {
-  const out: Partial<Record<CellMarginSide, number>> = {};
-  if (!container) return out;
-  for (const el of childElementsOf(container)) {
-    const side = SIDE_ALIASES[el.name.local] ?? el.name.local;
-    // Only twips (dxa) margins; a pct / auto cell margin is not meaningful here.
-    const type = getElementAttr(el, "type") ?? "dxa";
-    const w = intAttr(el, "w");
-    if (
-      type === "dxa" &&
-      w !== undefined &&
-      (side === "top" || side === "left" || side === "bottom" || side === "right")
-    ) {
-      out[side] = w;
-    }
-  }
-  return out;
-}
-
-/** A cell's own `<w:tcBorders>`, which override the table's for that cell. */
-export function cellBorders(tcPr: XmlElement | undefined): Partial<Record<BorderSide, BorderSpec>> {
-  return readBorders(child(tcPr, "tcBorders"));
-}
-
-/**
- * A table's effective width, grid, borders and cell margins: the default
- * table style (Word's "Normal Table"), then the table's style chain, then
- * the table's own `<w:tblPr>`.
- */
-export function resolveTable(doc: Docx, table: WmlTable): ResolvedTableFormat {
-  const part = stylesPart(doc);
-  const styles = new Map<string, XmlElement>();
-  let defaultTableStyle: string | undefined;
-  for (const style of part?.styles ?? []) {
-    const id = getElementAttr(style, "styleId");
-    if (id === undefined) continue;
-    styles.set(id, style);
-    if (getElementAttr(style, "type") === "table" && getElementAttr(style, "default") === "1") {
-      defaultTableStyle = id;
-    }
-  }
-  const chainOf = (id: string | undefined): XmlElement[] => {
-    const out: XmlElement[] = [];
-    const seen = new Set<string>();
-    let current = id;
-    while (current !== undefined && !seen.has(current)) {
-      seen.add(current);
-      const style = styles.get(current);
-      if (!style) break;
-      out.unshift(style);
-      const basedOn = child(style, "basedOn");
-      current = basedOn && getElementAttr(basedOn, "val");
-    }
-    return out;
-  };
-  const styleRef = child(table.tblPr, "tblStyle");
-  const styleId = styleRef && getElementAttr(styleRef, "val");
-  const levels = [
-    ...chainOf(defaultTableStyle).map((s) => child(s, "tblPr")),
-    ...(styleId !== undefined && styleId !== defaultTableStyle
-      ? chainOf(styleId).map((s) => child(s, "tblPr"))
-      : []),
-    table.tblPr,
-  ];
-  const borders: Partial<Record<BorderSide, BorderSpec>> = {};
-  const cellMargins: Partial<Record<CellMarginSide, number>> = {};
-  let indent = 0;
-  for (const tblPr of levels) {
-    Object.assign(borders, readBorders(child(tblPr, "tblBorders")));
-    Object.assign(cellMargins, readCellMargins(child(tblPr, "tblCellMar")));
-    const tblInd = child(tblPr, "tblInd");
-    const w =
-      tblInd && (getElementAttr(tblInd, "type") ?? "dxa") === "dxa"
-        ? intAttr(tblInd, "w")
-        : undefined;
-    if (w !== undefined) indent = w;
-  }
-  const modern = compatibilityMode(doc) >= WORD_2013_MODE;
-  const tblW = child(table.tblPr, "tblW");
-  const widthValue = tblW && intAttr(tblW, "w");
-  const columns = table.tblGrid
-    ? childElementsOf(table.tblGrid)
-        .filter((c) => c.name.local === "gridCol")
-        .map((c) => intAttr(c, "w") ?? 0)
-    : [];
-  return {
-    width:
-      tblW && widthValue !== undefined
-        ? { type: getElementAttr(tblW, "type") ?? "dxa", value: widthValue }
-        : undefined,
-    columns,
-    borders,
-    cellMargins,
-    leftEdge: modern ? indent : indent - (cellMargins.left ?? 0),
-  };
-}
-
-const WORD_2013_MODE = 15;
-// A document without w:compatSetting compatibilityMode opens in Word as a
-// Word 2007 document ("Compatibility Mode").
-const DEFAULT_COMPATIBILITY_MODE = 12;
-const SETTINGS_PART_SUFFIX = "/settings.xml";
-
-/** `w:compatSetting[@w:name="compatibilityMode"]` from settings.xml. */
-export function compatibilityMode(doc: Docx): number {
-  const name = xmlPartNames(doc).find(
-    (n) => n.startsWith("/word/") && n.endsWith(SETTINGS_PART_SUFFIX),
-  );
-  const root = name ? getRawPartRoot(doc, name) : undefined;
-  const compat = child(root, "compat");
-  const setting =
-    compat &&
-    childElementsOf(compat).find(
-      (c) => c.name.local === "compatSetting" && getElementAttr(c, "name") === "compatibilityMode",
-    );
-  const mode = setting ? Number(getElementAttr(setting, "val")) : Number.NaN;
-  return Number.isInteger(mode) ? mode : DEFAULT_COMPATIBILITY_MODE;
 }

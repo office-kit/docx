@@ -37,6 +37,21 @@ export {
   pageGeometry,
 } from "./resolve.js";
 export { positionFromDom, readDomSelection } from "./dom-selection.js";
+export {
+  adjacentCellPosition,
+  selectInTable,
+  type TableSelection,
+  type TableSelectTarget,
+  tableSelection,
+} from "./table-selection.js";
+export {
+  type BorderSpec,
+  type ResolvedCell,
+  type ResolvedTableFormat,
+  resolveTable,
+  shadingColor,
+} from "./table-format.js";
+export { type TablePreviewCell, tableStylePreviews } from "./table-preview.js";
 export { runAtPath, setSimpleRunText } from "./text-edit.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, paragraphAt, paragraphsInRange } from "./doc-access.js";
