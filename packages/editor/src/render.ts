@@ -32,6 +32,7 @@ import {
   type StyleResolver,
 } from "./resolve.js";
 import { WML_NS } from "./wml-ns.js";
+import { deletedRunText, type ReviewDecorations, reviewDecorations } from "./render-revisions.js";
 
 const ALIGN_TO_CSS: Record<string, string> = {
   left: "left",
@@ -194,8 +195,14 @@ function renderRun(
   style: string,
   block: number,
   inline: number,
+  review: ReviewDecorations,
   cell?: CellAnchor,
 ): string {
+  const deco = review.run(run);
+  // A tracked deletion: shown (per the markup mode) but never editable.
+  if (deco.deleted) {
+    return `<span class="wk-del-run${deco.classes}" contenteditable="false"${deco.attrs} style="${escapeHtml(style)}">${escapeHtml(deletedRunText(run))}</span>`;
+  }
   const text = runText(run);
   const attrs = [
     `data-wk-block="${block}"`,
@@ -207,7 +214,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `<span class="wk-run" ${attrs}>${escapeHtml(text) || "​"}</span>`;
+  return `<span class="wk-run${deco.classes}" ${attrs}${deco.attrs}>${escapeHtml(text) || "​"}</span>`;
 }
 
 /**
@@ -244,6 +251,7 @@ function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
 function renderParagraph(
   para: WmlParagraph,
   styles: StyleResolver,
+  review: ReviewDecorations,
   block: number,
   cell?: CellAnchor,
 ): string {
@@ -254,13 +262,14 @@ function renderParagraph(
   let inner = para.children
     .map((child) =>
       child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
-        : renderRawInline(child),
+        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, review, cell)
+        : (review.inline(child.node), renderRawInline(child)),
     )
     .join("");
   if (runIndex === 0) inner = `​${inner}`;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
-  return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
+  const deco = review.paragraph(para);
+  return `<p class="wk-p${deco.classes}" data-wk-block="${block}"${cellAttr}${styleAttr}${deco.attrs}>${inner}</p>`;
 }
 
 // ST_Border styles CSS can draw; the many art borders fall back to solid.
@@ -298,7 +307,13 @@ function tableWidthCss(format: ResolvedTableFormat): string {
  * the borders the document defines (directly or through its table style) —
  * a table without borders shows none, as in Word with gridlines hidden.
  */
-function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: number): string {
+function renderTable(
+  table: WmlTable,
+  doc: Docx,
+  styles: StyleResolver,
+  review: ReviewDecorations,
+  block: number,
+): string {
   const format = resolveTable(doc, table);
   const margins = format.cellMargins;
   const padding = [margins.top ?? 0, margins.right ?? 0, margins.bottom ?? 0, margins.left ?? 0]
@@ -321,7 +336,7 @@ function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: n
             `border-right:${borderCss(own.right ?? (c === lastCol ? outer.right : outer.insideV))}`,
           ].join(";");
           const body = cell.paragraphs
-            .map((p, para) => renderParagraph(p, styles, block, { coord, para }))
+            .map((p, para) => renderParagraph(p, styles, review, block, { coord, para }))
             .join("");
           return `<td class="wk-td" data-wk-block="${block}" data-wk-cell="${coord}" style="${escapeHtml(css)}">${body}</td>`;
         })
@@ -339,12 +354,18 @@ function renderTable(table: WmlTable, doc: Docx, styles: StyleResolver, block: n
   return `<table class="wk-table" data-wk-block="${block}"${styleAttr}>${cols}<tbody>${rows}</tbody></table>`;
 }
 
-function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, block: number): string {
+function renderBlock(
+  blockNode: WmlBlock,
+  doc: Docx,
+  styles: StyleResolver,
+  review: ReviewDecorations,
+  block: number,
+): string {
   switch (blockNode.kind) {
     case "paragraph":
-      return renderParagraph(blockNode, styles, block);
+      return renderParagraph(blockNode, styles, review, block);
     case "table":
-      return renderTable(blockNode, doc, styles, block);
+      return renderTable(blockNode, doc, styles, review, block);
     default:
       // Raw / unmodelled block: show a non-editable marker; the library still
       // round-trips the underlying XML.
@@ -355,7 +376,8 @@ function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, bloc
 /** Render the whole document body to an HTML string for the canvas. */
 export function renderDocumentHtml(doc: Docx): string {
   const styles = createStyleResolver(doc);
-  return doc.document.body.blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
+  const review = reviewDecorations(doc);
+  return doc.document.body.blocks.map((b, i) => renderBlock(b, doc, styles, review, i)).join("");
 }
 
 /** Plain-text extraction of a paragraph (used for tests / accessibility). */

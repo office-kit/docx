@@ -359,7 +359,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `ep:HeadingPairs` | `rawpart.setChildVal` |
 | `ep:HiddenSlides` | `rawpart.setChildVal` |
 | `ep:HLinks` | `rawpart.setChildVal` |
-| `ep:HyperlinkBase` | `rawpart.setChildVal` |
+| `ep:HyperlinkBase` | `docprops.setApp` |
 | `ep:HyperlinksChanged` | `rawpart.setChildVal` |
 | `ep:Lines` | `docprops.setApp` |
 | `ep:LinksUpToDate` | `rawpart.setChildVal` |
@@ -683,9 +683,9 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:default` | `rawpart.setChildVal` |
 | `w:defaultTableStyle` | `settings.defaultTableStyle` |
 | `w:defaultTabStop` | `settings.defaultTabStop` |
-| `w:del` | `review.acceptAll` |
-| `w:delInstrText` | `rawpart.setChildVal` |
-| `w:delText` | `rawpart.setChildVal` |
+| `w:del` | `review.trackedDelete` |
+| `w:delInstrText` | `review.trackedDelete` |
+| `w:delText` | `review.trackedDelete` |
 | `w:description` | `rawpart.setChildVal` |
 | `w:destination` | `rawpart.setChildVal` |
 | `w:dir` | `rawpart.setChildVal` |
@@ -710,7 +710,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:docPartPr` | `rawpart.setChildVal` |
 | `w:docParts` | `rawpart.setChildVal` |
 | `w:docPartUnique` | `rawpart.setChildVal` |
-| `w:documentProtection` | `rawpart.setChildVal` |
+| `w:documentProtection` | `review.protect` |
 | `w:documentType` | `settings.documentType` |
 | `w:docVar` | `rawpart.setChildVal` |
 | `w:docVars` | `rawpart.setChildVal` |
@@ -838,7 +838,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:ilvl` | `list.apply` |
 | `w:imprint` | `text.imprint` |
 | `w:ind` | `paragraph.indent` |
-| `w:ins` | `review.acceptAll` |
+| `w:ins` | `review.trackChanges` |
 | `w:insideH` | `rawpart.setChildVal` |
 | `w:insideV` | `rawpart.setChildVal` |
 | `w:instrText` | `references.field` |
@@ -849,7 +849,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:kern` | `text.kern` |
 | `w:kinsoku` | `paragraph.kinsoku` |
 | `w:label` | `rawpart.setChildVal` |
-| `w:lang` | `rawpart.setChildVal` |
+| `w:lang` | `review.language` |
 | `w:latentStyles` | `rawpart.setChildVal` |
 | `w:layoutRawTableWidth` | `rawpart.setChildVal` |
 | `w:layoutTableRowsApart` | `rawpart.setChildVal` |
@@ -866,7 +866,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:listSeparator` | `settings.listSeparator` |
 | `w:lnNumType` | `rawpart.setChildVal` |
 | `w:lock` | `rawpart.setChildVal` |
-| `w:locked` | `style.locked` |
+| `w:locked` | `review.lockStyles` |
 | `w:longDesc` | `rawpart.setChildVal` |
 | `w:lsdException` | `rawpart.setChildVal` |
 | `w:lvl` | `list.apply` |
@@ -910,7 +910,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:noLeading` | `rawpart.setChildVal` |
 | `w:noLineBreaksAfter` | `rawpart.setChildVal` |
 | `w:noLineBreaksBefore` | `rawpart.setChildVal` |
-| `w:noProof` | `text.noProof` |
+| `w:noProof` | `review.language` |
 | `w:noPunctuationKerning` | `settings.noPunctuationKerning` |
 | `w:noResizeAllowed` | `rawpart.setChildVal` |
 | `w:noSpaceRaiseLower` | `rawpart.setChildVal` |
@@ -936,15 +936,15 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:oMath` | `text.oMath` |
 | `w:optimizeForBrowser` | `rawpart.setChildVal` |
 | `w:outline` | `text.outline` |
-| `w:outlineLvl` | `paragraph.outlineLvl` |
+| `w:outlineLvl` | `outline.setLevel` |
 | `w:overflowPunct` | `paragraph.overflowPunct` |
 | `w:p` | `structure.insertParagraph` |
 | `w:pageBreakBefore` | `paragraph.pageBreakBefore` |
 | `w:panose1` | `rawpart.setChildVal` |
 | `w:paperSrc` | `rawpart.setChildVal` |
 | `w:pBdr` | `paragraph.borders` |
-| `w:permEnd` | `rawpart.setChildVal` |
-| `w:permStart` | `rawpart.setChildVal` |
+| `w:permEnd` | `review.addEditableRange` |
+| `w:permStart` | `review.addEditableRange` |
 | `w:personal` | `style.personal` |
 | `w:personalCompose` | `style.personalCompose` |
 | `w:personalReply` | `style.personalReply` |
@@ -961,7 +961,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:pos` | `rawpart.setChildVal` |
 | `w:position` | `text.position` |
 | `w:pPr` | `paragraph.align` |
-| `w:pPrChange` | `review.acceptAll` |
+| `w:pPrChange` | `review.trackChanges` |
 | `w:pPrDefault` | `style.ensureHeadings` |
 | `w:printBodyTextBeforeHeader` | `rawpart.setChildVal` |
 | `w:printColBlack` | `rawpart.setChildVal` |
@@ -989,7 +989,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:richText` | `rawpart.setChildVal` |
 | `w:right` | `rawpart.setChildVal` |
 | `w:rPr` | `text.bold` |
-| `w:rPrChange` | `review.acceptAll` |
+| `w:rPrChange` | `review.trackChanges` |
 | `w:rPrDefault` | `style.ensureHeadings` |
 | `w:rsid` | `style.rsid` |
 | `w:rsidRoot` | `rawpart.setChildVal` |
@@ -1122,7 +1122,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:topLinePunct` | `paragraph.topLinePunct` |
 | `w:tr` | `table.addRow` |
 | `w:tr2bl` | `rawpart.setChildVal` |
-| `w:trackRevisions` | `settings.trackRevisions` |
+| `w:trackRevisions` | `review.trackChanges` |
 | `w:trHeight` | `table.rowHeight` |
 | `w:trPr` | `table.rowHeight` |
 | `w:trPrChange` | `rawpart.setChildVal` |
@@ -1150,7 +1150,7 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:vAlign` | `table.cellVAlign` |
 | `w:vanish` | `text.vanish` |
 | `w:vertAlign` | `text.vertAlign` |
-| `w:view` | `rawpart.setChildVal` |
+| `w:view` | `view.setView` |
 | `w:viewMergedData` | `rawpart.setChildVal` |
 | `w:vMerge` | `table.cell_vMerge` |
 | `w:w` | `text.w` |
@@ -1163,10 +1163,10 @@ Every element is round-tripped losslessly regardless of disposition;
 | `w:wpJustification` | `rawpart.setChildVal` |
 | `w:wpSpaceWidth` | `rawpart.setChildVal` |
 | `w:wrapTrailSpaces` | `rawpart.setChildVal` |
-| `w:writeProtection` | `rawpart.setChildVal` |
+| `w:writeProtection` | `review.writeProtection` |
 | `w:yearLong` | `rawpart.setChildVal` |
 | `w:yearShort` | `rawpart.setChildVal` |
-| `w:zoom` | `rawpart.setChildVal` |
+| `w:zoom` | `view.setZoom` |
 | `wp:align` | `raw.setChildVal` |
 | `wp:anchor` | `image.insert` |
 | `wp:bg` | `raw.setChildVal` |
