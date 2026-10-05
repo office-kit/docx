@@ -7,8 +7,11 @@
   import { oneDark } from '@codemirror/theme-one-dark';
   import { EditorView, basicSetup } from 'codemirror';
   import DocumentPreview from '$lib/components/DocumentPreview.svelte';
+  import RichText from '$lib/components/RichText.svelte';
   import ValidationReport from '$lib/components/ValidationReport.svelte';
   import { downloadDocx } from '$lib/download';
+  import { localized } from '$lib/i18n';
+  import tools from '$lib/i18n/messages/tools';
   import starterSource from '$lib/examples/repl-default.ts?raw';
 
   // The starter is a type-checked module; the editor shows it from this
@@ -17,6 +20,7 @@
   const DEFAULT_CODE = starterSource.slice(starterSource.indexOf(STARTER_MARKER));
 
   const DOWNLOAD_NAME = 'office-kit-docx-repl.docx';
+  const m = $derived(localized(tools).repl);
   const RUN_DEBOUNCE_MS = 250;
 
   let code = $state(DEFAULT_CODE);
@@ -101,7 +105,7 @@
     const frame = USER_FRAME.exec(err.stack ?? '');
     const line =
       err instanceof SyntaxError ? syntaxErrorLine() : frame ? Number(frame[1]) - WRAPPER_LINES : 0;
-    return line > 0 ? `Line ${line}: ${err.message}` : err.message;
+    return line > 0 ? m.atLine(line, err.message) : err.message;
   }
 
   // Edits arrive faster than a run can finish; only the newest may report.
@@ -151,32 +155,27 @@
   }
 
   function reportPreviewError(err: unknown): void {
-    error = `The preview could not draw this document: ${err instanceof Error ? err.message : String(err)}`;
+    error = m.previewFailed(err instanceof Error ? err.message : String(err));
   }
 </script>
 
 <svelte:head>
-  <title>REPL · @office-kit/docx</title>
+  <title>{m.title} · @office-kit/docx</title>
 </svelte:head>
 
 <section class="content">
   <header class="intro">
-    <h1>REPL</h1>
-    <p class="lede">
-      Write code and the document redraws as you type. Every public function is already in scope,
-      and <code>doc</code> is a new, empty document from <code>createDocx</code>. The preview is
-      drawn from the bytes <code>toUint8Array</code> wrote, and the download is those same bytes.
-      Nothing is uploaded: the code, the library, and the preview all run in this tab.
-    </p>
+    <h1>{m.title}</h1>
+    <p class="lede"><RichText text={m.lede} /></p>
   </header>
 
   <div class="repl-grid">
     <div class="pane editor-pane">
       <div class="pane-head">
-        <h2>Code</h2>
+        <h2>{m.code}</h2>
         <div class="pane-actions">
-          <button type="button" onclick={resetCode}>Reset</button>
-          <button type="button" onclick={copyCode}>Copy</button>
+          <button type="button" onclick={resetCode}>{m.reset}</button>
+          <button type="button" onclick={copyCode}>{m.copy}</button>
         </div>
       </div>
       <div class="editor" bind:this={editorContainer}></div>
@@ -187,16 +186,16 @@
 
     <div class="pane preview-pane">
       <div class="pane-head">
-        <h2>Preview</h2>
+        <h2>{m.preview}</h2>
         <div class="pane-actions">
-          <span class="busy" aria-live="polite">{busy ? 'Building…' : ''}</span>
+          <span class="busy" aria-live="polite">{busy ? m.building : ''}</span>
           <button
             type="button"
             class="strong"
             onclick={() => bytes && downloadDocx(bytes, DOWNLOAD_NAME)}
             disabled={!bytes}
           >
-            Download .docx
+            {m.download}
           </button>
         </div>
       </div>

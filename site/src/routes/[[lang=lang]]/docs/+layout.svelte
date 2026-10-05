@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { base } from '$app/paths';
-  import { page } from '$app/state';
   import { afterNavigate } from '$app/navigation';
+  import RichText from '$lib/components/RichText.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import { allDocLinks } from '$lib/docs-nav';
+  import { href, locale, localized, routePath } from '$lib/i18n';
+  import docs from '$lib/i18n/messages/docs';
 
   type Props = {
     children?: import('svelte').Snippet;
@@ -11,13 +12,12 @@
 
   const { children }: Props = $props();
 
-  const currentRoute = $derived(
-    page.url.pathname.replace(new RegExp(`^${base}`), '').replace(/\/$/, '') || '/',
-  );
-  const index = $derived(allDocLinks.findIndex((l) => l.href === currentRoute));
-  const current = $derived(allDocLinks[index]);
-  const prev = $derived(index > 0 ? allDocLinks[index - 1] : undefined);
-  const next = $derived(index >= 0 ? allDocLinks[index + 1] : undefined);
+  const m = $derived(localized(docs).layout);
+  const links = $derived(allDocLinks(locale()));
+  const index = $derived(links.findIndex((l) => l.href === routePath()));
+  const current = $derived(links[index]);
+  const prev = $derived(index > 0 ? links[index - 1] : undefined);
+  const next = $derived(index >= 0 ? links[index + 1] : undefined);
 
   // The sidebar is always open on wide screens; this only governs the phone drawer.
   let navOpen = $state(false);
@@ -33,7 +33,7 @@
       aria-controls="docs-nav"
       onclick={() => (navOpen = !navOpen)}
     >
-      <span>{current?.title ?? 'Documentation'}</span>
+      <span>{current?.title ?? m.documentation}</span>
       <svg width="12" height="12" viewBox="0 0 10 10" aria-hidden="true">
         <path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" />
       </svg>
@@ -49,24 +49,21 @@
     </article>
 
     {#if current}
-      <nav class="pager" aria-label="Previous and next page" data-pagefind-ignore>
+      <nav class="pager" aria-label={m.pager} data-pagefind-ignore>
         {#if prev}
-          <a href="{base}{prev.href}" class="prev">
-            <span>Previous</span>
+          <a href={href(prev.href)} class="prev">
+            <span>{m.previous}</span>
             {prev.title}
           </a>
         {/if}
         {#if next}
-          <a href="{base}{next.href}" class="next">
-            <span>Next</span>
+          <a href={href(next.href)} class="next">
+            <span>{m.next}</span>
             {next.title}
           </a>
         {/if}
       </nav>
-      <p class="llms-link" data-pagefind-ignore>
-        Models and tools can fetch <a href="{base}/llms-full.txt">/llms-full.txt</a> for these docs
-        as one Markdown file, or <a href="{base}/llms.txt">/llms.txt</a> for the index.
-      </p>
+      <p class="llms-link" data-pagefind-ignore><RichText text={m.llms} /></p>
     {/if}
   </div>
 </div>

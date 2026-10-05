@@ -1,46 +1,49 @@
 <script lang="ts">
-  import { base } from '$app/paths';
   import CodeBlock from '$lib/components/CodeBlock.svelte';
+  import RichText from '$lib/components/RichText.svelte';
+  import { localized, translate } from '$lib/i18n';
+  import docs from '$lib/i18n/messages/docs';
   import type { PageProps } from './$types';
 
   const { data }: PageProps = $props();
+
+  const m = $derived(localized(docs).recipes);
+  const recipes = $derived(
+    data.recipes.map((r) => ({
+      key: r.key,
+      path: r.path,
+      html: r.html,
+      text: translate(r.text, r.translations),
+    })),
+  );
 </script>
 
 <svelte:head>
-  <title>Recipes · @office-kit/docx</title>
+  <title>{m.title} · @office-kit/docx</title>
 </svelte:head>
 
-<h1>Recipes</h1>
+<h1>{m.title}</h1>
 
-<p class="lede">
-  Working code for common tasks. Every snippet is a real file under
-  <code>site/src/lib/examples/</code> that is type-checked against the library on every build, so
-  an API rename breaks this page before it ships. For a specific function, see the
-  <a href="{base}/api">API reference</a>.
-</p>
+<p class="lede"><RichText text={m.lede} /></p>
 
-<nav class="jump" aria-label="Recipes on this page">
-  {#each data.recipes as r (r.key)}
-    <a href="#{r.key}">{r.title}</a>
+<nav class="jump" aria-label={m.jump}>
+  {#each recipes as r (r.key)}
+    <a href="#{r.key}">{r.text.title}</a>
   {/each}
 </nav>
 
-{#each data.recipes as r (r.key)}
+{#each recipes as r (r.key)}
   <section class="recipe" id={r.key}>
-    <h2><a href="#{r.key}">{r.title}</a></h2>
-    <p>{r.description}</p>
+    <h2><a href="#{r.key}">{r.text.title}</a></h2>
+    <p>{r.text.description}</p>
     <CodeBlock html={r.html} title={r.path} />
-    {#if r.seeAlso}
-      <p class="see-also">{r.seeAlso}</p>
+    {#if r.text.seeAlso}
+      <p class="see-also">{r.text.seeAlso}</p>
     {/if}
   </section>
 {/each}
 
-<p class="more">
-  To build a document end to end, walk through
-  <a href="{base}/docs/getting-started">Getting started</a>, then open
-  <a href="{base}/playground">the playground</a> to see the rendered output.
-</p>
+<p class="more"><RichText text={m.more} /></p>
 
 <style>
   .lede {

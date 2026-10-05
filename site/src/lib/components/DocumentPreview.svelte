@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import type { Handle } from '@office-kit/docx-preview';
+  import { localized } from '$lib/i18n';
+  import core from '$lib/i18n/messages/core';
 
   type Props = {
     /** The saved .docx to draw; `null` clears the pane. */
@@ -100,7 +102,7 @@
   style:max-height={maxHeight}
   tabindex="0"
   role="region"
-  aria-label="Rendered document"
+  aria-label={localized(core).preview.label}
   bind:this={host}
 >
   <div class="staging" bind:this={staging}></div>

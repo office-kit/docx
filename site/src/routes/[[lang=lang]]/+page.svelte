@@ -1,13 +1,18 @@
 <script lang="ts">
   import { base } from '$app/paths';
   import { FamilyGrid, InstallCommand, getProduct } from '@office-kit/site-kit';
+  import RichText from '$lib/components/RichText.svelte';
   import { downloadDocx } from '$lib/download';
+  import { href, localized } from '$lib/i18n';
+  import home from '$lib/i18n/messages/home';
   import type { PageRun } from '$lib/server/page-view';
   import type { PageProps } from './$types';
 
   const { data }: PageProps = $props();
 
   const currentProduct = getProduct('docx');
+
+  const m = $derived(localized(home));
 
   const DOWNLOAD_NAME = 'office-kit-demo.docx';
 
@@ -29,149 +34,21 @@
       downloadDocx(bytes, DOWNLOAD_NAME);
       download = {
         state: 'done',
-        note: `Saved ${DOWNLOAD_NAME} (${(bytes.byteLength / 1024).toFixed(1)} KB), built in this tab.`,
+        note: m.stage.saved(DOWNLOAD_NAME, (bytes.byteLength / 1024).toFixed(1)),
       };
     } catch (err) {
       console.error(err);
       download = {
         state: 'failed',
-        note: 'The document could not be built in this browser. The console has the error.',
+        note: m.stage.failed,
       };
     }
   }
 
-  const paths = [
-    {
-      title: 'Start from an empty document',
-      body: 'createDocx() returns a document with its styles part and relationships already in place, so there is no template file to ship. Append headings, paragraphs, bullet and numbered lists, tables, inline images, headers, footers, footnotes, and a table of contents.',
-      code: 'createDocx()',
-      href: '/repl',
-      link: 'Write one in the REPL',
-    },
-    {
-      title: 'Edit a file you already have',
-      body: 'Open a .docx, replace text across the body, headers, footers, footnotes, endnotes, and comments, swap an image by its alt text, accept or reject tracked insertions and deletions, and save. Whatever the library does not model goes back into the file as it came.',
-      code: 'openDocx(bytes)',
-      href: '/docs/recipes',
-      link: 'Browse the recipes',
-    },
-    {
-      title: 'Show the document in the page',
-      body: 'The companion @office-kit/docx-preview package renders a Docx, or raw bytes, into a DOM element. It wraps the open-source docx-preview renderer behind one function. It runs in the browser, so the file is never uploaded.',
-      code: 'previewToDOM(doc, element)',
-      href: '/playground',
-      link: 'Try it in the playground',
-    },
-  ];
-
-  const proof = [
-    {
-      claim: 'Real Word files go in and come out the same.',
-      how: 'The test suite opens the .docx corpora that mammoth.js and python-docx test against, saves every file, reopens it, and compares the paragraphs and the text. CI runs it on Node 22 and Node 24 for every pull request.',
-    },
-    {
-      claim: 'What the library does not understand, it does not touch.',
-      how: 'Elements it does not model are kept as pass-through nodes at their original position, and parts it does not read stay in the package. A content control or a custom XML part survives an edit.',
-    },
-    {
-      claim: 'validate() looks for what makes Word offer a repair.',
-      how: 'Relationships that point at a missing part, comment, footnote and endnote references with no target, unpaired bookmarks, missing media. Twenty feature combinations are asserted clean in the test suite.',
-    },
-    {
-      claim: 'You ship only the functions you import.',
-      how: '120 side-effect-free exports and no classes. createDocx, appendParagraph, and toUint8Array bundle to 42 KB minified; the whole API is 133 KB. CI fails if the small bundle passes 50 KB.',
-    },
-    {
-      claim: 'One runtime dependency.',
-      how: 'fflate, for ZIP. The XML parser and serializer are written here, and nothing in the library imports a Node built-in.',
-    },
-  ];
-
-  type Cell = { text: string; tone?: 'yes' | 'no' | 'part' };
-  const comparison: Array<{ topic: string; ours: Cell; theirs: Cell }> = [
-    {
-      topic: 'Open and edit an existing .docx',
-      ours: { text: 'Yes. The file becomes a model: change any paragraph, run, or table', tone: 'yes' },
-      theirs: { text: 'Placeholders only. patchDocument swaps {{tokens}} for new content', tone: 'part' },
-    },
-    {
-      topic: 'Read back what is in a file',
-      ours: { text: 'Text, outline, statistics, images, fields, hyperlinks, bookmarks', tone: 'yes' },
-      theirs: { text: 'No. patchDetector lists the placeholders and nothing else', tone: 'no' },
-    },
-    {
-      topic: 'What a placeholder can become',
-      ours: { text: 'Text', tone: 'part' },
-      theirs: { text: 'Text, paragraphs, tables, or images', tone: 'yes' },
-    },
-    {
-      topic: 'Tracked changes',
-      ours: { text: 'Accepts or rejects the ones in a file; cannot author new ones', tone: 'part' },
-      theirs: { text: 'Authors insertions and deletions; cannot resolve existing ones', tone: 'part' },
-    },
-    {
-      topic: 'Merged cells, floating images, text boxes',
-      ours: { text: 'Not yet', tone: 'no' },
-      theirs: { text: 'Yes', tone: 'yes' },
-    },
-    {
-      topic: 'API shape',
-      ours: { text: 'Tree-shakeable functions over plain data, ESM only' },
-      theirs: { text: 'A tree of class instances; ESM, CommonJS, and script-tag bundles' },
-    },
-    {
-      topic: 'Runtime dependencies',
-      ours: { text: 'One: fflate' },
-      theirs: { text: 'Six, including jszip and xml-js' },
-    },
-  ];
-
-  const capabilities = [
-    {
-      area: 'Text',
-      items: 'Paragraphs, headings, runs with bold, italic, underline, colour, highlight, size, and fonts. Alignment, indents, spacing, borders, shading.',
-    },
-    {
-      area: 'Lists and styles',
-      items: 'Bullet and numbered lists. Add, remove, and look up styles, or lift the whole style table from a designed template.',
-    },
-    {
-      area: 'Tables',
-      items: 'Rows, cell text, borders, cell shading, vertical alignment, row heights, repeating header rows. Unwrap a table back into paragraphs.',
-    },
-    {
-      area: 'Images',
-      items: 'Inline PNG, JPEG, GIF, BMP, TIFF, and SVG. List the images in a file and replace one by part name or alt text.',
-    },
-    {
-      area: 'Page setup',
-      items: 'Page size, margins, orientation, section breaks. Headers and footers for default, first, and even pages, with page numbers.',
-    },
-    {
-      area: 'Review',
-      items: 'Comments, footnotes, endnotes, bookmarks, external and internal hyperlinks. Accept or reject every tracked insertion and deletion.',
-    },
-    {
-      area: 'Fields',
-      items: 'Table of contents, merge fields, and PAGE, NUMPAGES, and DATE fields.',
-    },
-    {
-      area: 'Document',
-      items: 'Core and app properties, find and replace across every part, outline, statistics, plain-text extraction, validate().',
-    },
-  ];
-
-  const notYet = [
-    'Merged table cells and nested tables',
-    'Floating images, text boxes, and charts (kept when already in a file)',
-    'A typed API for content controls (kept when already in a file)',
-    'ISO/IEC 29500 Strict files',
-    'Rendering to PDF, which is out of scope for good',
-  ];
 </script>
 
 <svelte:head>
-  <title>@office-kit/docx: read, edit, and write Word files in TypeScript</title>
+  <title>{m.title}</title>
 </svelte:head>
 
 {#snippet runs(list: PageRun[])}
@@ -182,16 +59,11 @@
 
 <section class="band hero">
   <div class="frame hero-inner">
-    <h1>Read, edit, and write Word documents in TypeScript</h1>
-    <p class="lede">
-      Build a .docx from nothing, or open one that already exists and change it. Paragraphs, lists,
-      tables, images, headers, comments, and tracked changes are plain typed functions, and
-      whatever the library does not model is written back untouched. It runs in Node and in the
-      browser.
-    </p>
+    <h1>{m.hero.heading}</h1>
+    <p class="lede">{m.hero.lede}</p>
     <div class="cta">
-      <a href="{base}/docs/getting-started" class="btn primary">Get started</a>
-      <a href="{base}/playground" class="btn">Open the playground</a>
+      <a href={href('/docs/getting-started')} class="btn primary">{m.hero.start}</a>
+      <a href={href('/playground')} class="btn">{m.hero.playground}</a>
       <InstallCommand pkg={currentProduct.pkg} />
     </div>
   </div>
@@ -199,18 +71,18 @@
 
 <section class="band stage" aria-labelledby="stage-title">
   <div class="frame stage-inner">
-    <h2 id="stage-title" class="visually-hidden">A document and the code that built it</h2>
+    <h2 id="stage-title" class="visually-hidden">{m.stage.heading}</h2>
     <div class="stage-grid">
       <figure class="code-pane">
         <figcaption>hero-document.ts</figcaption>
         <!-- A scrollable region must be focusable, or keyboard users cannot scroll it. -->
         <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <div class="code-scroll" tabindex="0" role="region" aria-label="Source of hero-document.ts">
+        <div class="code-scroll" tabindex="0" role="region" aria-label={m.stage.codeLabel}>
           {@html data.heroCode}
         </div>
       </figure>
       <figure class="sheet-pane">
-        <div class="sheet" role="group" aria-label="The document that code produces">
+        <div class="sheet" role="group" aria-label={m.stage.sheetLabel}>
           {#each data.page as block, i (i)}
             {#if block.kind === 'heading'}
               <p
@@ -249,12 +121,7 @@
       </figure>
     </div>
     <div class="stage-foot">
-      <p>
-        That page is real output. The code shown with it built the document; this site saved it as
-        .docx bytes, opened those bytes again with <code>openDocx</code>, and drew what it read as
-        HTML. Download the file and open it in Word: the headings are styles, the list is a list,
-        and the table is a table.
-      </p>
+      <p><RichText text={m.stage.note} /></p>
       <div class="stage-action">
         <button
           type="button"
@@ -262,7 +129,7 @@
           onclick={downloadDocument}
           disabled={download.state === 'working'}
         >
-          {download.state === 'working' ? 'Building the document…' : 'Download the .docx'}
+          {download.state === 'working' ? m.stage.building : m.stage.download}
         </button>
         <p class="stage-note" aria-live="polite">{download.note}</p>
       </div>
@@ -273,12 +140,12 @@
 <section class="band">
   <div class="frame">
     <ul class="paths">
-      {#each paths as p (p.title)}
+      {#each m.paths as p (p.code)}
         <li>
           <code class="path-code">{p.code}</code>
           <h2>{p.title}</h2>
           <p>{p.body}</p>
-          <a href="{base}{p.href}">{p.link}</a>
+          <a href={href(p.href)}>{p.link}</a>
         </li>
       {/each}
     </ul>
@@ -288,18 +155,10 @@
 <section class="band template">
   <div class="frame template-inner">
     <div class="template-text">
-      <h2>Design the template in Word. Fill it in from code.</h2>
-      <p>
-        The letterhead, the contract, the report with the right fonts: most documents that matter
-        already exist as a .docx somebody cares about. Open it, replace what changes, and everything
-        else stays as it was designed.
-      </p>
-      <p>
-        Word often splits a placeholder such as <code>{'{{name}}'}</code> across several runs.
-        Matching works on the paragraph’s text rather than its XML, so it is still found, and
-        <code>replaceTextEverywhere</code> reaches the headers, footers, notes, and comments as
-        well as the body.
-      </p>
+      <h2>{m.template.heading}</h2>
+      {#each m.template.body as text, i (i)}
+        <p><RichText {text} /></p>
+      {/each}
     </div>
     <figure class="template-code">
       <figcaption>template-fill.ts</figcaption>
@@ -310,13 +169,10 @@
 
 <section class="band proof" aria-labelledby="proof-title">
   <div class="frame proof-inner">
-    <h2 id="proof-title">Round trips, checked by machines</h2>
-    <p class="proof-lede">
-      A library that edits other people’s documents has one job above all: do not break them.
-      This is what backs that up.
-    </p>
+    <h2 id="proof-title">{m.proof.heading}</h2>
+    <p class="proof-lede">{m.proof.lede}</p>
     <dl>
-      {#each proof as item (item.claim)}
+      {#each m.proof.items as item (item.claim)}
         <div class="proof-row">
           <dt>{item.claim}</dt>
           <dd>{item.how}</dd>
@@ -329,25 +185,20 @@
 <section class="band" aria-labelledby="compare-title">
   <div class="frame compare">
     <div class="section-head">
-      <h2 id="compare-title">How it differs from the docx package</h2>
-      <p>
-        The <code>docx</code> package is the established way to generate a Word file in JavaScript,
-        and it can author things this library cannot yet. The difference is
-        direction: that package builds new documents, while this library also reads and edits the
-        ones you already have. Compared against docx 9.7.1.
-      </p>
+      <h2 id="compare-title">{m.compare.heading}</h2>
+      <p><RichText text={m.compare.lede} /></p>
     </div>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th scope="col"><span class="visually-hidden">Capability</span></th>
+            <th scope="col"><span class="visually-hidden">{m.compare.capability}</span></th>
             <th scope="col">@office-kit/docx</th>
             <th scope="col">docx (npm)</th>
           </tr>
         </thead>
         <tbody>
-          {#each comparison as row (row.topic)}
+          {#each m.compare.rows as row (row.topic)}
             <tr>
               <th scope="row">{row.topic}</th>
               <td data-tone={row.ours.tone}>{row.ours.text}</td>
@@ -357,25 +208,18 @@
         </tbody>
       </table>
     </div>
-    <p class="compare-advice">
-      Pick the docx package if you only ever generate new documents and need merged cells, floating images,
-      text boxes, or a CommonJS build. Pick this library if the document already exists and you
-      need to read it, change it, or check it.
-    </p>
+    <p class="compare-advice">{m.compare.advice}</p>
   </div>
 </section>
 
 <section class="band" aria-labelledby="caps-title">
   <div class="frame caps">
     <div class="section-head">
-      <h2 id="caps-title">What you can build today</h2>
-      <p>
-        The library is pre-1.0 and says so. This is what works now, and what does not yet.
-        <a href="{base}/api">The API reference</a> lists every function.
-      </p>
+      <h2 id="caps-title">{m.caps.heading}</h2>
+      <p><RichText text={m.caps.lede} /></p>
     </div>
     <dl class="caps-grid">
-      {#each capabilities as c (c.area)}
+      {#each m.caps.items as c (c.area)}
         <div>
           <dt>{c.area}</dt>
           <dd>{c.items}</dd>
@@ -383,9 +227,9 @@
       {/each}
     </dl>
     <div class="not-yet">
-      <h3>Not yet</h3>
+      <h3>{m.caps.notYet}</h3>
       <ul>
-        {#each notYet as item (item)}
+        {#each m.caps.notYetItems as item (item)}
           <li>{item}</li>
         {/each}
       </ul>
@@ -396,21 +240,17 @@
 <section class="band agents">
   <div class="frame agents-inner">
     <div>
-      <h2>Readable by AI agents too</h2>
-      <p>
-        Documents are increasingly generated by agents, so the docs are published in a form a model
-        can fetch directly. Every snippet in them is a file that is type-checked against the library
-        when the site builds, so an agent is not handed an API that no longer exists.
-      </p>
+      <h2>{m.agents.heading}</h2>
+      <p>{m.agents.body}</p>
     </div>
     <ul>
       <li>
         <a href="{base}/llms.txt"><code>/llms.txt</code></a>
-        <span>An index of the docs, for a model to pick from.</span>
+        <span>{m.agents.index}</span>
       </li>
       <li>
         <a href="{base}/llms-full.txt"><code>/llms-full.txt</code></a>
-        <span>The guides, the recipes, and the API listing in one Markdown file.</span>
+        <span>{m.agents.full}</span>
       </li>
     </ul>
   </div>
@@ -419,11 +259,8 @@
 <section class="band" aria-labelledby="family-title">
   <div class="frame">
     <div class="section-head family-head">
-      <h2 id="family-title">One kit, three file formats</h2>
-      <p>
-        Office Kit is a family of libraries built on the same rules: the ECMA-376 spec is the source
-        of truth, files that go in must come out intact, and one ESM build has to run everywhere.
-      </p>
+      <h2 id="family-title">{m.family.heading}</h2>
+      <p>{m.family.body}</p>
     </div>
     <FamilyGrid product="docx" />
   </div>
@@ -611,7 +448,7 @@
     line-height: 1.55;
   }
 
-  .stage-foot code {
+  .stage-foot :global(code) {
     white-space: nowrap;
     background: rgb(255 255 255 / 0.16);
     border-color: rgb(255 255 255 / 0.3);

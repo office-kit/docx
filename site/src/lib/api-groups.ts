@@ -8,13 +8,28 @@
 //     live `@office-kit/docx` exports (plus a `previewToDOM` whitelist for
 //     `@office-kit/docx-preview`). CI fails if a new export isn't added here.
 
+import type { Translations } from "$lib/i18n/define";
+
 export type ApiEntry = { name: string; sig?: string };
-export type ApiGroup = { title: string; description: string; entries: ApiEntry[] };
+export type ApiGroupText = { title: string; description: string };
+// Names and signatures are code and read the same in every locale; only the
+// group headings are translated. English stays on the group itself because
+// `/llms-full.txt` is English only.
+export type ApiGroup = ApiGroupText & {
+  translations: Translations<ApiGroupText>;
+  entries: ApiEntry[];
+};
 
 export const apiGroups: ApiGroup[] = [
   {
     title: "Lifecycle",
     description: "Create, open, clone, and serialise a document.",
+    translations: {
+      ja: {
+        title: "ライフサイクル",
+        description: "ドキュメントの作成、読み込み、複製、シリアライズ。",
+      },
+    },
     entries: [
       { name: "createDocx", sig: "({ paragraphs? }?) => Docx" },
       { name: "openDocx", sig: "(bytes: Uint8Array) => Docx" },
@@ -27,6 +42,12 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Paragraphs & blocks",
     description: "Append, insert, and remove body paragraphs, headings, and breaks.",
+    translations: {
+      ja: {
+        title: "段落とブロック",
+        description: "本文の段落、見出し、区切りの追加、挿入、削除。",
+      },
+    },
     entries: [
       { name: "appendParagraph" },
       { name: "insertParagraphAt" },
@@ -43,6 +64,12 @@ export const apiGroups: ApiGroup[] = [
     title: "Inline & text",
     description:
       "Find and replace, runs and their formatting, paragraph alignment, indents, spacing, borders, and shading.",
+    translations: {
+      ja: {
+        title: "インラインとテキスト",
+        description: "検索と置換、ランとその書式、段落の配置、インデント、間隔、罫線、網かけ。",
+      },
+    },
     entries: [
       { name: "replaceText" },
       { name: "replaceTextEverywhere" },
@@ -84,6 +111,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Styles & numbering",
     description:
       "The style table, bullet and numbered lists, and lifting styles from a designed template.",
+    translations: {
+      ja: {
+        title: "スタイルと段落番号",
+        description:
+          "スタイル定義、箇条書きと番号付きリスト、デザイン済みテンプレートからのスタイルの取り込み。",
+      },
+    },
     entries: [
       { name: "addStyle" },
       { name: "removeStyle" },
@@ -106,6 +140,12 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Tables",
     description: "Build tables and edit rows, cell text, borders, shading, and alignment.",
+    translations: {
+      ja: {
+        title: "表",
+        description: "表の作成と、行、セルのテキスト、罫線、網かけ、配置の編集。",
+      },
+    },
     entries: [
       { name: "addTable" },
       { name: "tables" },
@@ -127,6 +167,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Table layout",
     description:
       "Word's Table Layout operations: rows, columns and cells at any position, merge and split, sizes, margins, sorting, text conversion and formulas.",
+    translations: {
+      ja: {
+        title: "表のレイアウト",
+        description:
+          "Word の［レイアウト］（表ツール）タブの操作。任意の位置への行・列・セルの挿入、結合と分割、サイズ、余白、並べ替え、文字列への変換、計算式。",
+      },
+    },
     entries: [
       { name: "tableCellPlacements", sig: "(table) => TableCellPlacement[][]" },
       { name: "tableColumnCount" },
@@ -168,6 +215,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Table styles",
     description:
       "Word's built-in table styles (Plain, Grid and List Tables), Table Style Options, and table style formatting.",
+    translations: {
+      ja: {
+        title: "表のスタイル",
+        description:
+          "Word の組み込みの表スタイル（標準の表、グリッド テーブル、リスト テーブル）、表スタイルのオプション、表スタイルの書式。",
+      },
+    },
     entries: [
       { name: "BUILT_IN_TABLE_STYLES" },
       { name: "addBuiltInTableStyle", sig: "(doc, styleId) => void" },
@@ -183,6 +237,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Images",
     description:
       "Add inline images, list the ones in a file, and replace them by part name or alt text.",
+    translations: {
+      ja: {
+        title: "画像",
+        description:
+          "インライン画像の追加、ファイル内の画像の一覧取得、パーツ名または代替テキストによる差し替え。",
+      },
+    },
     entries: [
       { name: "addImage" },
       { name: "addImageRun" },
@@ -202,6 +263,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Pictures, charts & arrangement",
     description:
       "Picture Format and Arrange: wrapping, position, z-order, crop, shape, border, effects, color adjustments; Insert ▸ Chart with an embedded workbook. Drawings are addressed by their imageDrawings index.",
+    translations: {
+      ja: {
+        title: "図、グラフ、配置",
+        description:
+          "［図の形式］と［配置］の操作。文字列の折り返し、位置、重なり順、トリミング、図形、枠線、効果、色の調整に加え、ブックを埋め込んだ［挿入］▸［グラフ］。描画オブジェクトは imageDrawings のインデックスで指定します。",
+      },
+    },
     entries: [
       { name: "readDrawing", sig: "(doc, drawing: XmlElement) => DrawingInfo" },
       { name: "imagePixelSize", sig: "(bytes) => ImagePixelSize | undefined" },
@@ -235,6 +303,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Headers, footers, sections",
     description:
       "Headers and footers for default, first, and even pages, plus page size, margins, and orientation.",
+    translations: {
+      ja: {
+        title: "ヘッダー、フッター、セクション",
+        description:
+          "標準ページ・先頭ページ・偶数ページ用のヘッダーとフッター、用紙サイズ、余白、印刷の向き。",
+      },
+    },
     entries: [
       { name: "addHeader" },
       { name: "addFooter" },
@@ -251,6 +326,13 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Comments, notes, hyperlinks, bookmarks",
     description: "Review and navigation content: add it, list it, rewrite links, or strip it out.",
+    translations: {
+      ja: {
+        title: "コメント、脚注、ハイパーリンク、ブックマーク",
+        description:
+          "校閲やナビゲーションのためのコンテンツの追加、一覧取得、リンクの書き換え、削除。",
+      },
+    },
     entries: [
       { name: "addComment" },
       { name: "addFootnote" },
@@ -273,6 +355,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Fields & tracked changes",
     description:
       "Complex fields such as a table of contents or a merge field, and bulk accept or reject of tracked insertions and deletions.",
+    translations: {
+      ja: {
+        title: "フィールドと変更履歴",
+        description:
+          "目次や差し込みフィールドなどの複合フィールドと、変更履歴の挿入・削除の一括承諾・却下。",
+      },
+    },
     entries: [
       { name: "appendField" },
       { name: "addTableOfContents" },
@@ -285,6 +374,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Insert at a position",
     description:
       "What Word's Insert tab places at a character offset of a paragraph: complex fields with computed results, links, bookmarks, symbols, equations, drop caps and signature lines.",
+    translations: {
+      ja: {
+        title: "指定位置への挿入",
+        description:
+          "Word の［挿入］タブで段落内の文字位置に配置できるもの。計算結果付きの複合フィールド、リンク、ブックマーク、記号と特殊文字、数式、ドロップ キャップ、署名欄。",
+      },
+    },
     entries: [
       {
         name: "insertField",
@@ -330,6 +426,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Pages, headers & page numbers",
     description:
       "Cover pages, header and footer content, page numbers and their format, and another document's content merged in (Insert ▸ Object ▸ Text from File).",
+    translations: {
+      ja: {
+        title: "ページ、ヘッダー、ページ番号",
+        description:
+          "表紙、ヘッダーとフッターの内容、ページ番号とその書式、別のドキュメントの内容の取り込み（［挿入］▸［オブジェクト］▸［ファイルからテキスト］）。",
+      },
+    },
     entries: [
       { name: "insertCoverPage", sig: "(doc, paragraphs) => void" },
       { name: "removeCoverPage", sig: "(doc) => boolean" },
@@ -354,6 +457,13 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Document properties",
     description: "Core and app properties, with shortcuts for the title and the author.",
+    translations: {
+      ja: {
+        title: "ドキュメントのプロパティ",
+        description:
+          "コアプロパティとアプリケーションプロパティ。タイトルと作成者にはショートカットがあります。",
+      },
+    },
     entries: [
       { name: "coreProperties" },
       { name: "setCoreProperties" },
@@ -372,6 +482,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Shapes, text boxes, WordArt & ink (VML)",
     description:
       "Draw shapes from Word's gallery, text boxes, WordArt, ink strokes and drawing canvases as ECMA-376 VML (`w:pict`), and edit their fill, outline, shadow, layout, wrap, z-order, text and grouping. Shape handles are the VML elements.",
+    translations: {
+      ja: {
+        title: "図形、テキストボックス、ワードアート、インク（VML）",
+        description:
+          "Word のギャラリーにある図形、テキストボックス、ワードアート、インクのストローク、描画キャンバスを ECMA-376 の VML（`w:pict`）として描画し、塗りつぶし、枠線、影、レイアウト、文字列の折り返し、重なり順、テキスト、グループ化を編集します。図形のハンドルは VML 要素そのものです。",
+      },
+    },
     entries: [
       {
         name: "addShape",
@@ -431,6 +548,13 @@ export const apiGroups: ApiGroup[] = [
     title: "SmartArt",
     description:
       "Insert SmartArt diagrams (DrawingML diagrams: data model, layout, style and colour parts) and edit their bullets, layout, colours, style and size.",
+    translations: {
+      ja: {
+        title: "SmartArt",
+        description:
+          "SmartArt グラフィック（DrawingML のダイアグラム。データモデル、レイアウト、スタイル、色の各パーツ）の挿入と、箇条書き、レイアウト、色、スタイル、サイズの編集。",
+      },
+    },
     entries: [
       {
         name: "addSmartArt",
@@ -454,6 +578,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Diagnostics",
     description:
       "Validate the package and read a document back: outline, fields, statistics, plain text.",
+    translations: {
+      ja: {
+        title: "診断",
+        description:
+          "パッケージの検証と、ドキュメント内容の読み取り（アウトライン、フィールド、統計情報、プレーンテキスト）。",
+      },
+    },
     entries: [
       { name: "validate" },
       { name: "validatePackage" },
@@ -467,6 +598,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Review: tracked changes",
     description:
       "List, accept, and reject revisions; record insertions, deletions, and formatting changes as tracked; compare two documents.",
+    translations: {
+      ja: {
+        title: "校閲: 変更履歴",
+        description:
+          "変更履歴の一覧取得、承諾、却下。挿入・削除・書式変更の変更履歴としての記録と、2 つのドキュメントの比較。",
+      },
+    },
     entries: [
       { name: "revisions", sig: "(doc: Docx) => RevisionInfo[]" },
       { name: "acceptRevisions", sig: "(doc: Docx, ids: readonly string[]) => number" },
@@ -487,6 +625,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Review: comments, proofing, accessibility",
     description:
       "Read and edit comments, set the proofing language, count words as Word does, and check accessibility.",
+    translations: {
+      ja: {
+        title: "校閲: コメント、文章校正、アクセシビリティ",
+        description:
+          "コメントの読み取りと編集、校正言語の設定、Word と同じ方法での文字数カウント、アクセシビリティ チェック。",
+      },
+    },
     entries: [
       { name: "comments", sig: "(doc: Docx) => CommentInfo[]" },
       { name: "setCommentText" },
@@ -502,6 +647,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Document protection",
     description:
       "Restrict editing (with an optional password), editable exceptions, and Always Open Read-Only.",
+    translations: {
+      ja: {
+        title: "ドキュメントの保護",
+        description:
+          "編集の制限（パスワードは任意）、編集を許可する例外、常に読み取り専用で開く設定。",
+      },
+    },
     entries: [
       { name: "documentProtection" },
       { name: "protectDocument", sig: "(doc: Docx, options: ProtectOptions) => void" },
@@ -517,6 +669,13 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "View & custom properties",
     description: "The view and zoom a document opens with, and custom document properties.",
+    translations: {
+      ja: {
+        title: "表示とユーザー設定のプロパティ",
+        description:
+          "ドキュメントを開いたときの表示モードとズーム、ユーザー設定のドキュメント プロパティ。",
+      },
+    },
     entries: [
       { name: "documentView" },
       { name: "setDocumentView" },
@@ -530,6 +689,12 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Low-level part access",
     description: "The parsed side parts, for when the functions above do not reach far enough.",
+    translations: {
+      ja: {
+        title: "低レベルのパーツ アクセス",
+        description: "解析済みの補助パーツ。上記の関数では手が届かない場合に使います。",
+      },
+    },
     entries: [
       { name: "stylesPart" },
       { name: "numberingPart" },
@@ -553,6 +718,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Stories & section headers",
     description:
       "Headers, footers, footnotes, endnotes and comments as typed block content, and which header/footer each section shows.",
+    translations: {
+      ja: {
+        title: "ストーリーとセクションのヘッダー",
+        description:
+          "ヘッダー、フッター、脚注、文末脚注、コメントを型付きのブロック コンテンツとして扱う関数と、各セクションに表示するヘッダー・フッターの指定。",
+      },
+    },
     entries: [
       { name: "storyBody", sig: "(doc, ref: StoryRef) => WmlBody | undefined" },
       {
@@ -577,6 +749,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Character & paragraph formatting",
     description:
       "Theme colours, every underline style, theme fonts, run shading and borders, per-side paragraph borders, tab stops, phonetic guides, enclosed characters, list definitions, and Word's built-in styles.",
+    translations: {
+      ja: {
+        title: "文字書式と段落書式",
+        description:
+          "テーマの色、すべての下線スタイル、テーマのフォント、ランの網かけと罫線、段落の辺ごとの罫線、タブ位置、ルビ、囲い文字、リストの定義、Word の組み込みスタイル。",
+      },
+    },
     entries: [
       { name: "setRunColor", sig: "(run, color: ColorValue | undefined) => void" },
       { name: "setRunUnderline", sig: "(run, underline: UnderlineValue | undefined) => void" },
@@ -606,6 +785,12 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Page-size & margin constants",
     description: "Ready-made values for setPageSize and setPageMargins, plus the library version.",
+    translations: {
+      ja: {
+        title: "用紙サイズと余白の定数",
+        description: "setPageSize と setPageMargins にそのまま渡せる値と、ライブラリのバージョン。",
+      },
+    },
     entries: [
       { name: "PAGE_SIZE_A4" },
       { name: "PAGE_SIZE_LETTER" },
@@ -617,6 +802,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Section layout",
     description:
       "Columns, line numbers, page borders, vertical alignment, document grid and section breaks, per section.",
+    translations: {
+      ja: {
+        title: "セクションのレイアウト",
+        description:
+          "セクション単位の段組み、行番号、ページ罫線、垂直方向の配置、文字グリッド、セクション区切り。",
+      },
+    },
     entries: [
       { name: "sectionCount", sig: "(doc) => number" },
       { name: "sectionIndexAt", sig: "(doc, blockIndex) => number" },
@@ -631,6 +823,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Design: themes, style sets, page background",
     description:
       "The theme part (colours, fonts, effects), style sets, default paragraph spacing, page colour and watermarks.",
+    translations: {
+      ja: {
+        title: "デザイン: テーマ、スタイル セット、ページの背景",
+        description:
+          "テーマ パーツ（配色、フォント、効果）、スタイル セット、段落の既定の間隔、ページの色、透かし。",
+      },
+    },
     entries: [
       { name: "setTheme", sig: "(doc, theme: ThemeDefinition) => void" },
       { name: "getTheme", sig: "(doc) => ThemeInfo | undefined" },
@@ -662,6 +861,13 @@ export const apiGroups: ApiGroup[] = [
     title: "References",
     description:
       "Word's References tab: tables of contents and figures, footnotes and endnotes, citations and bibliography, captions, index, and tables of authorities — with computed field results.",
+    translations: {
+      ja: {
+        title: "参考資料",
+        description:
+          "Word の［参考資料］タブ。目次と図表目次、脚注と文末脚注、引用文献と文献目録、図表番号、索引、引用文献一覧を、計算済みのフィールド結果とともに扱います。",
+      },
+    },
     entries: [
       { name: "insertTableOfContents", sig: "(doc, at, options?) => void" },
       { name: "tableOfContentsInstruction" },
@@ -712,6 +918,13 @@ export const apiGroups: ApiGroup[] = [
     title: "Mailings",
     description:
       "Envelopes, labels, and mail merge: data source settings, merge fields and rules, previewing a recipient, and merging to a new document.",
+    translations: {
+      ja: {
+        title: "差し込み文書",
+        description:
+          "封筒、ラベル、差し込み印刷。データ ソースの設定、差し込みフィールドとルール、宛先のプレビュー、新規文書への差し込み。",
+      },
+    },
     entries: [
       { name: "addEnvelope" },
       { name: "removeEnvelope" },
@@ -748,6 +961,12 @@ export const apiGroups: ApiGroup[] = [
   {
     title: "Browser preview (@office-kit/docx-preview)",
     description: "The companion package's single entry point.",
+    translations: {
+      ja: {
+        title: "ブラウザー プレビュー（@office-kit/docx-preview）",
+        description: "姉妹パッケージの唯一のエントリーポイント。",
+      },
+    },
     entries: [{ name: "previewToDOM", sig: "(source, container, options?) => Promise<Handle>" }],
   },
 ];

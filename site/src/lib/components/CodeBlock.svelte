@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { localized } from '$lib/i18n';
+  import core from '$lib/i18n/messages/core';
+
   type Props = {
     /** Pre-rendered Shiki HTML (the full <pre>...</pre>). */
     html: string;
@@ -7,6 +10,8 @@
   };
 
   const { html, title }: Props = $props();
+
+  const m = $derived(localized(core).copy);
 
   let bodyEl = $state<HTMLDivElement | undefined>();
   let status = $state<'idle' | 'copied' | 'failed'>('idle');
@@ -41,9 +46,9 @@
       class:copied={status === 'copied'}
       class:failed={status === 'failed'}
       onclick={copy}
-      aria-label="Copy code to clipboard"
+      aria-label={m.label}
     >
-      {#if status === 'copied'}Copied{:else if status === 'failed'}Failed{:else}Copy{/if}
+      {m[status]}
     </button>
   </figcaption>
   <div class="body" bind:this={bodyEl}>{@html html}</div>
