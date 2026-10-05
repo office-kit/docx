@@ -10,6 +10,7 @@
  */
 
 import type { EditorModel } from "../model.js";
+import { beginParagraphFormatTracking } from "../track-changes.js";
 
 /** Ribbon groupings, mirroring Word's tabs. */
 export type FeatureGroup =
@@ -27,7 +28,8 @@ export type FeatureGroup =
   | "review"
   | "advanced"
   | "design"
-  | "layout";
+  | "layout"
+  | "view";
 
 /**
  * A command definition. `run` receives the model plus command-specific params;
@@ -53,6 +55,9 @@ export interface Command<P = void, R = void> {
   isActive?(model: EditorModel): boolean;
 }
 
+/** Groups whose commands change formatting (tracked as property changes). */
+const FORMAT_GROUPS: ReadonlySet<FeatureGroup> = new Set(["text", "paragraph", "list", "style"]);
+
 /**
  * Run a command atomically: snapshot for undo, mutate, commit. Returns the
  * command's result, or `undefined` when the command is disabled (nothing ran).
@@ -66,7 +71,12 @@ export function runCommand<P, R>(
   model.beginEdit();
   let result: R;
   try {
+    // Formatting commands record <w:pPrChange> while Track Changes is on.
+    const recordParagraphChanges = FORMAT_GROUPS.has(command.group)
+      ? beginParagraphFormatTracking(model)
+      : undefined;
     result = command.run(model, params);
+    recordParagraphChanges?.();
   } catch (err) {
     // Roll back without touching redo history (undo() would push the
     // half-applied document onto it), then rethrow so the failure surfaces.

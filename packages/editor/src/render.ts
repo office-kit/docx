@@ -47,6 +47,7 @@ import {
   underlineStyleCss,
 } from "./render-format.js";
 import { WML_NS } from "./wml-ns.js";
+import { deletedRunText, type ReviewDecorations, reviewDecorations } from "./render-revisions.js";
 
 const ALIGN_TO_CSS: Record<string, string> = {
   left: "left",
@@ -195,10 +196,16 @@ function renderRun(
   style: string,
   block: number,
   inline: number,
+  review: ReviewDecorations,
   cell?: CellAnchor,
   extraAttrs = "",
   extraClass = "",
 ): string {
+  const deco = review.run(run);
+  // A tracked deletion: shown (per the markup mode) but never editable.
+  if (deco.deleted) {
+    return `<span class="wk-del-run${deco.classes}" contenteditable="false"${deco.attrs} style="${escapeHtml(style)}">${escapeHtml(deletedRunText(run))}</span>`;
+  }
   const text = runText(run);
   const attrs = [
     `data-wk-block="${block}"`,
@@ -211,7 +218,7 @@ function renderRun(
     .join(" ");
   // Preserve whitespace/tabs; use a zero-width space for empty runs so the
   // caret has something to land on.
-  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}" ${attrs}>${specialRunHtml(run) ?? (escapeHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
+  return `${ownNoteMarkHtml(run)}<span class="wk-run${extraClass}${deco.classes}" ${attrs}${deco.attrs}>${specialRunHtml(run) ?? (escapeHtml(text) || "​")}</span>${noteMarksHtml(run)}`;
 }
 
 /**
@@ -251,6 +258,7 @@ function renderRawInline(inline: Extract<WmlInline, { kind: "raw" }>): string {
 function renderParagraph(
   para: WmlParagraph,
   styles: RenderResolver,
+  review: ReviewDecorations,
   block: number,
   cell?: CellAnchor,
   text?: CellTextFormat,
@@ -269,6 +277,7 @@ function renderParagraph(
   let inner = para.children
     .map((child, i) => {
       if (child.kind !== "run") {
+        review.inline(child.node);
         return isMathElement(child.node)
           ? renderMath(child.node, mathAnchor())
           : renderRawInline(child);
@@ -286,6 +295,7 @@ function renderParagraph(
         css,
         block,
         runIndex++,
+        review,
         cell,
         field ? fieldAttrs(field) : "",
         role === "result" ? " wk-fresult" : "",
@@ -295,23 +305,26 @@ function renderParagraph(
   if (runIndex === 0) inner = `​${inner}`;
   inner = label + inner;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
-  return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
+  const deco = review.paragraph(para);
+  return `<p class="wk-p${deco.classes}" data-wk-block="${block}"${cellAttr}${styleAttr}${deco.attrs}>${inner}</p>`;
 }
 
 function renderBlock(
   blockNode: WmlBlock,
   doc: Docx,
   styles: RenderResolver,
+  review: ReviewDecorations,
   block: number,
 ): string {
   switch (blockNode.kind) {
     case "paragraph":
-      return renderParagraph(blockNode, styles, block);
+      return renderParagraph(blockNode, styles, review, block);
     case "table":
       return renderTable(blockNode, {
         doc,
         block,
-        paragraph: (para, anchor, text) => renderParagraph(para, styles, block, anchor, text),
+        paragraph: (para, anchor, text) =>
+          renderParagraph(para, styles, review, block, anchor, text),
       });
     default:
       // Raw / unmodelled block: show a non-editable marker; the library still
@@ -331,7 +344,8 @@ export function renderDocumentHtml(doc: Docx): string {
  */
 export function renderBlocksHtml(doc: Docx, blocks: readonly WmlBlock[]): string {
   const styles = renderResolver(doc, createStyleResolver(doc));
-  return blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
+  const review = reviewDecorations(doc);
+  return blocks.map((b, i) => renderBlock(b, doc, styles, review, i)).join("");
 }
 
 /** Plain-text extraction of a paragraph (used for tests / accessibility). */

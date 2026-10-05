@@ -189,6 +189,19 @@ export interface AddCommentOptions {
   readonly text: string;
   readonly initials?: string;
   readonly date?: string;
+  /**
+   * The commented text, as character offsets (the unit of
+   * {@link runTextLength}). `start` is in the paragraph passed to
+   * {@link addComment}; `end` is in `endParagraph` when given, else in the same
+   * paragraph. Without a range the comment covers the whole paragraph.
+   */
+  readonly range?: CommentRange;
+}
+
+export interface CommentRange {
+  readonly start: number;
+  readonly end: number;
+  readonly endParagraph?: WmlParagraph;
 }
 
 /**
@@ -1517,6 +1530,7 @@ function makeTextRun(source: WmlRun, text: string): WmlRun {
     kind: "run",
     ...(source.attrs ? { attrs: source.attrs } : {}),
     ...(source.rPr ? { rPr: structuredClone(source.rPr) } : {}),
+    ...(source.revision ? { revision: source.revision } : {}),
     pieces: text ? [{ kind: "text", value: text, preserveSpace }] : [],
     extras: [],
   };
@@ -2898,15 +2912,51 @@ export function addComment(doc: Docx, paragraph: WmlParagraph, options: AddComme
   part.comments.push(comment);
   doc.commentsDirty = true;
 
-  // Wrap the paragraph's inline children with rangeStart/rangeEnd+ref.
-  paragraph.children = [
-    { kind: "raw", node: buildCommentRangeStart(nextId) },
-    ...paragraph.children,
-    { kind: "raw", node: buildCommentRangeEnd(nextId) },
-    { kind: "raw", node: buildCommentReferenceRun(nextId) },
-  ];
+  const range = options.range;
+  if (range) {
+    const endParagraph = range.endParagraph ?? paragraph;
+    // End first: when both are in one paragraph, splitting at the end leaves
+    // the start offset valid.
+    endParagraph.children.splice(
+      childIndexAtOffset(endParagraph, range.end),
+      0,
+      { kind: "raw", node: buildCommentRangeEnd(nextId) },
+      { kind: "raw", node: buildCommentReferenceRun(nextId) },
+    );
+    paragraph.children.splice(childIndexAtOffset(paragraph, range.start), 0, {
+      kind: "raw",
+      node: buildCommentRangeStart(nextId),
+    });
+  } else {
+    // Wrap the paragraph's inline children with rangeStart/rangeEnd+ref.
+    paragraph.children = [
+      { kind: "raw", node: buildCommentRangeStart(nextId) },
+      ...paragraph.children,
+      { kind: "raw", node: buildCommentRangeEnd(nextId) },
+      { kind: "raw", node: buildCommentReferenceRun(nextId) },
+    ];
+  }
   doc.dirty = true;
   return nextId;
+}
+
+/**
+ * The index in `para.children` where character `offset` falls, after
+ * splitting a run there if needed: just past every run that ends at or
+ * before it.
+ */
+function childIndexAtOffset(para: WmlParagraph, offset: number): number {
+  isolateParagraphRunRange(para, 0, offset);
+  let cursor = 0;
+  let index = 0;
+  for (const [i, child] of para.children.entries()) {
+    if (child.kind !== "run") continue;
+    const len = runTextLength(child);
+    if (cursor + len > offset || (len > 0 && cursor >= offset)) break;
+    cursor += len;
+    index = i + 1;
+  }
+  return index;
 }
 
 function ensureCommentsPart(doc: Docx): WmlCommentsPart {

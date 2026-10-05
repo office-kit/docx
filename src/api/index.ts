@@ -85,6 +85,7 @@ export type {
   WmlParagraph,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
@@ -97,3 +98,7 @@ export { VERSION } from "./version.js";
 export * from "./table-tools.js";
 export * from "./table-styles.js";
 export * from "./text-format.js";
+export * from "./review.js";
+export * from "./protection.js";
+export * from "./compare.js";
+export * from "./view.js";

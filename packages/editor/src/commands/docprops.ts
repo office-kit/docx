@@ -7,6 +7,9 @@
 import {
   appProperties,
   coreProperties,
+  type CustomPropertyValue,
+  removeCustomProperty,
+  setCustomProperty,
   type DocumentAppProperties,
   type DocumentCoreProperties,
   setAppProperties,
@@ -32,4 +35,29 @@ export const setAppPropertiesCommand: Command<Partial<DocumentAppProperties>> = 
   },
 };
 
-export const docpropsCommands = [setCorePropertiesCommand, setAppPropertiesCommand];
+/** Properties ▸ Custom ▸ Add / Modify. */
+export const setCustomPropertyCommand: Command<{ name: string; value: CustomPropertyValue }> = {
+  id: "docprops.setCustom",
+  group: "advanced",
+  label: "Custom property",
+  run(model, { name, value }) {
+    setCustomProperty(model.doc, name, value);
+  },
+};
+
+/** Properties ▸ Custom ▸ Delete. */
+export const removeCustomPropertyCommand: Command<{ name: string }> = {
+  id: "docprops.removeCustom",
+  group: "advanced",
+  label: "Delete custom property",
+  run(model, { name }) {
+    if (!removeCustomProperty(model.doc, name)) throw new Error(`No custom property "${name}".`);
+  },
+};
+
+export const docpropsCommands = [
+  setCorePropertiesCommand,
+  setAppPropertiesCommand,
+  setCustomPropertyCommand,
+  removeCustomPropertyCommand,
+];

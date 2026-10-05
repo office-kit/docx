@@ -15,6 +15,7 @@ import HomeTab from "./tabs/HomeTab.svelte";
 import InsertTab from "./tabs/InsertTab.svelte";
 import LayoutTab from "./tabs/LayoutTab.svelte";
 import MailingsTab from "./tabs/MailingsTab.svelte";
+import OutliningTab from "./tabs/OutliningTab.svelte";
 import PictureFormatTab from "./tabs/PictureFormatTab.svelte";
 import ReferencesTab from "./tabs/ReferencesTab.svelte";
 import ReviewTab from "./tabs/ReviewTab.svelte";
@@ -37,6 +38,13 @@ const inTable = (s: EditorSession): boolean =>
   s.tick >= 0 && !!s.model && !!tableSelection(s.model);
 
 export const TABS: readonly RibbonTab[] = [
+  // Word puts Outlining first, ahead of Home, while the Outline view is on.
+  {
+    id: "outlining",
+    label: "tab.outlining",
+    component: OutliningTab,
+    when: (session) => session.viewMode === "outline",
+  },
   { id: "home", label: "tab.home", component: HomeTab },
   { id: "insert", label: "tab.insert", component: InsertTab },
   { id: "draw", label: "tab.draw", component: DrawTab },

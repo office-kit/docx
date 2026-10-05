@@ -29,6 +29,13 @@ import type { EditorModel } from "../model.js";
 import { caretAt, type DocPosition, orderSelection } from "../selection.js";
 import { WML_NS } from "../wml-ns.js";
 import { runAtPath, setSimpleRunText } from "../text-edit.js";
+import {
+  isTrackingRevisions,
+  recordSplit,
+  trackedDeleteSelection,
+  trackedInsertText,
+  trackedMergeBack,
+} from "../track-changes.js";
 import { caretBlockIndex, moveLastBlockAfter } from "./insert-util.js";
 import type { Command } from "./types.js";
 
@@ -43,23 +50,30 @@ export const splitParagraphCommand: Command<void> = {
   group: "structure",
   label: "Split paragraph",
   run(model) {
-    const pos = caretReplacingSelection(model);
-    if (!pos) return;
-    if (pos.cell) {
-      model.setSelection(caretAt(splitCellParagraph(model, pos)));
-      return;
-    }
-    const newBlock = splitParagraphAt(model.doc, pos.block, pos.inline ?? 0, pos.offset ?? 0);
-    if (newBlock >= 0) {
-      model.setSelection(caretAt({ block: newBlock, inline: 0, offset: 0 }));
-    } else {
-      const at = caretBlockIndex(model.doc, pos.block);
-      appendParagraph(model.doc, "", {});
-      moveLastBlockAfter(model.doc, at);
-      model.setSelection(caretAt({ block: at + 1 }));
-    }
+    const tracking = isTrackingRevisions(model);
+    if (tracking) trackedDeleteSelection(model);
+    splitAtCaret(model);
+    if (tracking) recordSplit(model);
   },
 };
+
+function splitAtCaret(model: EditorModel): void {
+  const pos = caretReplacingSelection(model);
+  if (!pos) return;
+  if (pos.cell) {
+    model.setSelection(caretAt(splitCellParagraph(model, pos)));
+    return;
+  }
+  const newBlock = splitParagraphAt(model.doc, pos.block, pos.inline ?? 0, pos.offset ?? 0);
+  if (newBlock >= 0) {
+    model.setSelection(caretAt({ block: newBlock, inline: 0, offset: 0 }));
+  } else {
+    const at = caretBlockIndex(model.doc, pos.block);
+    appendParagraph(model.doc, "", {});
+    moveLastBlockAfter(model.doc, at);
+    model.setSelection(caretAt({ block: at + 1 }));
+  }
+}
 
 /**
  * Merge the caret paragraph into the previous one (Backspace at paragraph
@@ -70,6 +84,8 @@ export const mergeBackCommand: Command<void> = {
   group: "structure",
   label: "Merge with previous paragraph",
   run(model) {
+    // With Track Changes on, the paragraph mark is marked deleted instead.
+    if (isTrackingRevisions(model) && trackedMergeBack(model)) return;
     const pos = model.selection?.focus;
     if (!pos) return;
     if (pos.cell) {
@@ -305,6 +321,10 @@ export const deleteSelectionCommand: Command<void> = {
   group: "structure",
   label: "Delete selection",
   run(model) {
+    if (isTrackingRevisions(model)) {
+      trackedDeleteSelection(model);
+      return;
+    }
     const sel = model.selection;
     if (!sel) return;
     const { start, end, collapsed } = orderSelection(sel);
@@ -324,6 +344,10 @@ export const insertTextCommand: Command<{ text: string }> = {
   group: "structure",
   label: "Insert text",
   run(model, { text }) {
+    if (isTrackingRevisions(model)) {
+      trackedInsertText(model, text);
+      return;
+    }
     const start = caretReplacingSelection(model);
     if (!start) throw new Error("Insert text needs a caret position.");
     const [first = "", ...rest] = text.split(/\r\n|\r|\n/);

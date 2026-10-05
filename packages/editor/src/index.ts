@@ -61,6 +61,22 @@ export {
 export { type TablePreviewCell, tableStylePreviews } from "./table-preview.js";
 export { type TablePropertiesSnapshot, tablePropertiesSnapshot } from "./table-properties.js";
 export { runAtPath, setSimpleRunText } from "./text-edit.js";
+export {
+  isTrackingRevisions,
+  type Reviewer,
+  reviewerOf,
+  setReviewer,
+  trackRevisionsSetting,
+} from "./track-changes.js";
+export {
+  adjacentReviewMark,
+  type ReviewMark,
+  reviewMarks,
+  revisionIdsAtSelection,
+} from "./review-nav.js";
+export { BODY_TEXT_LEVEL, outlineLevelOf } from "./outline.js";
+export { AUTHOR_COLORS } from "./render-revisions.js";
+export { isEditingLocked, PROTECTED_MESSAGE, protectionRefusal } from "./protection-guard.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
 export { type RunRef, runsInRange } from "./selection-runs.js";

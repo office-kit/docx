@@ -103,6 +103,11 @@ export function parseParagraph(p: XmlElement): WmlParagraph {
       children.push(parseRun(child));
       continue;
     }
+    const revised = parseRevisionRuns(child);
+    if (revised) {
+      children.push(...revised);
+      continue;
+    }
     // Anything else under <w:p> (hyperlink, sdt, bookmarkStart/End, ins, del…)
     // is kept verbatim until later milestones structure it.
     children.push({ kind: "raw", node: child });
@@ -115,6 +120,26 @@ export function parseParagraph(p: XmlElement): WmlParagraph {
     children,
     extras,
   };
+}
+
+/**
+ * The runs of a `<w:ins>` / `<w:del>` wrapper, each carrying the wrapper as its
+ * `revision`, or `undefined` when the wrapper holds anything but runs (nested
+ * revisions, bookmarks, smart tags …), which stays a raw inline. Whitespace
+ * between the runs is formatting only and is not kept.
+ */
+function parseRevisionRuns(el: XmlElement): WmlRun[] | undefined {
+  if (!isWmlElement(el, "ins") && !isWmlElement(el, "del")) return undefined;
+  const runs: WmlRun[] = [];
+  for (const child of el.children) {
+    if (child.kind === "text" && child.value.trim() === "") continue;
+    if (child.kind !== "element" || !isWmlElement(child, "r")) return undefined;
+    runs.push(parseRun(child));
+  }
+  if (runs.length === 0) return undefined;
+  const revision = { kind: el.name.local === "ins" ? "ins" : "del", attrs: el.attrs } as const;
+  for (const run of runs) run.revision = revision;
+  return runs;
 }
 
 function parseRun(r: XmlElement): WmlRun {

@@ -185,7 +185,18 @@ export {
   type WmlStyleType,
   writeStylesPart,
 } from "./styles.js";
-export { acceptAllRevisions, rejectAllRevisions } from "./revisions.js";
+export {
+  acceptAllRevisions,
+  listRevisions,
+  rejectAllRevisions,
+  resolveRevisions,
+  revisionAttrs,
+  revisionElement,
+  type RevisionInfo,
+  type RevisionKind,
+  type RevisionMode,
+  wmlAttrValue,
+} from "./revisions.js";
 export {
   documentText,
   findInParagraph,
@@ -206,8 +217,15 @@ export type {
   WmlRawInline,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
 } from "./types.js";
 export { paragraphToElement, writeBodyChildren, writeWmlDocument } from "./writer.js";
+export {
+  nextAnnotationId,
+  revisionDate,
+  setParagraphMarkRevision,
+  toDeletedPiece,
+} from "./revision-marks.js";

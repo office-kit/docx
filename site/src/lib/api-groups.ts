@@ -349,6 +349,70 @@ export const apiGroups: ApiGroup[] = [
     ],
   },
   {
+    title: "Review: tracked changes",
+    description:
+      "List, accept, and reject revisions; record insertions, deletions, and formatting changes as tracked; compare two documents.",
+    entries: [
+      { name: "revisions", sig: "(doc: Docx) => RevisionInfo[]" },
+      { name: "acceptRevisions", sig: "(doc: Docx, ids: readonly string[]) => number" },
+      { name: "rejectRevisions", sig: "(doc: Docx, ids: readonly string[]) => number" },
+      { name: "insertTrackedText" },
+      { name: "deleteTrackedText" },
+      { name: "paragraphMarkRevision" },
+      { name: "trackParagraphMark" },
+      { name: "trackRunFormatChange" },
+      { name: "trackParagraphFormatChange" },
+      {
+        name: "compareDocuments",
+        sig: "(original: Docx, revised: Docx, options: CompareOptions) => Docx",
+      },
+    ],
+  },
+  {
+    title: "Review: comments, proofing, accessibility",
+    description:
+      "Read and edit comments, set the proofing language, count words as Word does, and check accessibility.",
+    entries: [
+      { name: "comments", sig: "(doc: Docx) => CommentInfo[]" },
+      { name: "setCommentText" },
+      { name: "removeComment" },
+      { name: "getRunLanguage" },
+      { name: "setRunLanguage" },
+      { name: "wordCount", sig: "(doc: Docx, options?: WordCountOptions) => WordCount" },
+      { name: "checkAccessibility", sig: "(doc: Docx) => AccessibilityIssue[]" },
+      { name: "contrastRatio" },
+    ],
+  },
+  {
+    title: "Document protection",
+    description:
+      "Restrict editing (with an optional password), editable exceptions, and Always Open Read-Only.",
+    entries: [
+      { name: "documentProtection" },
+      { name: "protectDocument", sig: "(doc: Docx, options: ProtectOptions) => void" },
+      { name: "unprotectDocument", sig: "(doc: Docx, password: string) => boolean" },
+      { name: "verifyProtectionPassword" },
+      { name: "writeProtection" },
+      { name: "setWriteProtection" },
+      { name: "editableRanges" },
+      { name: "addEditableRange" },
+      { name: "removeEditableRange" },
+    ],
+  },
+  {
+    title: "View & custom properties",
+    description: "The view and zoom a document opens with, and custom document properties.",
+    entries: [
+      { name: "documentView" },
+      { name: "setDocumentView" },
+      { name: "documentZoom" },
+      { name: "setDocumentZoom" },
+      { name: "customProperties" },
+      { name: "setCustomProperty" },
+      { name: "removeCustomProperty" },
+    ],
+  },
+  {
     title: "Low-level part access",
     description: "The parsed side parts, for when the functions above do not reach far enough.",
     entries: [

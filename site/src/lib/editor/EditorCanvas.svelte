@@ -16,6 +16,7 @@
     orderSelection,
     caretAt,
     sameStory,
+    isTrackingRevisions,
   } from '@office-kit/docx-editor';
   import { parseStoryKey, type WmlParagraph } from '@office-kit/docx';
   import { getSession } from './session.svelte';
@@ -84,7 +85,8 @@
     composing = true;
     // A new composition right after the previous one: apply that one first.
     flushImeFinalize();
-    if (!hasRangeSelection()) return;
+    // While tracking, a composition at a caret must also become one tracked insert.
+    if (!hasRangeSelection() && !isTrackingRevisions(model)) return;
     endTyping();
     imeRange = model.selection;
   }
@@ -450,7 +452,8 @@
    * (reconciled by onInput) so the caret and IME behave normally.
    */
   function onBeforeInput(e: InputEvent): void {
-    if (imeRange || e.isComposing || !hasRangeSelection()) return;
+    // While tracking changes every edit is recorded by a command, never synced natively.
+    if (imeRange || e.isComposing || (!hasRangeSelection() && !isTrackingRevisions(model))) return;
     if (e.inputType === 'insertText') {
       e.preventDefault();
       // The replacement's undo snapshot (taken by runCommand) is the burst's
@@ -461,7 +464,8 @@
       }
     } else if (e.inputType.startsWith('delete')) {
       e.preventDefault();
-      exec(commands.deleteSelectionCommand, undefined);
+      if (hasRangeSelection()) exec(commands.deleteSelectionCommand, undefined);
+      else exec(commands.trackedDeleteCommand, { direction: e.inputType.endsWith('Forward') ? 1 : -1 });
     }
   }
 
@@ -562,7 +566,8 @@
     class:hf-editing={editingHeaderFooter}
     class:hide-body={editingHeaderFooter && !session.showDocumentText}
     data-view={session.viewMode}
-    contenteditable="true"
+    contenteditable={!session.readOnly}
+    spellcheck={session.spellcheck}
     role="textbox"
     tabindex="0"
     aria-multiline="true"

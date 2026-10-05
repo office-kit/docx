@@ -18,11 +18,13 @@
   import StatusBar from '$lib/editor/StatusBar.svelte';
   import InsertDialogs from '$lib/editor/insert/InsertDialogs.svelte';
   import HomeDialogs from '$lib/editor/ribbon/tabs/home/HomeDialogs.svelte';
+  import Ruler from '$lib/editor/Ruler.svelte';
   import { TABS } from '$lib/editor/ribbon/tabs';
   import { PANES } from '$lib/editor/panes/registry';
   import { EditorSession, setSession, type PaneSide } from '$lib/editor/session.svelte';
   import { t } from '$lib/editor/i18n/index.svelte';
   import '$lib/editor/ribbon.css';
+  import '$lib/editor/review-view.css';
 
   const session = new EditorSession();
   setSession(session);
@@ -36,10 +38,14 @@
   const visibleTabs = $derived(TABS.filter((x) => !x.when || (session.tick >= 0 && x.when(session))));
   // A contextual tab that stops applying (the caret left the table) falls back
   // to Home, as Word does.
-  const current = $derived(visibleTabs.find((x) => x.id === tab) ?? TABS[0]);
+  const current = $derived(visibleTabs.find((x) => x.id === tab) ?? visibleTabs[0] ?? TABS[0]);
   // Opening a header or footer brings up its contextual tab, as in Word.
   $effect(() => {
     if (session.headerFooter) tab = 'headerFooter';
+  });
+  // Switching to the Outline view brings up its Outlining tab, as in Word.
+  $effect(() => {
+    if (session.viewMode === 'outline') tab = 'outlining';
   });
 
   onMount(() => {
@@ -140,7 +146,7 @@
   {#if Pane}<aside class="pane {side}"><Pane /></aside>{/if}
 {/snippet}
 
-<div class="wk-app" class:marks={session.showMarks} class:field-codes={session.showFieldCodes} bind:this={appEl} style="--app-top: {appTop}px">
+<div class="wk-app" class:marks={session.showMarks} class:field-codes={session.showFieldCodes} {...session.displayAttrs} bind:this={appEl} style="--app-top: {appTop}px">
   <!-- Title bar: Quick Access Toolbar, document name, search (Word for Mac). -->
   <header class="titlebar" onmousedown={keepSelection} role="toolbar" tabindex="-1">
     <div class="qat">
@@ -184,6 +190,7 @@
   <div class="workspace">
     {@render pane('left')}
     <div class="surface">
+      {#if session.showRuler && session.model}<Ruler />{/if}
       {#if session.model}
         <EditorCanvas model={session.model} />
       {:else}

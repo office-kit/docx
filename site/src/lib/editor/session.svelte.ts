@@ -9,7 +9,10 @@ import { getContext, setContext } from "svelte";
 import {
   caretAt,
   commands,
+  isEditingLocked,
+  protectionRefusal,
   runCommand,
+  setReviewer,
   type Command,
   type DocPosition,
   type EditorModel,
@@ -17,7 +20,15 @@ import {
   type Selection,
   type StoryRef,
 } from "@office-kit/docx-editor";
-import { text as documentText, type WmlParagraph } from "@office-kit/docx";
+import {
+  documentView,
+  documentZoom,
+  setDocumentView,
+  setDocumentZoom,
+  type WmlParagraph,
+  wordCount as countWords,
+} from "@office-kit/docx";
+import { ReviewPrefs } from "./review-prefs.svelte.js";
 
 // Word's zoom range: 10 % – 500 %.
 export const MIN_ZOOM = 0.1;
@@ -104,6 +115,39 @@ export class EditorSession {
   showFieldCodes = $state(false);
   wordCount = $state(0);
   charCount = $state(0);
+  /** Review / View preferences that are not stored in the document. */
+  prefs = new ReviewPrefs();
+  /** Review ▸ Spelling and Grammar: the browser's spellchecker on the canvas. */
+  spellcheck = $state(true);
+
+  /**
+   * `data-*` attributes for the editor root: the view, markup and display
+   * preferences that `review-view.css` styles, so switching them restyles the
+   * page without re-rendering the document.
+   */
+  get displayAttrs(): Record<string, string> {
+    const p = this.prefs;
+    return {
+      "data-view": this.viewMode,
+      "data-markup": this.markup,
+      "data-show-comments": String(p.showComments),
+      "data-show-insdel": String(p.showInsertionsDeletions),
+      "data-show-formatting": String(p.showFormatting),
+      "data-ins-mark": p.insertionMark,
+      "data-del-mark": p.deletionMark,
+      "data-changed-lines": p.changedLines,
+      "data-focus": String(p.focus),
+      "data-pages-across": String(p.pagesAcross),
+      "data-outline-level": String(p.outlineShowLevel),
+      "data-outline-first-line": String(p.outlineFirstLineOnly),
+      "data-outline-formatting": String(p.outlineShowFormatting),
+    };
+  }
+
+  /** Protection keeps the canvas from taking typed text (Restrict Editing). */
+  get readOnly(): boolean {
+    return this.tick >= 0 && !!this.model && isEditingLocked(this.model);
+  }
 
   /**
    * Run a command and re-render. Commands are atomic: a failure (e.g. rejected
@@ -114,6 +158,11 @@ export class EditorSession {
     this.openMenu = null;
     const model = this.model;
     if (!model) return undefined;
+    const refusal = protectionRefusal(model, cmd);
+    if (refusal) {
+      this.status = refusal;
+      return undefined;
+    }
     try {
       const result = runCommand(model, cmd, params);
       this.status = "";
@@ -148,9 +197,10 @@ export class EditorSession {
     this.tick++;
     const model = this.model;
     if (!model) return;
-    const text = documentText(model.doc);
-    this.charCount = text.length;
-    this.wordCount = text.trim().match(/\S+/g)?.length ?? 0;
+    // Word's rules (deleted text excluded, East Asian characters one word each).
+    const counts = countWords(model.doc);
+    this.charCount = counts.charactersWithSpaces;
+    this.wordCount = counts.words;
   }
 
   /** Swap in another document and reset everything derived from the last one. */
@@ -159,6 +209,10 @@ export class EditorSession {
     if (!next.selection && next.doc.document.body.blocks[0]?.kind === "paragraph") {
       next.setSelection(caretAt({ block: 0, inline: 0, offset: 0 }));
     }
+    setReviewer(next, { author: this.prefs.userName, initials: this.prefs.userInitials });
+    // Word opens a document in the view and zoom it was saved with.
+    this.viewMode = documentView(next.doc);
+    this.zoom = documentZoom(next.doc).percent / 100;
     this.model = next;
     this.headerFooter = null;
     this.bodySelection = null;
@@ -208,8 +262,20 @@ export class EditorSession {
     this.changed();
   }
 
+  /**
+   * The view and zoom are saved with the document (`w:view`, `w:zoom`) but,
+   * as in Word, changing them is not an edit: no undo step, no command.
+   */
   setZoom(z: number): void {
     this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(z * 100) / 100));
+    if (this.model) {
+      setDocumentZoom(this.model.doc, { percent: Math.round(this.zoom * 100), preset: "none" });
+    }
+  }
+
+  setView(mode: ViewMode): void {
+    this.viewMode = mode;
+    if (this.model && mode !== "read") setDocumentView(this.model.doc, mode);
   }
 
   toggleMenu(id: string): void {

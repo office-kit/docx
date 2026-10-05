@@ -19,6 +19,7 @@ import {
 } from "@office-kit/docx";
 import { bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
 import type { EditorModel } from "./model.js";
+import { withRunFormatTracking } from "./track-changes.js";
 import {
   type CellCoord,
   type DocPosition,
@@ -187,14 +188,16 @@ export function applyToSelectionRuns(
 
   // Collapsed caret: apply to the whole caret run (there is no range to isolate).
   if (isCollapsed(start, end)) {
-    for (const { run, para } of overlappingSelectionRunRefs(model)) applyFn(run, para);
+    for (const { run, para } of overlappingSelectionRunRefs(model)) {
+      withRunFormatTracking(model, run, () => applyFn(run, para));
+    }
     return;
   }
 
   const wins = selectionWindows(model);
   for (const w of wins) {
     for (const run of isolateParagraphRunRange(w.para, w.startChar, w.endChar))
-      applyFn(run, w.para);
+      withRunFormatTracking(model, run, () => applyFn(run, w.para));
   }
 
   // Re-anchor the selection to the isolated run boundaries (single paragraph).

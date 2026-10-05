@@ -960,6 +960,7 @@ export function mergeAdjacentRuns(paragraph: WmlParagraph): number {
       prev.kind === "run" &&
       isMergeableRun(child) &&
       isMergeableRun(prev) &&
+      prev.revision === child.revision &&
       sameRPr(prev, child)
     ) {
       prev.pieces.push(...child.pieces);

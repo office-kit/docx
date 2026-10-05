@@ -11,6 +11,7 @@ import type {
   WmlParagraph,
   WmlRun,
   WmlRunPiece,
+  WmlRunRevision,
   WmlTable,
   WmlTableCell,
   WmlTableRow,
@@ -154,8 +155,30 @@ function tableCellToElement(cell: WmlTableCell): XmlElement {
 export function paragraphToElement(p: WmlParagraph): XmlElement {
   const recognized: XmlNode[] = [];
   if (p.pPr) recognized.push(inSchemaOrder(p.pPr));
+  let wrapper: XmlNode[] | undefined;
+  let wrapperRevision: WmlRunRevision | undefined;
   for (const inline of p.children) {
-    recognized.push(inlineToElement(inline));
+    const revision = inline.kind === "run" ? inline.revision : undefined;
+    if (!revision) {
+      wrapper = undefined;
+      wrapperRevision = undefined;
+      recognized.push(inlineToElement(inline));
+      continue;
+    }
+    if (wrapper && wrapperRevision && sameRevision(wrapperRevision, revision)) {
+      wrapper.push(inlineToElement(inline));
+      continue;
+    }
+    wrapperRevision = revision;
+    wrapper = [inlineToElement(inline)];
+    recognized.push({
+      kind: "element",
+      name: { uri: WML_NS, local: revision.kind, prefix: "w" },
+      attrs: revision.attrs,
+      children: wrapper,
+      xmlSpace: "default",
+      selfClosing: false,
+    });
   }
   const children = spliceWithExtras(recognized, p.extras);
   return {
@@ -166,6 +189,14 @@ export function paragraphToElement(p: WmlParagraph): XmlElement {
     xmlSpace: "default",
     selfClosing: children.length === 0,
   };
+}
+
+/** Runs of one `<w:ins>` / `<w:del>`: same kind and `w:id`. */
+function sameRevision(a: WmlRunRevision, b: WmlRunRevision): boolean {
+  if (a === b) return true;
+  const id = (r: WmlRunRevision): string | undefined =>
+    r.attrs.find((x) => x.name.uri === WML_NS && x.name.local === "id")?.value;
+  return a.kind === b.kind && id(a) !== undefined && id(a) === id(b);
 }
 
 function inlineToElement(inline: WmlInline): XmlElement {
