@@ -6,7 +6,7 @@
   import { commands } from '@office-kit/docx-editor';
   import RibbonIcon from '../RibbonIcon.svelte';
   import { getSession } from '../session.svelte';
-  import { t } from '../i18n/index.svelte';
+  import { styleName, t } from '../i18n/index.svelte';
   import { common, homeState, selectionFormats } from '../ribbon/tabs/home/state.svelte';
   import { stylePreviews } from '../ribbon/tabs/home/style-preview';
 
@@ -54,10 +54,10 @@
   {#each shown as s (s.styleId)}
     <li class:current={s.styleId === current}>
       <button class="style-apply" role="option" aria-selected={s.styleId === current} onclick={() => session.apply(commands.applyStyleCommand, { styleId: s.styleId })} disabled={!session.enabled(commands.applyStyleCommand)}>
-        <span class="style-name" style={showPreview ? previews?.css(s) : ''}>{s.name}</span>
+        <span class="style-name" style={showPreview ? previews?.css(s) : ''}>{styleName(s.name)}</span>
         <span class="style-kind" aria-hidden="true">{s.type === 'paragraph' ? '¶' : 'a'}</span>
       </button>
-      <button class="pane-icon" onclick={() => (menuFor = menuFor === s.styleId ? null : s.styleId)} aria-label={`${s.name} ${t('home.find.options')}`} aria-expanded={menuFor === s.styleId}><RibbonIcon name="chevronDown" size={10} /></button>
+      <button class="pane-icon" onclick={() => (menuFor = menuFor === s.styleId ? null : s.styleId)} aria-label={`${styleName(s.name)} ${t('home.find.options')}`} aria-expanded={menuFor === s.styleId}><RibbonIcon name="chevronDown" size={10} /></button>
       {#if menuFor === s.styleId}
         <div class="style-menu" role="menu">
           <button class="mi" role="menuitem" onclick={() => modify(s.styleId)}>{t('home.styles.modify')}</button>

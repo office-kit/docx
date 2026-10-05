@@ -23,6 +23,8 @@ export default {
   indentLess: "M9 4.5h8M9 8.5h8M9 12.5h8M3 16.5h14M6 6.5l-3 2.5 3 2.5",
   lineSpacing: "M9 4.5h8.5M9 8.5h8.5M9 12.5h8.5M9 16.5h8.5M4.5 3v14M2.5 5l2-2 2 2M2.5 15l2 2 2-2",
   pilcrow: "M10 3.5v13M13.5 3.5v13M15.5 3.5H8.5a3.5 3.5 0 0 0 0 7H10",
+  // Japanese Word marks paragraph ends with a return arrow, not a pilcrow.
+  returnMark: "M15 3.5v9H5M8 9.5l-3 3 3 3",
   table: "M3 3.5h14v13H3zM3 8h14M3 12.5h14M8 3.5v13M12.5 3.5v13",
   picture: "M3 4h14v12H3zM3 13l4-4 3.5 3.5L13 10l4 4M13.5 7.5a.5.5 0 1 0 0 .01",
   link: "M8.5 11.5l3-3M7 9 5 11a2.5 2.5 0 0 0 3.5 3.5l2-2M13 11l2-2a2.5 2.5 0 0 0-3.5-3.5l-2 2",

@@ -181,3 +181,40 @@ const HIGHLIGHT_NAMES: Record<LocaleId, Readonly<Record<string, string>>> = {
 export function highlightName(color: string): string {
   return HIGHLIGHT_NAMES[current][color] ?? color;
 }
+
+/**
+ * The names Japanese Word shows for its built-in styles; the document keeps
+ * the English name (`w:name`), so the UI translates it. Keys are lowercase,
+ * as built-in names are matched without case.
+ */
+const JA_STYLE_NAMES: Readonly<Record<string, string>> = {
+  normal: "標準",
+  "no spacing": "行間詰め",
+  title: "表題",
+  subtitle: "副題",
+  "subtle emphasis": "斜体",
+  emphasis: "強調斜体",
+  "intense emphasis": "強調斜体 2",
+  strong: "強調太字",
+  quote: "引用文",
+  "intense quote": "引用文 2",
+  "subtle reference": "参照",
+  "intense reference": "参照 2",
+  "book title": "書名",
+  "list paragraph": "リスト段落",
+  caption: "図表番号",
+  "toc heading": "目次の見出し",
+  header: "ヘッダー",
+  footer: "フッター",
+  "footnote text": "脚注文字列",
+  hyperlink: "ハイパーリンク",
+};
+const HEADING_NAME = /^heading ([1-9])$/i;
+
+/** A style's name as Word's UI shows it in the active locale. */
+export function styleName(name: string): string {
+  if (current !== "ja") return name;
+  const heading = HEADING_NAME.exec(name);
+  if (heading) return `見出し ${heading[1]}`;
+  return JA_STYLE_NAMES[name.toLowerCase()] ?? name;
+}

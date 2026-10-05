@@ -22,7 +22,7 @@
   import Group from '../Group.svelte';
   import ColorMenu from '../../ColorMenu.svelte';
   import { getSession } from '../../session.svelte';
-  import { t, highlightName, type MessageKey } from '../../i18n/index.svelte';
+  import { t, highlightName, locale, styleName, type MessageKey } from '../../i18n/index.svelte';
   import { common, homeState, selectionFormats } from './home/state.svelte';
   import { multilevelPreview, previewLabels } from './home/list-preview';
   import { galleryStyles, stylePreviews } from './home/style-preview';
@@ -77,6 +77,8 @@
   ] as const satisfies ReadonlyArray<{ preset: commands.BorderPreset; key: MessageKey }>;
   const CHARACTER_SCALES = [200, 150, 100, 90, 80, 66, 50, 33];
   const LIST_LEVELS = 9;
+  // Japanese Word previews every style with hiragana, katakana and a kanji.
+  const JA_STYLE_SAMPLE = 'あア亜';
   // Tiles the Styles gallery shows in the ribbon before the expand arrow.
   const GALLERY_TILES = 5;
 
@@ -446,7 +448,7 @@
       <span class="sep"></span>
       <Button icon="sortText" tip={t('home.sort')} onclick={() => session.openDialog('home.sort')} disabled={!session.enabled(commands.sortParagraphsCommand)} />
       <span class="sep"></span>
-      <Button icon="pilcrow" tip={`${t('tip.marks')} (⌘8)`} onclick={() => (session.showMarks = !session.showMarks)} on={session.showMarks} />
+      <Button icon={locale() === 'ja' ? 'returnMark' : 'pilcrow'} tip={`${t('tip.marks')} (⌘8)`} onclick={() => (session.showMarks = !session.showMarks)} on={session.showMarks} />
     </div>
     <div class="row">
       <Button icon="alignLeft" tip={`${t('tip.alignLeft')} (⌘L)`} onclick={() => session.apply(commands.alignLeftCommand, undefined)} on={session.active(commands.alignLeftCommand)} disabled={!session.enabled(commands.alignLeftCommand)} />
@@ -502,9 +504,9 @@
 
 {#snippet tile(entry: commands.StyleEntry)}
   {@const selected = currentStyle === entry.styleId}
-  <button class="tile" class:selected role="option" aria-selected={selected} disabled={!session.enabled(commands.applyStyleCommand)} onclick={() => session.apply(commands.applyStyleCommand, { styleId: entry.styleId })} title={entry.name}>
-    <span class="sample" style={previews?.css(entry)}>{entry.type === 'character' ? 'AaBbCcDd' : 'AaBbCcDdEe'}</span>
-    <span class="tile-name">{entry.name}</span>
+  <button class="tile" class:selected role="option" aria-selected={selected} disabled={!session.enabled(commands.applyStyleCommand)} onclick={() => session.apply(commands.applyStyleCommand, { styleId: entry.styleId })} title={styleName(entry.name)}>
+    <span class="sample" style={previews?.css(entry)}>{locale() === 'ja' ? JA_STYLE_SAMPLE : entry.type === 'character' ? 'AaBbCcDd' : 'AaBbCcDdEe'}</span>
+    <span class="tile-name">{styleName(entry.name)}</span>
   </button>
 {/snippet}
 
