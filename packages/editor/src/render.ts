@@ -31,6 +31,12 @@ import {
   resolveTable,
   type StyleResolver,
 } from "./resolve.js";
+import {
+  createDrawingContext,
+  type DrawingRenderContext,
+  isDrawingOnlyRun,
+  runDrawingsHtml,
+} from "./render-drawing.js";
 import { WML_NS } from "./wml-ns.js";
 
 const ALIGN_TO_CSS: Record<string, string> = {
@@ -251,14 +257,22 @@ function renderParagraph(
   // `data-wk-inline` counts runs only (the unit `runAtPath` resolves), so
   // raw inlines are interleaved without consuming an index.
   let runIndex = 0;
+  let textRuns = 0;
   let inner = para.children
-    .map((child) =>
-      child.kind === "run"
-        ? renderRun(child, runCss(styles.run(para, child)), block, runIndex++, cell)
-        : renderRawInline(child),
-    )
+    .map((child) => {
+      if (child.kind !== "run") return renderRawInline(child);
+      const inline = runIndex++;
+      // A picture-only run gets no editable span: typing there could not be
+      // written back into the run, so the caret lives in the text around it.
+      if (isDrawingOnlyRun(child)) return pictureObjectsHtml(child, block, inline, cell);
+      textRuns++;
+      return (
+        renderRun(child, runCss(styles.run(para, child)), block, inline, cell) +
+        pictureObjectsHtml(child, block, inline, cell)
+      );
+    })
     .join("");
-  if (runIndex === 0) inner = `​${inner}`;
+  if (textRuns === 0) inner = `​${inner}`;
   const cellAttr = cell ? ` ${cellAttrs(cell)}` : "";
   return `<p class="wk-p" data-wk-block="${block}"${cellAttr}${styleAttr}>${inner}</p>`;
 }
@@ -352,10 +366,33 @@ function renderBlock(blockNode: WmlBlock, doc: Docx, styles: StyleResolver, bloc
   }
 }
 
+// Drawing indices and z-order for the render pass in progress. Set for the
+// duration of renderDocumentHtml so the per-run hook needs no extra parameter
+// threaded through every block / paragraph / run function.
+let drawingContext: DrawingRenderContext | undefined;
+
+function pictureObjectsHtml(run: WmlRun, block: number, inline: number, cell?: CellAnchor): string {
+  if (!drawingContext || !run.pieces.some((p) => p.kind === "drawing")) return "";
+  const at = cell
+    ? { block, cell: parseCellCoord(cell.coord), para: cell.para, inline }
+    : { block, inline };
+  return runDrawingsHtml(drawingContext, run, at);
+}
+
+function parseCellCoord(coord: string): { row: number; col: number } {
+  const [row = 0, col = 0] = coord.split(",").map(Number);
+  return { row, col };
+}
+
 /** Render the whole document body to an HTML string for the canvas. */
 export function renderDocumentHtml(doc: Docx): string {
   const styles = createStyleResolver(doc);
-  return doc.document.body.blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
+  drawingContext = createDrawingContext(doc);
+  try {
+    return doc.document.body.blocks.map((b, i) => renderBlock(b, doc, styles, i)).join("");
+  } finally {
+    drawingContext = undefined;
+  }
 }
 
 /** Plain-text extraction of a paragraph (used for tests / accessibility). */

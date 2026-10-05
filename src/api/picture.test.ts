@@ -116,6 +116,7 @@ describe("wrapping and position", () => {
     let reopened = roundTrip(doc);
     let d = info(reopened);
     expect(d.wrap).toBe("square");
+    expect(d.picture?.image?.contentType).toBe("image/png");
     expect(d.anchor?.horizontal).toEqual({ relativeTo: "margin", align: "right" });
     expect(d.anchor?.vertical).toEqual({ relativeTo: "paragraph", offsetEmu: 12700 });
     const xml = documentXml(reopened);
@@ -132,6 +133,7 @@ describe("wrapping and position", () => {
     d = info(reopened);
     expect(d.wrap).toBe("inline");
     expect(d.anchor).toBeUndefined();
+    expect(d.kind).toBe("picture");
     expect(documentXml(reopened)).toMatch(
       /<wp:inline [^>]*><wp:extent[^>]*\/><wp:effectExtent[^>]*\/><wp:docPr/,
     );

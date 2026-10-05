@@ -218,7 +218,9 @@ export function applyWrap(drawing: XmlElement, wrap: WrapStyle, float: FloatOpti
   ensureDrawingNamespaces(drawing);
   const placement = placementOf(drawing);
   if (!placement) throw new Error("The drawing has neither wp:inline nor wp:anchor.");
-  const keep = (local: string): XmlElement | undefined => child(placement, WP_NS, local);
+  // By local name: the sequence mixes namespaces (wp:extent … a:graphic).
+  const keep = (local: string): XmlElement | undefined =>
+    elementChildren(placement).find((c) => c.name.local === local);
   if (wrap === "inline") {
     if (placement.name.local === "inline") return;
     const inline = fragment(`<wp:inline distT="0" distB="0" distL="0" distR="0"/>`);
