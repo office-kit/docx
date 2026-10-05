@@ -90,3 +90,4 @@ export type {
 // setters) need these names.
 export type { QName, XmlAttr, XmlElement, XmlNode } from "../internal/xml/index.js";
 export { VERSION } from "./version.js";
+export * from "./text-format.js";

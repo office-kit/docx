@@ -1144,45 +1144,144 @@ export function setParagraphBorders(
   children.splice(insertAt, 0, pBdr);
 }
 
-export interface ParagraphShadingOptions {
-  /** Hex RGB fill colour. Defaults to `"auto"`. */
+/** Every `w:shd/@w:val` pattern: ST_Shd (ECMA-376 Part 1 §17.18.78). */
+export const SHADING_PATTERNS = [
+  "nil",
+  "clear",
+  "solid",
+  "horzStripe",
+  "vertStripe",
+  "reverseDiagStripe",
+  "diagStripe",
+  "horzCross",
+  "diagCross",
+  "thinHorzStripe",
+  "thinVertStripe",
+  "thinReverseDiagStripe",
+  "thinDiagStripe",
+  "thinHorzCross",
+  "thinDiagCross",
+  "pct5",
+  "pct10",
+  "pct12",
+  "pct15",
+  "pct20",
+  "pct25",
+  "pct30",
+  "pct35",
+  "pct37",
+  "pct40",
+  "pct45",
+  "pct50",
+  "pct55",
+  "pct60",
+  "pct62",
+  "pct65",
+  "pct70",
+  "pct75",
+  "pct80",
+  "pct85",
+  "pct87",
+  "pct90",
+  "pct95",
+] as const;
+
+export type ShadingPattern = (typeof SHADING_PATTERNS)[number];
+
+/** Every `w:themeColor` / `w:themeFill` value: ST_ThemeColor (§17.18.97). */
+export const THEME_COLORS = [
+  "dark1",
+  "light1",
+  "dark2",
+  "light2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hyperlink",
+  "followedHyperlink",
+  "none",
+  "background1",
+  "text1",
+  "background2",
+  "text2",
+] as const;
+
+export type ThemeColor = (typeof THEME_COLORS)[number];
+
+/** Shading of a paragraph or run (`<w:shd>`, §17.3.1.31 / §17.3.2.32). */
+export interface ShadingOptions {
+  /**
+   * Hex RGB fill colour, or `"auto"` (the default). With `themeFill` this is
+   * the theme colour's resolved value, which consumers without the theme use.
+   */
   readonly fill?: string;
-  /** Pattern overlaid on the fill. Defaults to `"clear"` (flat). */
-  readonly pattern?:
-    | "clear"
-    | "solid"
-    | "horzStripe"
-    | "vertStripe"
-    | "diagStripe"
-    | "diagCross"
-    | "thinHorzStripe"
-    | "thinVertStripe";
+  /** Pattern overlaid on the fill. Defaults to `"clear"` (flat fill). */
+  readonly pattern?: ShadingPattern;
   /** Pattern stroke colour. Defaults to `"auto"`. */
   readonly color?: string;
+  /** The theme colour the fill comes from (`w:themeFill`). */
+  readonly themeFill?: ThemeColor;
+  /** Tint applied to `themeFill`, 0–255 (`w:themeFillTint`). */
+  readonly themeFillTint?: number;
+  /** Shade applied to `themeFill`, 0–255 (`w:themeFillShade`). */
+  readonly themeFillShade?: number;
+}
+
+/** Shading of a paragraph; the same shape as run shading. */
+export type ParagraphShadingOptions = ShadingOptions;
+
+const THEME_COLOR_SET: ReadonlySet<string> = new Set(THEME_COLORS);
+
+/**
+ * A theme tint / shade as ST_UcharHexNumber: two hex digits. Throws a
+ * `RangeError` for anything that is not an integer in 0–255.
+ */
+export function ucharHex(value: number, what: string): string {
+  if (!Number.isInteger(value) || value < 0 || value > 255) {
+    throw new RangeError(`${what} must be an integer in 0–255, got ${String(value)}.`);
+  }
+  return value.toString(16).toUpperCase().padStart(2, "0");
+}
+
+/** Throw a `RangeError` unless `value` is an ST_ThemeColor. */
+export function assertThemeColor(value: string, what: string): void {
+  if (!THEME_COLOR_SET.has(value)) {
+    throw new RangeError(
+      `${what} must be one of ${THEME_COLORS.join(", ")}, got ${JSON.stringify(value)}.`,
+    );
+  }
+}
+
+/** Build a `<w:shd>` element; the theme attributes are validated. */
+export function buildShading(options: ShadingOptions): XmlElement {
+  const attrs = [
+    wmlAttr("val", options.pattern ?? "clear"),
+    wmlAttr("color", options.color ?? "auto"),
+    wmlAttr("fill", options.fill ?? "auto"),
+  ];
+  if (options.themeFill !== undefined) {
+    assertThemeColor(options.themeFill, "themeFill");
+    attrs.push(wmlAttr("themeFill", options.themeFill));
+  }
+  if (options.themeFillTint !== undefined)
+    attrs.push(wmlAttr("themeFillTint", ucharHex(options.themeFillTint, "themeFillTint")));
+  if (options.themeFillShade !== undefined)
+    attrs.push(wmlAttr("themeFillShade", ucharHex(options.themeFillShade, "themeFillShade")));
+  return wmlEmpty("shd", attrs);
 }
 
 /** Apply background shading to a paragraph (Word's "highlight" — but applied
  * to the whole paragraph rather than a run). Replaces any existing
  * `<w:shd>` on pPr.
  */
-export function setParagraphShading(
-  paragraph: WmlParagraph,
-  options: ParagraphShadingOptions = {},
-): void {
+export function setParagraphShading(paragraph: WmlParagraph, options: ShadingOptions = {}): void {
+  const shd = buildShading(options);
   const pPr = ensurePPr(paragraph);
-  const fill = options.fill ?? "auto";
-  const pattern = options.pattern ?? "clear";
-  const color = options.color ?? "auto";
-  const children = pPr.children as XmlElement[];
-  for (let i = children.length - 1; i >= 0; i--) {
-    const c = children[i];
-    if (c && c.kind === "element" && c.name.uri === WML_NS && c.name.local === "shd") {
-      children.splice(i, 1);
-    }
-  }
-  children.push(
-    wmlEmpty("shd", [wmlAttr("val", pattern), wmlAttr("color", color), wmlAttr("fill", fill)]),
-  );
+  removePropChild(pPr, "shd");
+  (pPr.children as XmlElement[]).push(shd);
 }
 
 function ensurePPr(p: WmlParagraph): XmlElement {

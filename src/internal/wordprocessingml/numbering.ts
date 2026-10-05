@@ -1,5 +1,6 @@
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { inSchemaOrder } from "./schema-order.js";
 import type { PassThrough } from "./types.js";
 
 /**
@@ -47,7 +48,7 @@ export function parseNumberingPart(doc: XmlDocument): WmlNumberingPart {
 }
 
 export function writeNumberingPart(part: WmlNumberingPart): XmlDocument {
-  const recognized: XmlNode[] = [...part.abstractNums, ...part.nums];
+  const recognized: XmlNode[] = [...part.abstractNums, ...part.nums].map(inSchemaOrder);
   const children = spliceWithExtras(recognized, part.extras);
   const root: XmlElement = {
     kind: "element",

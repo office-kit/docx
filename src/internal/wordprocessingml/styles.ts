@@ -1,5 +1,6 @@
 import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { inSchemaOrder } from "./schema-order.js";
 import type { PassThrough } from "./types.js";
 
 export type WmlStyleType = "paragraph" | "character" | "table" | "numbering";
@@ -60,9 +61,9 @@ export function parseStylesPart(doc: XmlDocument): WmlStylesPart {
 
 export function writeStylesPart(part: WmlStylesPart): XmlDocument {
   const recognized: XmlNode[] = [];
-  if (part.docDefaults) recognized.push(part.docDefaults);
+  if (part.docDefaults) recognized.push(inSchemaOrder(part.docDefaults));
   if (part.latentStyles) recognized.push(part.latentStyles);
-  for (const s of part.styles) recognized.push(s);
+  for (const s of part.styles) recognized.push(inSchemaOrder(s));
   const children = spliceWithExtras(recognized, part.extras);
   const root: XmlElement = {
     kind: "element",
