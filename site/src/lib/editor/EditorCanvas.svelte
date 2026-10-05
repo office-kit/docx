@@ -16,6 +16,7 @@
     orderSelection,
     pageGeometry,
   } from '@office-kit/docx-editor';
+  import ObjectSelection from './picture/ObjectSelection.svelte';
 
   interface Props {
     model: EditorModel;
@@ -438,6 +439,7 @@
     oncompositionend={onCompositionEnd}
   ></div>
 </div>
+<ObjectSelection {canvas} />
 
 <style>
   .wk-page {
@@ -450,6 +452,9 @@
    * corners of the text area.
    */
   .wk-canvas {
+    /* Floating objects are positioned and stacked within the page. */
+    position: relative;
+    isolation: isolate;
     --mark: 13.5pt;
     --mark-color: #a6a6a6;
     box-sizing: border-box;

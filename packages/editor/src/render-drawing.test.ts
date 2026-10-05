@@ -4,6 +4,7 @@ import {
   type ChartSpec,
   imageDrawings,
   openDocx,
+  readDrawing,
   setDrawingHidden,
   setDrawingHyperlink,
   setDrawingWrap,
@@ -27,6 +28,7 @@ import {
   insertChartCommand,
   drawingWrapCommand,
   drawingDeleteCommand,
+  drawingLayoutCommand,
 } from "./commands/drawing.js";
 
 const PNG_1X1 = new Uint8Array([
@@ -171,5 +173,48 @@ describe("picture and chart commands", () => {
     expect(renderDocumentHtml(openDocx(bytes))).toContain(`data-wk-object="chart"`);
     runCommand(model, drawingDeleteCommand, { index: 0 });
     expect(imageDrawings(model.doc)).toHaveLength(0);
+  });
+
+  it("applies Layout Options in one undo step and stays valid", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Text"] }));
+    model.setSelection(caretAt({ block: 0, inline: 0, offset: 0 }));
+    runCommand(model, insertImageCommand, {
+      bytes: PNG_1X1,
+      options: { widthEmu: INCH, heightEmu: INCH },
+    });
+    runCommand(model, drawingLayoutCommand, {
+      index: 0,
+      wrap: "tight",
+      position: {
+        horizontal: { relativeTo: "page", align: "center" },
+        vertical: { relativeTo: "paragraph", offsetEmu: 12700 },
+      },
+      options: { wrapSide: "largest", distance: { left: 0, right: 0 }, allowOverlap: false },
+      size: { cxEmu: 2 * INCH, cyEmu: INCH },
+      rotation: 30,
+      lockAspect: false,
+    });
+    const doc = openDocx(toUint8Array(model.doc));
+    expect(validate(doc)).toEqual([]);
+    const drawing = imageDrawings(doc)[0];
+    if (!drawing) throw new Error("drawing missing");
+    const info = readDrawing(doc, drawing);
+    expect(info).toMatchObject({
+      kind: "picture",
+      wrap: "tight",
+      widthEmu: 2 * INCH,
+      heightEmu: INCH,
+      rotation: 30,
+      lockAspect: false,
+      anchor: {
+        horizontal: { relativeTo: "page", align: "center" },
+        vertical: { relativeTo: "paragraph", offsetEmu: 12700 },
+        wrapSide: "largest",
+        allowOverlap: false,
+        distance: { left: 0, right: 0 },
+      },
+    });
+    model.undo();
+    expect(imageDrawings(model.doc).map((d) => readDrawing(model.doc, d).wrap)).toEqual(["inline"]);
   });
 });

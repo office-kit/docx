@@ -103,6 +103,17 @@ function place(
   }
 }
 
+function frames(canvas: HTMLElement, el: HTMLElement, page: PageBox, data: FloatData) {
+  const paraEl = el.closest(".wk-p") ?? el.parentElement ?? canvas;
+  const scale = canvas.getBoundingClientRect().width / canvas.offsetWidth || 1;
+  const para = boxIn(canvas, paraEl, scale);
+  const pageTop = Math.floor(Math.max(0, para.y) / page.height) * page.height;
+  return {
+    h: horizontalFrame(data.h.relativeTo, page, para),
+    v: verticalFrame(data.v.relativeTo, page, pageTop, para),
+  };
+}
+
 /** Where a floating object's top-left corner goes, in canvas coordinates. */
 export function floatOrigin(
   canvas: HTMLElement,
@@ -110,16 +121,37 @@ export function floatOrigin(
   page: PageBox,
 ): { x: number; y: number } {
   const data = readFloat(el);
-  const paraEl = el.closest(".wk-p") ?? el.parentElement ?? canvas;
-  const scale = canvas.getBoundingClientRect().width / canvas.offsetWidth || 1;
-  const para = boxIn(canvas, paraEl, scale);
-  const pageTop = Math.floor(Math.max(0, para.y) / page.height) * page.height;
-  if (!data) return { x: para.x, y: para.y };
-  return {
-    x: place(horizontalFrame(data.h.relativeTo, page, para), data.w, data.h),
-    y: place(verticalFrame(data.v.relativeTo, page, pageTop, para), data.hgt, data.v),
-  };
+  if (!data) return { x: 0, y: 0 };
+  const f = frames(canvas, el, page, data);
+  return { x: place(f.h, data.w, data.h), y: place(f.v, data.hgt, data.v) };
 }
+
+/**
+ * The start of the frames an object is positioned against (what a zero
+ * `posOffset` means). Dragging converts a canvas point to an offset from here.
+ */
+export function floatFrameStart(
+  canvas: HTMLElement,
+  el: HTMLElement,
+  page: PageBox,
+): { x: number; y: number } {
+  const data = readFloat(el);
+  if (!data) return { x: 0, y: 0 };
+  const f = frames(canvas, el, page, data);
+  return { x: f.h[0], y: f.v[0] };
+}
+
+const LAYOUT_PROPS = [
+  "position",
+  "left",
+  "top",
+  "float",
+  "clear",
+  "margin",
+  "display",
+  "shape-outside",
+  "shape-margin",
+];
 
 export function readFloat(el: HTMLElement): FloatData | undefined {
   const raw = el.dataset.wkFloat;
@@ -130,7 +162,10 @@ export function readFloat(el: HTMLElement): FloatData | undefined {
 
 /** Lay out every floating object under `canvas` (call after each render). */
 export function layoutFloatingObjects(canvas: HTMLElement, page: PageBox): void {
+  // Idempotent: undo the previous pass before measuring (text may have reflowed).
+  for (const spacer of Array.from(canvas.querySelectorAll(".wk-float-spacer"))) spacer.remove();
   const floats = Array.from(canvas.querySelectorAll<HTMLElement>(".wk-obj-float"));
+  for (const el of floats) for (const prop of LAYOUT_PROPS) el.style.removeProperty(prop);
   for (const el of floats) {
     const data = readFloat(el);
     if (!data) continue;

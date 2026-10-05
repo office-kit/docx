@@ -31,7 +31,13 @@ export { highlightCss } from "./highlight.js";
 export { EMU_PER_PX, imageDataUrl, pictureSvg, type PictureSvgInput } from "./render-drawing.js";
 export { chartSvg } from "./render-chart.js";
 export { CROP_SHAPES, presetPath } from "./preset-geometry.js";
-export { floatOrigin, layoutFloatingObjects, type PageBox, readFloat } from "./float-layout.js";
+export {
+  floatFrameStart,
+  floatOrigin,
+  layoutFloatingObjects,
+  type PageBox,
+  readFloat,
+} from "./float-layout.js";
 export { drawingIndexAt, drawingPositionOf } from "./drawing-access.js";
 export {
   type ResolvedParagraphFormat,

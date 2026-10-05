@@ -40,7 +40,15 @@ export type ArrangeOrder =
   | "sendToBack"
   | "sendBehindText";
 
-export type AlignOp = "left" | "center" | "right" | "top" | "middle" | "bottom" | "distributeH" | "distributeV";
+export type AlignOp =
+  | "left"
+  | "center"
+  | "right"
+  | "top"
+  | "middle"
+  | "bottom"
+  | "distributeH"
+  | "distributeV";
 
 export type RotateOp = "right90" | "left90" | "flipV" | "flipH";
 

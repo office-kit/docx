@@ -20,7 +20,9 @@ import {
   setDrawingHyperlink,
   setDrawingName,
   setDrawingPosition,
+  setDrawingTransform,
   setDrawingWrap,
+  setImageSizeEmu,
   type VerticalPosition,
   type WrapStyle,
 } from "@office-kit/docx";
@@ -63,6 +65,34 @@ export const drawingPositionCommand: Command<{
   run(model, { index, position, wrap }) {
     if (wrap) setDrawingWrap(model.doc, index, wrap, position);
     setDrawingPosition(model.doc, index, position);
+  },
+  isEnabled: hasDrawings,
+};
+
+/**
+ * The Layout Options dialog's OK: wrapping, position, distances, size,
+ * rotation and aspect lock in one undo step. Members left out stay as they are.
+ */
+export const drawingLayoutCommand: Command<{
+  index: number;
+  wrap?: WrapStyle;
+  position?: Placement;
+  options?: AnchorOptions;
+  size?: { cxEmu: number; cyEmu: number };
+  rotation?: number;
+  lockAspect?: boolean;
+}> = {
+  id: "drawing.layout",
+  group: "image",
+  label: "Layout Options",
+  run(model, { index, wrap, position, options, size, rotation, lockAspect }) {
+    const doc = model.doc;
+    if (wrap) setDrawingWrap(doc, index, wrap, position ?? {});
+    if (position && wrap !== "inline") setDrawingPosition(doc, index, position);
+    if (options && wrap !== "inline") setDrawingAnchorOptions(doc, index, options);
+    if (size) setImageSizeEmu(doc, index, size.cxEmu, size.cyEmu);
+    if (rotation !== undefined) setDrawingTransform(doc, index, { rotation });
+    if (lockAspect !== undefined) setDrawingAspectLock(doc, index, lockAspect);
   },
   isEnabled: hasDrawings,
 };
@@ -167,6 +197,7 @@ export const drawingCommands: ReadonlyArray<Command<never, unknown>> = [
   drawingWrapCommand,
   drawingPositionCommand,
   drawingAnchorOptionsCommand,
+  drawingLayoutCommand,
   drawingOrderCommand,
   drawingNameCommand,
   drawingHiddenCommand,

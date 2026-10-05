@@ -7,6 +7,7 @@
 import type { Component } from "svelte";
 import type { MessageKey } from "../i18n/index.svelte";
 import type { EditorSession } from "../session.svelte";
+import ChartDesignTab from "./tabs/ChartDesignTab.svelte";
 import DesignTab from "./tabs/DesignTab.svelte";
 import DrawTab from "./tabs/DrawTab.svelte";
 import HomeTab from "./tabs/HomeTab.svelte";
@@ -42,7 +43,18 @@ export const TABS: readonly RibbonTab[] = [
   { id: "review", label: "tab.review", component: ReviewTab },
   { id: "view", label: "tab.view", component: ViewTab },
   { id: "shapeFormat", label: "tab.shapeFormat", component: ShapeFormatTab, when: never },
-  { id: "pictureFormat", label: "tab.pictureFormat", component: PictureFormatTab, when: never },
+  {
+    id: "pictureFormat",
+    label: "tab.pictureFormat",
+    component: PictureFormatTab,
+    when: (s) => s.selectedObject?.kind === "picture",
+  },
+  {
+    id: "chartDesign",
+    label: "tab.chartDesign",
+    component: ChartDesignTab,
+    when: (s) => s.selectedObject?.kind === "chart",
+  },
   { id: "tableDesign", label: "tab.tableDesign", component: TableDesignTab, when: never },
   { id: "tableLayout", label: "tab.tableLayout", component: TableLayoutTab, when: never },
 ];

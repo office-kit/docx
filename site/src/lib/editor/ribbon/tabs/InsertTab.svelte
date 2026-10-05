@@ -1,8 +1,8 @@
 <script lang="ts">
   import { commands } from '@office-kit/docx-editor';
-  import RibbonIcon from '../../RibbonIcon.svelte';
   import Button from '../Button.svelte';
   import Group from '../Group.svelte';
+  import IllustrationButtons from '../IllustrationButtons.svelte';
   import { getSession } from '../../session.svelte';
   import { t } from '../../i18n/index.svelte';
 
@@ -28,15 +28,6 @@
     const text = prompt('Comment');
     if (text) session.apply(commands.addCommentCommand, { author: 'You', initials: 'Y', text });
   }
-
-  async function insertImage(e: Event): Promise<void> {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    session.apply(commands.insertImageCommand, { bytes, options: { widthEmu: 2743200, heightEmu: 2057400 } });
-    input.value = '';
-  }
 </script>
 
 <Group label={t('group.pages')}>
@@ -46,7 +37,7 @@
   <Button size="large" icon="table" tip={t('ins.table')} onclick={insertTable} />
 </Group>
 <Group label={t('group.illustrations')}>
-  <label class="big" title={t('ins.picture')}><RibbonIcon name="picture" size={32} /><span>{t('ins.picture')}</span><input type="file" accept="image/*" onchange={insertImage} hidden /></label>
+  <IllustrationButtons />
 </Group>
 <Group label={t('group.links')}>
   <Button size="large" icon="link" tip={t('ins.link')} onclick={insertLink} />
