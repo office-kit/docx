@@ -29,6 +29,7 @@ import type { EditorModel } from "../model.js";
 import { createStyleResolver } from "../resolve.js";
 import { orderSelection } from "../selection.js";
 import { caretBlockIndex, moveLastBlockAfter } from "./insert-util.js";
+import { newListId } from "./list-util.js";
 import type { Command } from "./types.js";
 
 /** Insert a new bullet/numbered list built from lines, after the caret. */
@@ -71,16 +72,7 @@ export const applyListCommand: Command<{ kind: "bullet" | "numbered" }> = {
     if (!sel) return;
     const paras = paragraphsInRange(model.doc, orderSelection(sel));
     if (paras.length === 0) return;
-    // Seed a list definition of the requested kind, read the numId off the
-    // seeded paragraph, bind the real selection to it, then drop the seed.
-    const seed =
-      kind === "bullet" ? addBulletList(model.doc, [""]) : addNumberedList(model.doc, [""]);
-    const seededBlock = seed[0];
-    const numId = seededBlock ? getParagraphNumbering(seededBlock)?.numId : undefined;
-    if (seededBlock) {
-      const idx = model.doc.document.body.blocks.indexOf(seededBlock);
-      if (idx >= 0) model.doc.document.body.blocks.splice(idx, 1);
-    }
+    const numId = newListId(model.doc, kind);
     if (numId === undefined) return;
     for (const p of paras) applyListToParagraph(model.doc, p, numId);
   },

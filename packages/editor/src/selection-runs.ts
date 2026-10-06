@@ -26,6 +26,7 @@ import {
   caretAt,
   type OrderedSelection,
   orderSelection,
+  type Selection,
 } from "./selection.js";
 import { positionAtOffset } from "./char-offset.js";
 
@@ -194,6 +195,7 @@ function applyAtCaret(
     withRunFormatTracking(model, own, () => applyFn(own, para));
     return;
   }
+  PENDING.delete(model);
   const at = absoluteChar(runs, caret.inline ?? 0, caret.offset ?? 0);
   const word = wordAround(paragraphCharText(runs), at);
   if (word) {
@@ -211,9 +213,43 @@ function applyAtCaret(
     return;
   }
   withRunFormatTracking(model, pending, () => applyFn(pending, para));
+  PENDING.set(model, { run: pending, para });
   const inline = paragraphRuns(para).indexOf(pending);
   const pos = { ...caret, inline, offset: 0 };
   model.setSelection({ anchor: pos, focus: pos });
+}
+
+// The empty run caret formatting made for the text typed next, per editor.
+const PENDING = new WeakMap<EditorModel, { run: WmlRun; para: WmlParagraph }>();
+
+/**
+ * The caret is moving to `selection`. If it leaves the run caret formatting
+ * made for the text typed next (Bold at a caret, say) and nothing was typed
+ * there, the run goes, as Word drops pending formatting once the caret moves
+ * on. Returns `selection` with the run indices after the removed run shifted,
+ * or `undefined` when the document did not change. Call it outside an edit,
+ * with positions read before the change.
+ */
+export function releasePendingFormat(
+  model: EditorModel,
+  selection: Selection,
+): Selection | undefined {
+  const held = PENDING.get(model);
+  if (!held) return undefined;
+  const runs = paragraphRuns(held.para);
+  const index = runs.indexOf(held.run);
+  const inHeld = (pos: DocPosition): boolean => paragraphAt(model.doc, pos) === held.para;
+  if (index < 0 || runTextLength(held.run) > 0) {
+    PENDING.delete(model);
+    return undefined;
+  }
+  const onRun = (pos: DocPosition): boolean => inHeld(pos) && (pos.inline ?? 0) === index;
+  if (onRun(selection.anchor) || onRun(selection.focus)) return undefined;
+  PENDING.delete(model);
+  held.para.children = held.para.children.filter((c) => c !== held.run);
+  const shift = (pos: DocPosition): DocPosition =>
+    inHeld(pos) && (pos.inline ?? 0) > index ? { ...pos, inline: (pos.inline ?? 0) - 1 } : pos;
+  return { anchor: shift(selection.anchor), focus: shift(selection.focus) };
 }
 
 /** A paragraph's run text, one character per unit `runTextLength` counts. */

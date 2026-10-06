@@ -50,7 +50,10 @@ export function setSimpleRunText(run: WmlRun, text: string): boolean {
  * picture, field or other inline that would be lost with the paragraph.
  */
 export function isEmptyParagraph(para: WmlParagraph): boolean {
-  return para.children.every(
-    (c) => c.kind === "run" && c.pieces.every((p) => p.kind === "text" && p.value === ""),
-  );
+  return para.children.every((c) => c.kind === "run" && isEmptyRun(c));
+}
+
+/** A run with no characters and nothing else (no tab, break, picture or field). */
+export function isEmptyRun(run: WmlRun): boolean {
+  return run.pieces.every((p) => p.kind === "text" && p.value === "");
 }

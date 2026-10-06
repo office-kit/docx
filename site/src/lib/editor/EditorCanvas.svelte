@@ -11,6 +11,8 @@
     paragraphAt,
     positionFromDom,
     readDomSelection,
+    parseClipboardHtml,
+    releasePendingFormat,
     isEmptyParagraph,
     runAtPath,
     setSimpleRunText,
@@ -309,7 +311,12 @@
     if (sel) {
       // A selection never spans two stories (body and a footnote, say):
       // keep the end that moved.
-      model.setSelection(sameStory(sel.anchor, sel.focus) ? sel : caretAt(sel.focus));
+      const next = sameStory(sel.anchor, sel.focus) ? sel : caretAt(sel.focus);
+      // Leaving pending formatting untyped removes its run, which shifts the
+      // run indices the DOM still carries: re-render after it.
+      const released = imeRange || composing ? undefined : releasePendingFormat(model, next);
+      model.setSelection(released ?? next);
+      if (released) rerender();
       if (sel.focus.story && editingHeaderFooter) headerFooterPage = focusPage();
       if (canvas) decorateTableSelection(canvas, model);
     }
@@ -581,8 +588,10 @@
       case 'historyRedo':
         history('redo');
         return;
-      case 'insertReplacementText':
       case 'insertFromDrop':
+        if (e.dataTransfer && selectTargetRange(e)) insertTransfer(e.dataTransfer);
+        return;
+      case 'insertReplacementText':
       case 'insertFromYank': {
         const text = e.dataTransfer?.getData('text/plain') ?? e.data;
         if (text && selectTargetRange(e)) exec(commands.insertTextCommand, { text });
@@ -662,6 +671,8 @@
   }
 
   function onCut(e: ClipboardEvent): void {
+    // A menu Cut or Paste comes without a keydown to sync the selection.
+    onSelChange();
     if (!hasRangeSelection() || !e.clipboardData) return;
     e.preventDefault();
     e.clipboardData.setData('text/plain', window.getSelection()?.toString() ?? '');
@@ -670,10 +681,21 @@
 
   function onPaste(e: ClipboardEvent): void {
     flushImeFinalize();
-    const text = e.clipboardData?.getData('text/plain');
-    if (text === undefined) return;
+    onSelChange();
+    if (!e.clipboardData) return;
     e.preventDefault();
-    exec(commands.insertTextCommand, { text });
+    insertTransfer(e.clipboardData);
+  }
+
+  /** Paste or drop: formatted when the data has HTML, else its plain text. */
+  function insertTransfer(data: DataTransfer): void {
+    const html = data.getData('text/html');
+    const blocks = html ? parseClipboardHtml(html) : [];
+    if (blocks.length > 0) exec(commands.insertFragmentCommand, { blocks });
+    else {
+      const text = data.getData('text/plain');
+      if (text) exec(commands.insertTextCommand, { text });
+    }
   }
 
   /** Header or footer zone of the page under a point, by Word's margins. */
