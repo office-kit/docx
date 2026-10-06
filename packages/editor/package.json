@@ -1,6 +1,6 @@
 {
   "name": "@office-kit/docx-editor",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "MS Office-like WYSIWYG editing core for word-kit .docx documents. Framework-agnostic; every edit routes through @office-kit/docx.",
   "keywords": [
     "docx",

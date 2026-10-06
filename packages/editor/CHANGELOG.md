@@ -1,15 +1,109 @@
-# Changelog
+# @office-kit/docx-editor
 
-## 0.2.0
+## 0.1.0
 
 ### Minor Changes
 
-- 48ed589: `contentControlBlocks(block)` reads the paragraphs and tables inside a block-level content control (`<w:sdt>`), the wrapper Word puts around cover pages, watermarks and tables of contents. The editor canvas uses it to show that content (read-only) instead of a "preserved content" placeholder, so watermarks and cover pages now appear on the page.
-- 48ed589: `addTableOfContents`, `appendMergeField` and `addBookmark` are deprecated in favour of `insertTableOfContents`, `insertMergeField` and `insertBookmark`, which do the same and more (any position, computed TOC entries, bookmarks over part of a paragraph). The deprecated functions keep working until the next major release.
-- 49e6e8a: `setParagraphIndent` and `setParagraphSpacing` take East Asian units, as Japanese and Chinese Word write them:
+- 48ed589: feat: add `@office-kit/docx-editor` — an MS Office-like WYSIWYG editing core
 
-  - Indents in hundredths of a character: `leftChars`, `rightChars`, `firstLineChars` and `hangingChars` ("2 字" is `200`).
-  - Spacing in hundredths of a line: `beforeLines` and `afterLines` ("0.5 行" is `50`).
+  New package that turns `@office-kit/docx` into a Word-like editor: an
+  `EditorModel` with undo/redo, a command layer (text/paragraph/structure/list/
+  table/image/style/section/header-footer/references/review) where every mutation
+  routes through the `@office-kit/docx` public API, an AST→HTML canvas renderer,
+  and DOM-selection mapping. A SvelteKit ribbon UI ships at the site's `/editor`
+  route.
+
+  The editing surface is interactive: Enter splits the paragraph at the caret and
+  Backspace/Delete merge across paragraph boundaries (`splitParagraphCommand` /
+  `mergeBackCommand`, backed by the library's `splitParagraphAt` /
+  `mergeParagraphIntoPrevious`); the caret is preserved across structural
+  re-renders; Ctrl+Z/Y drive undo/redo; paste inserts plain text (multi-line →
+  paragraphs) keeping the AST in sync; and the UI adds live word/character count,
+  find & replace, zoom, caret-synced font/size/style, and heading-styled rendering
+  so the document reads with real visual hierarchy.
+
+  Character formatting is now selection-precise: bolding (or any run format on) a
+  partial selection splits runs at the selection boundaries and formats only the
+  selected characters instead of the whole line — backed by the library's
+  `isolateParagraphRunRange` / `runTextLength`. The ribbon UI is localized into
+  six languages (English, 日本語, Español, Français, Deutsch, 中文) with a
+  language switcher.
+
+  Completeness against the WordprocessingML spec is enforced by a capability
+  ledger: every element in the ECMA-376 schema universe is classified as
+  `edit` / `render` / `preserve`, and a test fails the build if any element is
+  unclassified or an editable element's command goes missing.
+
+  The library gains generic property setters so the editor can reach the long
+  tail of WordprocessingML formatting without a bespoke function per element:
+
+  - run / paragraph: `setRunOnOff` / `setRunValProp` / `getRunProp` and the
+    `setParagraphOnOff` / `setParagraphValProp` / `getParagraphProp` equivalents;
+  - any properties container: `setElementOnOff` / `setElementValProp` /
+    `getElementProp` / `makePropsElement` (for `<w:tcPr>` / `<w:trPr>` /
+    `<w:tblPr>` / `<w:sectPr>`);
+  - document settings: `setDocumentSettingOnOff` / `setDocumentSettingVal` /
+    `getDocumentSetting` (creates `word/settings.xml` on demand);
+  - style definitions: `setStyleOnOff` / `setStyleValProp` / `getStyleProp`;
+  - numbering levels: `setNumberingLevelVal` / `setNumberingLevelOnOff` /
+    `getNumberingLevelProp`;
+  - images: `imageDrawings` / `setImageSizeEmu` / `setImageAltText` /
+    `getImageInfo` (resize and alt-text existing pictures);
+  - raw XML nodes: `setElementAttr` / `getElementAttr` / `childElementsOf` /
+    `appendChildElement` — the universal escape hatch that lets the editor edit
+    any element (DrawingML shape geometry, OMML math, legacy VML) by attribute or
+    child, since these live inline in `document.xml` and flush through the
+    document AST on save;
+  - arbitrary XML parts: `xmlPartNames` / `getRawPartRoot` / `markRawPartDirty` —
+    open, edit, and re-serialize any XML part (fontTable, settings, styles,
+    numbering, comments, foot-/endnotes, headers, footers, webSettings, docProps),
+    so every OOXML element in the whole package is reachable and editable;
+  - caret-level structure: `splitParagraphAt` / `mergeParagraphIntoPrevious` —
+    split a paragraph at a run/offset and merge a paragraph into the previous one
+    (the primitives behind Enter and Backspace-at-start);
+  - selection formatting: `isolateParagraphRunRange` / `runTextLength` — isolate a
+    character range into its own run(s) so formatting applies to exactly the
+    selected text.
+
+  Also newly exported from `@office-kit/docx` (they are part of the public
+  surface as parameter/return/AST types): `BuildStyleOptions`, `BuildTableOptions`,
+  `DocumentCoreProperties`, `DocumentAppProperties`, and the raw XML AST types
+  `XmlElement` / `XmlNode` / `XmlAttr` / `QName`.
+
+  Commands are atomic: `runCommand` returns the command's result, and a command
+  that throws (including rejected input such as an out-of-range table size or a
+  non-http(s)/mailto hyperlink) leaves the document, selection and redo history
+  unchanged (`EditorModel.abortEdit`). `replaceAllCommand`, `insertTextCommand` and
+  `deleteSelectionCommand` route Find & Replace, paste, and typing or deleting
+  over a selection (also across paragraphs) through the same undoable path.
+  Consecutive keystrokes undo as one step, Shift+Enter breaks the line at the
+  caret, and hyperlinks and field results are visible on the canvas. Enter,
+  Backspace and Delete inside a table cell split and join that cell's
+  paragraphs. IME input that starts over a selection replaces it in one undo
+  step. `splitParagraphAt` moves a paragraph's
+  section break to the second half instead of duplicating it.
+
+- 48ed589: feat: the editor reports and writes formatting the way Microsoft Word does
+
+  - New `createStyleResolver(doc)` returns a paragraph's and a run's effective
+    formatting: document defaults, the paragraph style's `basedOn` chain, the
+    character style and direct formatting, with theme fonts looked up. The canvas
+    renders these values, so headings take their look from `styles.xml`.
+    Also new: `pageGeometry(doc)`, `highlightCss(value)`, `RunRef`.
+  - Bold / Italic / Strikethrough / Underline toggles and the alignment buttons
+    read the effective value. Turning off formatting that comes from a style
+    writes an explicit off value (`<w:b w:val="0"/>`, `<w:u w:val="none"/>`),
+    as Word does.
+  - `clearFormattingCommand` now matches Word's Clear All Formatting: a caret
+    resets its paragraph to Normal; a range clears every character property
+    except the highlight and resets the paragraphs whose mark it includes.
+    Previously it wrote explicit `false` values and left color, size and font.
+  - New `indentStepCommand` (Increase / Decrease Indent in 0.5 in steps),
+    `setLineSpacingCommand` with `lineSpacingOf`, and `setVertAlignCommand`
+    (Subscript / Superscript).
+  - The canvas uses the section's page size and margins, renders paragraph
+    indents and spacing, and draws tables with their own width, columns, cell
+    margins and borders (none when the document defines none).
 
 - 48ed589: Headers, footers and notes can now be read and edited as stories of their own.
 
@@ -180,93 +274,61 @@
   become CSS, and quotes, backslashes and line breaks are dropped from font names
   when rendering. The document itself is not changed.
 
-- 48ed589: `wrappedRuns(inline)` reads the runs inside a hyperlink, simple field, inline content control, smart tag, custom XML or bidi override. The editor canvas uses it so link text shows its own formatting, as Word does: the Hyperlink style for an ordinary link, and plain text for a table of contents entry, instead of always blue and underlined.
-
 ### Patch Changes
 
-- 48ed589: feat: add `@office-kit/docx-editor` — an MS Office-like WYSIWYG editing core
+- 48ed589: `contentControlBlocks(block)` reads the paragraphs and tables inside a block-level content control (`<w:sdt>`), the wrapper Word puts around cover pages, watermarks and tables of contents. The editor canvas uses it to show that content (read-only) instead of a "preserved content" placeholder, so watermarks and cover pages now appear on the page.
+- ecb138d: Editing fixes found by adversarial testing:
 
-  New package that turns `@office-kit/docx` into a Word-like editor: an
-  `EditorModel` with undo/redo, a command layer (text/paragraph/structure/list/
-  table/image/style/section/header-footer/references/review) where every mutation
-  routes through the `@office-kit/docx` public API, an AST→HTML canvas renderer,
-  and DOM-selection mapping. A SvelteKit ribbon UI ships at the site's `/editor`
-  route.
+  - Deleting or typing over a selection that crosses table cells no longer fails silently: within one table the covered cells are emptied, and a selection that leaves the table deletes the rows it touches, as in Word.
+  - Backspace at the start of a paragraph after a table no longer joins it to the paragraph above the table. An empty paragraph there is removed and the caret moves to the table's last cell.
+  - Bold, italic, font and other character formatting with a caret (no selection) now behaves like Word: inside a word it formats the whole word (Japanese words included); elsewhere it applies to the text typed next instead of the whole run.
+  - `runPoint` places a caret after the placeholder of an empty run, so text typed there lands in that run.
+  - New `isEmptyParagraph` export.
 
-  The editing surface is interactive: Enter splits the paragraph at the caret and
-  Backspace/Delete merge across paragraph boundaries (`splitParagraphCommand` /
-  `mergeBackCommand`, backed by the library's `splitParagraphAt` /
-  `mergeParagraphIntoPrevious`); the caret is preserved across structural
-  re-renders; Ctrl+Z/Y drive undo/redo; paste inserts plain text (multi-line →
-  paragraphs) keeping the AST in sync; and the UI adds live word/character count,
-  find & replace, zoom, caret-synced font/size/style, and heading-styled rendering
-  so the document reads with real visual hierarchy.
+- d1523b7: `setFontCommand` now treats East Asian fonts the way Word's font box does:
 
-  Character formatting is now selection-precise: bolding (or any run format on) a
-  partial selection splits runs at the selection boundaries and formats only the
-  selected characters instead of the whole line — backed by the library's
-  `isolateParagraphRunRange` / `runTextLength`. The ribbon UI is localized into
-  six languages (English, 日本語, Español, Français, Deutsch, 中文) with a
-  language switcher.
+  - An East Asian font, such as 游明朝, ＭＳ ゴシック or SimSun, is applied to East Asian text as well as Latin text.
+  - A Latin font, such as Arial, changes only the Latin text, so Japanese text keeps its font.
 
-  Completeness against the WordprocessingML spec is enforced by a capability
-  ledger: every element in the ECMA-376 schema universe is classified as
-  `edit` / `render` / `preserve`, and a test fails the build if any element is
-  unclassified or an editable element's command goes missing.
+  Two new exports, `isEastAsianFont` and `hasEastAsianText`, expose the checks this uses.
 
-  The library gains generic property setters so the editor can reach the long
-  tail of WordprocessingML formatting without a bespoke function per element:
+- 49e6e8a: The canvas now lays out Japanese and Chinese documents the way Word does. Line heights and spacing were checked against Japanese Word for Mac 16:
 
-  - run / paragraph: `setRunOnOff` / `setRunValProp` / `getRunProp` and the
-    `setParagraphOnOff` / `setParagraphValProp` / `getParagraphProp` equivalents;
-  - any properties container: `setElementOnOff` / `setElementValProp` /
-    `getElementProp` / `makePropsElement` (for `<w:tcPr>` / `<w:trPr>` /
-    `<w:tblPr>` / `<w:sectPr>`);
-  - document settings: `setDocumentSettingOnOff` / `setDocumentSettingVal` /
-    `getDocumentSetting` (creates `word/settings.xml` on demand);
-  - style definitions: `setStyleOnOff` / `setStyleValProp` / `getStyleProp`;
-  - numbering levels: `setNumberingLevelVal` / `setNumberingLevelOnOff` /
-    `getNumberingLevelProp`;
-  - images: `imageDrawings` / `setImageSizeEmu` / `setImageAltText` /
-    `getImageInfo` (resize and alt-text existing pictures);
-  - raw XML nodes: `setElementAttr` / `getElementAttr` / `childElementsOf` /
-    `appendChildElement` — the universal escape hatch that lets the editor edit
-    any element (DrawingML shape geometry, OMML math, legacy VML) by attribute or
-    child, since these live inline in `document.xml` and flush through the
-    document AST on save;
-  - arbitrary XML parts: `xmlPartNames` / `getRawPartRoot` / `markRawPartDirty` —
-    open, edit, and re-serialize any XML part (fontTable, settings, styles,
-    numbering, comments, foot-/endnotes, headers, footers, webSettings, docProps),
-    so every OOXML element in the whole package is reachable and editable;
-  - caret-level structure: `splitParagraphAt` / `mergeParagraphIntoPrevious` —
-    split a paragraph at a run/offset and merge a paragraph into the previous one
-    (the primitives behind Enter and Backspace-at-start);
-  - selection formatting: `isolateParagraphRunRange` / `runTextLength` — isolate a
-    character range into its own run(s) so formatting applies to exactly the
-    selected text.
+  - **Vertical text (縦書き).** A section with `textDirection` `tbRl` is laid out top to bottom, right to left, and pages break where Word breaks them.
+  - **Document grid (§17.6.5).** Lines snap to whole grid lines; for example, 10.5 pt 游明朝 takes one 18 pt line and 28 pt takes three. Auto line spacing scales the grid line, as in Word. A character grid spaces the characters out to the grid pitch.
+  - **East Asian units.** Indents in characters and spacing in lines are converted to points.
+  - **Single line height.** 游明朝 and 游ゴシック use the font's own single-line height (1.447 × the size).
+  - **Character formatting.**
+    - Emphasis marks (傍点)
+    - Fit Text (均等割り付け), including a width shared by runs with the same id
+    - Character scale (文字の拡大/縮小)
+    - Combine Characters / Two Lines in One (組み文字・割注)
+    - Horizontal-in-vertical (縦中横)
+  - **Paragraph settings.** Distributed alignment; kinsoku line breaking; word wrap; hanging punctuation; and the automatic space between Japanese and Latin text or numbers (`autoSpaceDE` / `autoSpaceDN`).
+  - **Fonts.** Japanese and Chinese font names (游明朝, ＭＳ 明朝, メイリオ, 宋体 …) fall back to the system's Japanese or Chinese fonts.
 
-  Also newly exported from `@office-kit/docx` (they are part of the public
-  surface as parameter/return/AST types): `BuildStyleOptions`, `BuildTableOptions`,
-  `DocumentCoreProperties`, `DocumentAppProperties`, and the raw XML AST types
-  `XmlElement` / `XmlNode` / `XmlAttr` / `QName`.
+- baf2d5c: The editor keeps a paragraph after a table that ends the document, as Word does. Before, there was no way to type below such a table. This affected documents that end with a table, and tables inserted at the end of a document.
+- 4dd27ca: Formatted paste and pending formatting:
 
-  Commands are atomic: `runCommand` returns the command's result, and a command
-  that throws (including rejected input such as an out-of-range table size or a
-  non-http(s)/mailto hyperlink) leaves the document, selection and redo history
-  unchanged (`EditorModel.abortEdit`). `replaceAllCommand`, `insertTextCommand` and
-  `deleteSelectionCommand` route Find & Replace, paste, and typing or deleting
-  over a selection (also across paragraphs) through the same undoable path.
-  Consecutive keystrokes undo as one step, Shift+Enter breaks the line at the
-  caret, and hyperlinks and field results are visible on the canvas. Enter,
-  Backspace and Delete inside a table cell split and join that cell's
-  paragraphs. IME input that starts over a selection replaces it in one undo
-  step. `splitParagraphAt` moves a paragraph's
-  section break to the second half instead of duplicating it.
+  - New `insertFragmentCommand` and `parseClipboardHtml`: pasting HTML (from Word, a web page, Google Docs or the editor itself) keeps bold, italic, underline, strikethrough, superscript / subscript, text color, headings, bullet and numbered lists with their levels, line breaks, tabs and tables. As in Word, the first pasted paragraph continues the caret's paragraph and a pasted table goes between its halves; inside a table cell a pasted table becomes paragraphs.
+  - New `releasePendingFormat`: formatting set at a caret (Bold with no selection, say) and left without typing is dropped once the caret moves on, as in Word, instead of leaving an empty run behind.
 
-- 48ed589: fix: saving a document dropped the attributes of `<w:body>`, `<w:p>`, `<w:r>`,
-  `<w:tbl>`, `<w:tr>` and `<w:tc>`, including `w14:paraId`, `w14:textId` and
-  `w:rsid*`. They are now kept on save. The parsed nodes carry them as an
-  optional `attrs` field.
+- 49e6e8a: `layoutSpacingCommand` takes spacing in lines (`beforeLines` / `afterLines`, hundredths of a line), the unit Japanese Word's 段落前 / 段落後 boxes use. It also writes the equivalent twips at the section's grid pitch. `spacingLineTwips` returns that pitch.
+
+  `layoutIndentCommand` and `layoutSpacingCommand` keep a paragraph's existing character and line units (`leftChars`, `beforeLines` …). Setting a value in twips clears the matching unit, so the new value shows. Before, a unit that was set kept overriding the new twips value.
+
+- 48ed589: Style resolution follows more of ECMA-376: toggle properties (bold, italic, caps …) toggle across the table, paragraph and character style levels (§17.7.3), list numbers take their level's run properties (§17.9.24), and complex-script text (Arabic, Hebrew, Thai …) uses its own bold, italic, size and font (`bCs`, `iCs`, `szCs`, `w:cs`). The canvas lists the East Asian and complex-script fonts after the Latin one, so each script draws in its own font.
+- 48ed589: The canvas now lays out tabs against the paragraph's tab stops, as Word does:
+
+  - Custom stops are inherited through styles, and `clear` stops remove inherited ones.
+  - Past the custom stops, tabs go to the document's default tab interval.
+  - Right, center and decimal stops align the text that follows the tab.
+  - Dot, hyphen, underscore, heavy and middle-dot leaders are drawn.
+
+  Typing a tab now works too. Tab inserts a tab character, and at the start of a list item Tab and Shift+Tab change the item's level. A caret steps over a tab as a single character.
+
+  Drop caps (`w:framePr w:dropCap`) float into the lines of the paragraph that follows them, instead of sitting on a line of their own.
+
 - 48ed589: fix: find / replace reach table cells, unit font sizes read correctly, and range state sees middle runs
 
   - `findText` and `replaceText` (and the body part of `findTextEverywhere` /
@@ -287,158 +349,24 @@
     the middle of a selection shows the field as "Mixed", and choosing a value
     applies it to the whole range.
 
-- 48ed589: Fix two problems that showed up when the file was opened in Word:
-
-  - `addWordArt` now writes the text-path shape type (`_x0000_t136`) that the shape refers to. Without it, Word drew a broken-picture placeholder.
-  - In a section with no `w:pgMar`, tables of contents, indexes and other generated content now place their right tab at Word's default margins (1 in each side). Before, the tab sat at the page edge.
-
-## 0.1.0
-
-### Minor Changes
-
-- 3302af3: Initial public release.
-
-  `@office-kit/docx` is an OOXML-compliant (ECMA-376) `.docx` generation and
-  editing library for browsers and Node.js. It ships as a single self-contained
-  package: the OPC, XML, and WordprocessingML layers are bundled in, not
-  published separately. `@office-kit/docx-preview` renders any `Docx` value as a
-  read-only DOM tree by wrapping the OSS `docx-preview` renderer.
-
-The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Each user-visible change is also tracked via [Changesets](https://github.com/changesets/changesets);
-this file is a hand-curated overview.
-
-## Unreleased
-
-### Changed
-
-- **No-classes API.** Every package now exposes plain data types and
-  standalone functions instead of classes. The motivation is
-  tree-shaking: classes carry every method along with the prototype,
-  so a bundler can't drop unused operations once an instance escapes.
-
-  - `Docx` is an `interface` (just `{ opc, document, partName, … }`).
-  - `Docx.create(…)` → `createDocx(…)`. `Docx.open(bytes)` → `openDocx(bytes)`.
-    `Docx.fromBlob(blob)` → `fromBlob(blob)`.
-  - `doc.appendParagraph(text)` → `appendParagraph(doc, text)`. Same
-    pattern for every previous method.
-  - Previous getters become functions: `doc.paragraphs` → `paragraphs(doc)`,
-    `doc.statistics` → `statistics(doc)`, etc.
-  - Previous setters become `setX` functions: `doc.title = x` →
-    `setTitle(doc, x)`. `doc.opc`, `doc.document`, `doc.partName` stay
-    as direct property access.
-  - `OpcPackage`, `ContentTypesIndex`, `RelationshipSet` are likewise
-    plain interfaces backed by standalone `addPart`, `getPart`,
-    `allRelationships`, `packageRelationships`, … functions.
-  - `XmlParseError` is no longer a class. Use `XmlParseError.is(e)` for
-    narrowing (in place of `e instanceof XmlParseError`).
-
-  A minimal `createDocx + appendParagraph + toUint8Array` slice bundles
-  to ~42 KB minified; the full surface is ~131 KB. CI enforces both the
-  byte budget and that no feature-specific string literals from unused
-  branches leak into the minimal bundle (see `scripts/check-tree-shake.mjs`).
-
-### Added
-
-- `@office-kit/docx` — the public `Docx` interface and standalone-function API.
-  Ships as a single self-contained package; the layers below are bundled in
-  (`src/internal/`), not published separately:
-  - **OPC layer** (`src/internal/opc`) — Open Packaging Conventions
-    reader/writer with byte-stable round-trip for untouched parts, built on
-    `fflate` (`OpcPackage` interface + `readOpcPackage`, `writeOpcPackage`,
-    `addPart`, `getPart`, `allRelationships`, `packageRelationships`, …).
-  - **XML layer** (`src/internal/xml`) — namespace-aware XML parser/serializer
-    that preserves attribute order, prefixes, `xml:space="preserve"`, CDATA,
-    comments, and PIs.
-  - **WordprocessingML layer** (`src/internal/wordprocessingml`) — WML AST plus
-    parsers, writers, and builders for paragraphs, runs, tables, styles,
-    numbering, headers/footers, sections, comments, footnotes/endnotes,
-    hyperlinks, fields, and document properties.
-- `@office-kit/docx-preview` — browser-side read-only preview. Single function entry,
-  `previewToDOM(source, container, options?) → Promise<Handle>`. v0
-  implementation wraps the OSS `docx-preview` (Apache-2.0). The wrap is
-  intentional and final; see `docs/PLAN-PREVIEW.md` for the rationale.
-
-#### Authoring (function API on `@office-kit/docx`)
-
-- Lifecycle: `createDocx({ paragraphs? })`, `openDocx(bytes)`,
-  `fromBlob(blob)`, `toUint8Array(doc)`, `toBlob(doc)`, `clone(doc)`.
-- Paragraphs: `appendParagraph`, `insertParagraphAt`, `removeParagraph`,
-  `appendHeading`, `appendPageBreak`, `appendLineBreak`,
-  `appendSectionBreak`, `clearBody`.
-- Inline / text: `replaceText`, `replaceTextEverywhere`, `findText`,
-  `findTextEverywhere`, `appendTextRun`, `setParagraphText`,
-  `paragraphText`, `setRunFormat`, `clearRunFormat`, `getRunFormat`,
-  `setParagraphAlignment`, `setParagraphIndent`, `setParagraphSpacing`.
-- Styles + numbering: `addStyle`, `removeStyle`, `listStyles`,
-  `ensureHeadingStyles`, `addBulletList`, `addNumberedList`,
-  `applyListToParagraph`.
-- Tables: `addTable`, `tables`, `removeTable`, `removeAllTables`,
-  `unwrapTable`.
-- Images: `addImage`, `addImageRun`, `insertImageInto`, `images`,
-  `replaceImage`, `removeAllImages`.
-- Headers / footers / sections: `addHeader`, `addFooter`,
-  `addPageNumberFooter`, `setPageSize`, `setPageMargins`,
-  `setPageOrientation`, `headers`, `footers`,
-  `removeAllHeaders`, `removeAllFooters`.
-- Comments / footnotes / endnotes: `addComment`, `addFootnote`,
-  `addEndnote`, `removeAllComments`, `removeAllFootnotes`,
-  `removeAllEndnotes`.
-- Hyperlinks + bookmarks: `addHyperlink`, `addInternalHyperlink`,
-  `externalHyperlinks`, `setHyperlinkUrl`, `removeAllHyperlinks`,
-  `addBookmark`, `removeBookmark`, `removeAllBookmarks`, `bookmarks`.
-- Fields: `appendField`, `addTableOfContents`, `appendMergeField`,
-  `WORD_FIELDS`, plus the page-number footer helper above.
-- Tracked changes: `acceptAllRevisions`, `rejectAllRevisions`.
-- Core / app properties: `coreProperties`, `setCoreProperties`,
-  `appProperties`, `setAppProperties`, `title`, `author`,
-  `setTitle`, `setAuthor`.
-- Templates (PowerPoint-style "open a designed base, append content"):
-  `mergeStylesFromTemplate`, `findStyleIdByName`,
-  `setParagraphStyle`, `imageReferences`, `replaceImageByAltText`.
-- Diagnostics: `validate(doc)`, `statistics(doc)`, `outline(doc)`,
-  `fields(doc)`.
-
-#### Browser preview (function API on `@office-kit/docx-preview`)
-
-- `previewToDOM(source, container, options?)` renders a `Docx`,
-  `Uint8Array`, `Blob`, or `ArrayBuffer` into a DOM container.
-  Returns an idempotent `Handle.dispose()` for teardown.
-- Options: `classPrefix` (default `"wk-"`), `inWrapper`,
-  `breakPages`, `renderFonts`, `experimentalComments`,
-  `experimentalChanges`. All overridable.
-
-### Build + tooling
-
-- `tsdown` (rolldown-based) replaces `tsup` for the bundling step.
-  Output extensions changed from `.js`/`.d.ts` to `.mjs`/`.d.mts`.
-- `pnpm test` now runs `pnpm build` first via the npm-standard
-  `pretest` hook so cross-package imports always resolve to fresh
-  dist.
-- New CI gate: `pnpm check:tree-shake` budgets a minimal
-  `createDocx + appendParagraph + toUint8Array` bundle (~42 KB
-  minified) against the full surface (~131 KB).
-- `pnpm sample` writes 32 demonstration `.docx` files into
-  `./samples/` for manual verification in Microsoft Word.
-- New perf-smoke test catches accidental quadratic regressions:
-  10k-paragraph round-trip in 220 ms locally; budget is 10 s per
-  block to leave room for slow CI.
-
-### Implementation notes
-
-- Lossless round-trip: every XML element the library does not yet structure
-  is preserved as a `WmlRawBlock`/`WmlRawInline` pass-through with its
-  original child position, so re-saving an unmodified template leaves
-  Word's "needs repair" prompt out of the picture.
-- Verified against the mammoth.js fixture corpus (comments, footnotes,
-  endnotes, tables, images, hyperlinks, text boxes, UTF-8 BOM, lists)
-  and the python-docx test corpus. The ISO/IEC 29500 Strict variant is
-  explicitly out of scope today and remains pass-through only.
-- 512 tests, all running in vitest under Node 22 and 24; the public surface
-  also runs in modern browsers (no Node-only dependencies in the published
-  bundles). The browser-preview tests run under happy-dom (jsdom's
-  cross-realm `Uint8Array` confused fflate's type guards).
-- CI gate runs typecheck, lint, format check, tests across Node 22 / 24,
-  AND the tree-shake budget check. Node 20 was dropped from the matrix
-  after it reached end-of-life on 2026-04-30.
+- 48ed589: `wrappedRuns(inline)` reads the runs inside a hyperlink, simple field, inline content control, smart tag, custom XML or bidi override. The editor canvas uses it so link text shows its own formatting, as Word does: the Hyperlink style for an ordinary link, and plain text for a table of contents entry, instead of always blue and underlined.
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [49e6e8a]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+  - @office-kit/docx@0.2.0
