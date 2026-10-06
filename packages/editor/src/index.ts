@@ -16,6 +16,14 @@ import { EditorModel } from "./model.js";
 export { EditorModel, type ChangeListener, type EditorSnapshot } from "./model.js";
 export { type Command, type FeatureGroup, runCommand } from "./commands/types.js";
 export type { SectionTarget } from "./commands/section.js";
+export type {
+  PastedBlock,
+  PastedParagraph,
+  PastedRun,
+  PastedRunFormat,
+  PastedTable,
+} from "./commands/structure.js";
+export { parseClipboardHtml } from "./clipboard-html.js";
 export { ALL_COMMANDS, COMMAND_IDS, commandsInGroup, getCommand } from "./commands/registry.js";
 // Named command objects + group arrays for typed UI wiring.
 export * as commands from "./commands/index.js";
@@ -103,7 +111,7 @@ export { AUTHOR_COLORS } from "./render-revisions.js";
 export { isEditingLocked, PROTECTED_MESSAGE, protectionRefusal } from "./protection-guard.js";
 export { type RawNode, rawTrees, allRawElements, xmlParts, partRawTree } from "./raw-tree.js";
 export { blocks, bodyOf, paragraphAt, paragraphsInRange } from "./doc-access.js";
-export { type RunRef, runsInRange } from "./selection-runs.js";
+export { releasePendingFormat, type RunRef, runsInRange } from "./selection-runs.js";
 export {
   type PageBackground,
   type ResolvedSection,

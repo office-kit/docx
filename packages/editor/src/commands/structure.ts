@@ -18,6 +18,10 @@ import {
   removeParagraph,
   removeTable,
   splitParagraphAt,
+  applyListToParagraph,
+  setParagraphStyle,
+  setRunFormat,
+  setRunValProp,
   type WmlInline,
   type WmlParagraph,
   type WmlRun,
@@ -32,6 +36,7 @@ import { caretAt, type DocPosition, orderSelection } from "../selection.js";
 import { WML_NS } from "../wml-ns.js";
 import {
   isEmptyParagraph,
+  isEmptyRun,
   isPlainTextRun,
   plainRunText,
   runAtPath,
@@ -45,6 +50,8 @@ import {
   trackedMergeBack,
 } from "../track-changes.js";
 import { caretBlockIndex, moveLastBlockAfter } from "./insert-util.js";
+import { newListId } from "./list-util.js";
+import { insertTableCommand } from "./table.js";
 import type { Command } from "./types.js";
 
 /**
@@ -456,26 +463,220 @@ export const insertTextCommand: Command<{ text: string }> = {
     if (!start) throw new Error("Insert text needs a caret position.");
     const [first = "", ...rest] = text.split(/\r\n|\r|\n/);
     let caret = insertIntoRun(model, start, first);
-    for (const line of rest) {
-      let next: DocPosition;
-      if (caret.cell) {
-        next = splitCellParagraph(model, caret);
-      } else {
-        const block = splitParagraphAt(
-          model.doc,
-          caret.block,
-          caret.inline ?? 0,
-          caret.offset ?? 0,
-        );
-        if (block < 0) throw new Error("The caret is not on a top-level paragraph.");
-        next = { block, inline: 0, offset: 0 };
+    for (const line of rest) caret = insertIntoRun(model, splitAt(model, caret), line);
+    model.setSelection(caretAt(caret));
+  },
+  isEnabled: (model) => !!model.selection,
+};
+
+/** Enter at `caret`: split its paragraph (in a cell, within the cell); the start of the second half. */
+function splitAt(model: EditorModel, caret: DocPosition): DocPosition {
+  if (caret.cell) return splitCellParagraph(model, caret);
+  const block = splitParagraphAt(model.doc, caret.block, caret.inline ?? 0, caret.offset ?? 0);
+  if (block < 0) throw new Error("The caret is not on a top-level paragraph.");
+  return { block, inline: 0, offset: 0 };
+}
+
+/** The character formatting a pasted run keeps from its source. */
+export interface PastedRunFormat {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: boolean;
+  readonly strike?: boolean;
+  readonly verticalAlign?: "superscript" | "subscript";
+  /** Six hex digits without `#`. */
+  readonly color?: string;
+}
+
+/** Pasted text in one formatting; `\t` is a tab and `\n` a line break. */
+export interface PastedRun {
+  readonly text: string;
+  readonly format: PastedRunFormat;
+}
+
+export interface PastedParagraph {
+  readonly kind: "paragraph";
+  readonly runs: readonly PastedRun[];
+  /** Heading 1–9, as the built-in heading style of that level. */
+  readonly heading?: number;
+  /** A list item; consecutive items of one kind form one list. */
+  readonly list?: { readonly kind: "bullet" | "numbered"; readonly level: number };
+}
+
+export interface PastedTable {
+  readonly kind: "table";
+  /** Rows of cells, each cell its paragraphs. */
+  readonly rows: ReadonlyArray<ReadonlyArray<readonly PastedParagraph[]>>;
+}
+
+/** Formatted content from the clipboard (see `parseClipboardHtml`). */
+export type PastedBlock = PastedParagraph | PastedTable;
+
+/** The list the previous pasted paragraph went into, which the next item of its kind continues. */
+type OpenList = { readonly kind: "bullet" | "numbered"; readonly numId: number } | undefined;
+
+/**
+ * Paste formatted content at the caret, replacing the selection, as one undo
+ * step. As in Word, the first pasted paragraph continues the caret's
+ * paragraph and the rest of that paragraph follows the last one; a pasted
+ * table goes between the two halves. Inside a table cell, pasted tables
+ * become their cells' paragraphs (nested tables are not supported).
+ */
+export const insertFragmentCommand: Command<{ blocks: readonly PastedBlock[] }> = {
+  id: "structure.insertFragment",
+  group: "structure",
+  label: "Paste",
+  run(model, { blocks }) {
+    if (isTrackingRevisions(model)) {
+      // A tracked paste is recorded as inserted text; its formatting would
+      // need tracked property changes of its own.
+      trackedInsertText(model, fragmentText(blocks));
+      return;
+    }
+    let caret = caretReplacingSelection(model);
+    if (!caret) throw new Error("Paste needs a caret position.");
+    let merge = true;
+    let list: OpenList;
+    const pasted = caret.cell ? flattenTables(blocks) : blocks;
+    // Text pasted within one paragraph takes the destination's paragraph
+    // formatting; pasted paragraphs bring their own (in Word, their marks).
+    const inline = pasted.length === 1 && pasted[0]?.kind === "paragraph";
+    for (const block of pasted) {
+      if (block.kind === "table") {
+        caret = insertPastedTable(model, caret, block);
+        merge = true;
+        list = undefined;
+        continue;
       }
-      caret = insertIntoRun(model, next, line);
+      if (!merge) caret = splitAt(model, caret);
+      const para = paragraphAt(model.doc, caret);
+      if (!para) throw new Error("The caret is not inside a paragraph.");
+      const fresh = !inline || isEmptyParagraph(para);
+      caret = insertPastedRuns(para, caret, block.runs);
+      if (fresh) list = formatPastedParagraph(model, para, block, list);
+      merge = false;
     }
     model.setSelection(caretAt(caret));
   },
   isEnabled: (model) => !!model.selection,
 };
+
+function pastedText(p: PastedParagraph): string {
+  return p.runs.map((r) => r.text).join("");
+}
+
+function fragmentText(blocks: readonly PastedBlock[]): string {
+  return blocks
+    .map((b) =>
+      b.kind === "paragraph"
+        ? pastedText(b)
+        : b.rows
+            .map((row) => row.map((cell) => cell.map(pastedText).join(" ")).join("\t"))
+            .join("\n"),
+    )
+    .join("\n");
+}
+
+function flattenTables(blocks: readonly PastedBlock[]): PastedParagraph[] {
+  return blocks.flatMap((b) => (b.kind === "paragraph" ? [b] : b.rows.flat(2)));
+}
+
+function buildPastedRun({ text, format }: PastedRun): WmlRun {
+  const run: WmlRun = { kind: "run", pieces: [], extras: [] };
+  for (const [i, line] of text.split("\n").entries()) {
+    if (i > 0) run.pieces.push({ kind: "break" });
+    const part: WmlRun = { kind: "run", pieces: [], extras: [] };
+    setSimpleRunText(part, line);
+    run.pieces.push(...part.pieces);
+  }
+  setRunFormat(run, {
+    ...(format.bold ? { bold: true } : {}),
+    ...(format.italic ? { italic: true } : {}),
+    ...(format.strike ? { strike: true } : {}),
+    ...(format.underline ? { underline: "single" } : {}),
+    ...(format.color ? { color: format.color } : {}),
+  });
+  if (format.verticalAlign) setRunValProp(run, "vertAlign", format.verticalAlign);
+  return run;
+}
+
+/** Put the runs in at the caret; the caret after them. */
+function insertPastedRuns(
+  para: WmlParagraph,
+  caret: DocPosition,
+  runs: readonly PastedRun[],
+): DocPosition {
+  const built = runs.filter((r) => r.text !== "").map(buildPastedRun);
+  const last = built.at(-1);
+  if (!last) return caret;
+  // The empty runs an empty paragraph or a split leaves would linger next to
+  // the pasted ones.
+  const at = absoluteOffset(para, caret);
+  para.children = para.children.filter((c) => !(c.kind === "run" && isEmptyRun(c)));
+  para.children.splice(childIndexAtCaret(para, positionAtOffset(para, at, caret)), 0, ...built);
+  const inline = para.children.filter((c) => c.kind === "run").indexOf(last);
+  return { ...caret, inline, offset: runTextLength(last) };
+}
+
+/** Give a pasted paragraph its heading style or list; returns the list it is in. */
+function formatPastedParagraph(
+  model: EditorModel,
+  para: WmlParagraph,
+  pasted: PastedParagraph,
+  open: OpenList,
+): OpenList {
+  if (pasted.heading !== undefined) {
+    ensureHeadingStyles(model.doc, pasted.heading);
+    setParagraphStyle(para, `Heading${pasted.heading}`);
+  }
+  if (!pasted.list) return undefined;
+  const { kind, level } = pasted.list;
+  const numId = open?.kind === kind ? open.numId : newListId(model.doc, kind);
+  if (numId === undefined) return undefined;
+  applyListToParagraph(model.doc, para, numId, level);
+  return { kind, numId };
+}
+
+/**
+ * A pasted table between the halves of the caret's paragraph (a caret at its
+ * start leaves no empty half before it); the caret moves to the second half.
+ */
+function insertPastedTable(
+  model: EditorModel,
+  caret: DocPosition,
+  pasted: PastedTable,
+): DocPosition {
+  const rows = pasted.rows.length;
+  const cols = Math.max(0, ...pasted.rows.map((row) => row.length));
+  if (rows === 0 || cols === 0) return caret;
+  splitAt(model, caret);
+  model.setSelection(caretAt({ ...caret, inline: 0, offset: 0 }));
+  insertTableCommand.run(model, { rows, cols });
+  const blocks = model.doc.document.body.blocks;
+  const table = blocks[caret.block + 1];
+  if (table?.kind !== "table") throw new Error("The pasted table was not inserted.");
+  let list: OpenList;
+  table.rows.forEach((row, r) =>
+    row.cells.forEach((cell, c) => {
+      const paras = pasted.rows[r]?.[c] ?? [];
+      if (paras.length === 0) return;
+      cell.paragraphs = paras.map((p) => {
+        const para: WmlParagraph = { kind: "paragraph", children: [], extras: [] };
+        insertPastedRuns(para, { block: 0, inline: 0, offset: 0 }, p.runs);
+        para.children = ensureRun(para.children);
+        list = formatPastedParagraph(model, para, p, list);
+        return para;
+      });
+    }),
+  );
+  const head = blocks[caret.block];
+  let tail = caret.block + 2;
+  if (head?.kind === "paragraph" && isEmptyParagraph(head) && !sectPrOf(head)) {
+    blocks.splice(caret.block, 1);
+    tail--;
+  }
+  return { ...(caret.story ? { story: caret.story } : {}), block: tail, inline: 0, offset: 0 };
+}
 
 export const insertParagraphCommand: Command<{ text?: string; options?: AppendParagraphOptions }> =
   {
@@ -583,6 +784,7 @@ function countKind(model: EditorModel, kind: "table" | "paragraph", blockIndex: 
 
 export const structureCommands = [
   insertTextCommand,
+  insertFragmentCommand,
   insertParagraphCommand,
   splitParagraphCommand,
   mergeBackCommand,

@@ -14,7 +14,7 @@ import {
   type WmlRun,
 } from "@office-kit/docx";
 import { describe, expect, it } from "vitest";
-import { editorFor } from "../index.js";
+import { editorFor, releasePendingFormat } from "../index.js";
 import type { EditorModel } from "../model.js";
 import { insertTextCommand } from "./structure.js";
 import { toggleBoldCommand, toggleItalicCommand } from "./text.js";
@@ -179,6 +179,43 @@ describe("character formatting at a caret (Word)", () => {
     expect(runProfile(model)).toEqual([
       ["Hello", false],
       ["", false],
+    ]);
+  });
+
+  it("drops the pending run when the caret moves on without typing", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Hello world"] }));
+    caret(model, 0, 5);
+    runCommand(model, toggleBoldCommand, undefined);
+    expect(runProfile(model)).toEqual([
+      ["Hello", false],
+      ["", true],
+      [" world", false],
+    ]);
+    // The caret moves into " world" (run 2 before the drop, run 1 after).
+    const moved = releasePendingFormat(model, {
+      anchor: { block: 0, inline: 2, offset: 3 },
+      focus: { block: 0, inline: 2, offset: 3 },
+    });
+    expect(moved?.focus).toEqual({ block: 0, inline: 1, offset: 3 });
+    expect(runProfile(model)).toEqual([
+      ["Hello", false],
+      [" world", false],
+    ]);
+  });
+
+  it("keeps the pending run while the caret stays on it, and once text is typed", () => {
+    const model = editorFor(createDocx({ paragraphs: ["Hello"] }));
+    caret(model, 0, 5);
+    runCommand(model, toggleBoldCommand, undefined);
+    const here = model.selection!;
+    expect(releasePendingFormat(model, here)).toBeUndefined();
+    runCommand(model, insertTextCommand, { text: "!" });
+    expect(
+      releasePendingFormat(model, { anchor: { block: 0 }, focus: { block: 0 } }),
+    ).toBeUndefined();
+    expect(runProfile(model)).toEqual([
+      ["Hello", false],
+      ["!", true],
     ]);
   });
 });
