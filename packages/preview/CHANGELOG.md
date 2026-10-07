@@ -1,5 +1,30 @@
 # @office-kit/docx-preview
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [49e6e8a]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+- Updated dependencies [48ed589]
+  - @office-kit/docx@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes
