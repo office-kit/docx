@@ -1,5 +1,14 @@
 # word-kit-site
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [a5fe1b8]
+  - @office-kit/docx@0.2.1
+  - @office-kit/docx-editor@0.1.1
+  - @office-kit/docx-preview@0.1.2
+
 ## 0.0.2
 
 ### Patch Changes
