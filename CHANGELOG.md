@@ -7,12 +7,10 @@
 - 48ed589: `contentControlBlocks(block)` reads the paragraphs and tables inside a block-level content control (`<w:sdt>`), the wrapper Word puts around cover pages, watermarks and tables of contents. The editor canvas uses it to show that content (read-only) instead of a "preserved content" placeholder, so watermarks and cover pages now appear on the page.
 - 48ed589: `addTableOfContents`, `appendMergeField` and `addBookmark` are deprecated in favour of `insertTableOfContents`, `insertMergeField` and `insertBookmark`, which do the same and more (any position, computed TOC entries, bookmarks over part of a paragraph). The deprecated functions keep working until the next major release.
 - 49e6e8a: `setParagraphIndent` and `setParagraphSpacing` take East Asian units, as Japanese and Chinese Word write them:
-
   - Indents in hundredths of a character: `leftChars`, `rightChars`, `firstLineChars` and `hangingChars` ("2 字" is `200`).
   - Spacing in hundredths of a line: `beforeLines` and `afterLines` ("0.5 行" is `50`).
 
 - 48ed589: Headers, footers and notes can now be read and edited as stories of their own.
-
   - `@office-kit/docx`:
     - `storyBody` / `storyView` give typed access to the body of a header, footer, footnote, endnote or comment. Edits to it are saved with the document.
     - `sectionProperties`, `resolveHeaderFooter`, `ensureHeaderFooter`, `isHeaderFooterLinked` and `setHeaderFooterLinked` resolve a section's first, even or default header or footer, including what it inherits from the previous section, and support "Link to Previous".
@@ -29,12 +27,10 @@
       - footnote areas.
 
 - 48ed589: Add Word's Design and Layout features.
-
   - `@office-kit/docx`: section layout (`getSectionProperties`, `setSectionProperties` and `insertSectionBreak` for columns, line numbering, page borders, the document grid, vertical alignment, text direction and section start), with a `scope` for `setPageSize`, `setPageMargins` and `setPageOrientation`. Also themes (`setTheme`, `setThemeColors`, `setThemeFonts`, `setThemeEffects`, `getTheme`, plus the built-in Office themes and schemes), style sets (`applyStyleSet`, `currentStyleSet`), default paragraph spacing, page colour including gradient fills (`setPageColor`), and text or picture watermarks (`setWatermark`, `getWatermark`). Document settings are now written in schema order.
   - `@office-kit/docx-editor`: `design.*` and `layout.*` commands for the Design and Layout ribbon tabs and the Page Setup, Columns, Line Numbers, Hyphenation, Text Direction and Page Borders dialogs. Section commands take a `target` of the whole document, the caret section or "this point forward". Also adds the `resolveSectionLayout`, `resolvePageBackground`, `resolveTheme` and `themePalette` helpers.
 
 - 48ed589: Word's Home tab formatting.
-
   - `@office-kit/docx` adds character and paragraph formatting helpers:
     - Theme colours (`setRunColor`) and every underline style with an underline colour (`setRunUnderline`).
     - Theme fonts (`setRunFont`), character shading and borders (`setRunShading`, `setRunBorder`).
@@ -53,7 +49,6 @@
 - 48ed589: feat: Word's Insert tab — fields, links, symbols, equations, pages and page numbers
 
   `@office-kit/docx` can now place what Word's Insert tab places at a character offset of a paragraph:
-
   - Complex fields (`insertField`, `buildComplexField`) with computed results. DATE/TIME (`\@` pictures with localized month and day names via `lang`), document properties, statistics, `=` formulas, IF/COMPARE, SEQ, REF/PAGEREF/NOTEREF, USERNAME and more. `updateFields` recomputes them, `complexFields` lists them, and `insertFormField` writes legacy form fields.
   - Links with ScreenTips, target frames and in-document anchors (`insertHyperlink`, `editHyperlink`, `removeHyperlink`, `paragraphHyperlinks`).
   - Range bookmarks (`insertBookmark`) and Word's hidden `_Ref` bookmarks for cross-references (`ensureReferenceBookmark`).
@@ -63,14 +58,12 @@
   - Cover pages, header and footer content, page numbers and their format (`pgNumType`), and merging another document's body with its styles, lists and relationships (`insertDocumentContent`).
 
   `@office-kit/docx-editor` adds commands for all of these, plus:
-
   - Queries the Insert dialogs need: headings, bookmarks, notes, numbered items and captions to reference, the link at the caret, and the equation under a rendered element.
   - Canvas rendering of field results (with a field-code view), symbol-font characters, and equations as MathML.
 
 - 48ed589: Pictures, charts and object arrangement.
 
   `@office-kit/docx` adds a picture API (`src/api/picture.ts`):
-
   - `readDrawing` reads a `<w:drawing>`: wrap, anchor position, crop, shape, border, effects, color adjustments and image.
   - Arrange: `setDrawingWrap`, `setDrawingPosition`, `setDrawingAnchorOptions`, `arrangeDrawing` (Bring Forward / Send Backward and their variants), `setDrawingTransform`, `setDrawingName`, `setDrawingHidden`, `setDrawingAspectLock`, `setDrawingHyperlink` and `removeDrawing`.
   - Picture formatting: `setPictureCrop`, `setPictureGeometry`, `setPictureOutline`, `setPictureEffects`, `setPictureColorAdjustments`, `changePicture` and `resetPicture`.
@@ -82,13 +75,11 @@
   Fixed: `setImageSizeEmu` no longer writes into an `a:ext` that sits inside an extension list.
 
   `@office-kit/docx-editor` adds:
-
   - Rendering for floating and inline pictures and charts: wrapping, z-order, rotation, crop, effects and blip adjustments.
   - `layoutFloatingObjects` and `floatFrameStart` for placing floating objects in the browser.
   - Picture, arrange and chart commands, including `drawing.layout` for the Layout Options dialog and `chart.insert` / `chart.edit`.
 
 - 48ed589: feat: Word's References and Mailings features, with field results computed so a saved document reads correctly before Word updates it.
-
   - **References** (`@office-kit/docx`):
     - Tables of contents and tables of figures: `insertTableOfContents`, `removeTableOfContents`, `setTocLevel`, and `updateTables`. Page numbers come from an optional page provider.
     - Footnotes and endnotes: `insertNote`, `noteMarks` (numbering per `w:footnotePr` / `w:endnotePr`), `setNoteProperties`, `noteText` / `setNoteText`, and `convertNotes`.
@@ -106,7 +97,6 @@
 - 48ed589: Review and View features.
 
   `@office-kit/docx`:
-
   - Tracked changes: `revisions`, `acceptRevisions` / `rejectRevisions` by id, and recording edits as tracked (`insertTrackedText`, `deleteTrackedText`, `trackParagraphMark`, `trackRunFormatChange`, `trackParagraphFormatChange`). Runs inside `<w:ins>` / `<w:del>` now parse as runs that carry `revision`, so they are editable and save back as the same wrappers.
   - `compareDocuments`: diffs two documents into a new document of tracked changes.
   - Comments: `comments`, `setCommentText` and `removeComment`. `addComment` accepts a `range`.
@@ -117,7 +107,6 @@
   - Settings written through `setDocumentSettingOnOff` / `Val` now follow the schema order of `CT_Settings`.
 
   `@office-kit/docx-editor`:
-
   - While Track Changes is on, typing, deleting, splitting and merging paragraphs, and formatting are recorded as revisions.
   - Review commands: comments, accept / reject, language, protection.
   - Outline commands: level, promote / demote, move.
@@ -126,7 +115,6 @@
   - `protectionRefusal` / `isEditingLocked`, so a UI can honour Restrict Editing.
 
 - 48ed589: Shapes, text boxes, WordArt, ink and SmartArt.
-
   - `@office-kit/docx`: build and edit VML shapes (`addShape` with about 120 Word presets, `addWordArt`, ink strokes, `addDrawingCanvas`, groups), with fill (solid, gradient, pattern, picture), outline, shadow, layout, wrapping, z-order, alt text, linked text boxes and vertical text. Insert and edit SmartArt graphics (`addSmartArt`, `setSmartArtNodes`, layouts, colours, styles, size, `removeSmartArt`) as ECMA-376 DrawingML diagram parts. Existing VML from Word documents is read, including shape types.
   - `@office-kit/docx-editor`: renders VML shapes, text boxes, WordArt, ink and SmartArt on the canvas (`renderPictHtml` is exported for watermarks), with commands for every Shape Format, SmartArt Design and Draw tab action, editable text boxes, and Ink to Shape recognition (`recognizeInkShape`).
 
@@ -157,7 +145,6 @@
   `<w:color w:val>` / `<w:sz w:val>`. Values like `"red"`, `"#FF0000"`, `-1`,
   `23.5` or `NaN` produced files that do not conform to the schema. These writers
   now throw a `RangeError`, before changing anything, unless:
-
   - `color` is six hex digits without `#` (either case) or `"auto"` (ST_HexColor);
   - `fontSizeHalfPoints` is a non-negative safe integer (ST_HpsMeasure). `0` stays
     valid; there is no application-specific upper bound.
@@ -216,7 +203,6 @@
 
   The library gains generic property setters so the editor can reach the long
   tail of WordprocessingML formatting without a bespoke function per element:
-
   - run / paragraph: `setRunOnOff` / `setRunValProp` / `getRunProp` and the
     `setParagraphOnOff` / `setParagraphValProp` / `getParagraphProp` equivalents;
   - any properties container: `setElementOnOff` / `setElementValProp` /
@@ -268,7 +254,6 @@
   `w:rsid*`. They are now kept on save. The parsed nodes carry them as an
   optional `attrs` field.
 - 48ed589: fix: find / replace reach table cells, unit font sizes read correctly, and range state sees middle runs
-
   - `findText` and `replaceText` (and the body part of `findTextEverywhere` /
     `replaceTextEverywhere`) skipped every paragraph inside a table cell, despite
     promising "every paragraph" / "every occurrence". They now include cell
@@ -288,7 +273,6 @@
     applies it to the whole range.
 
 - 48ed589: Fix two problems that showed up when the file was opened in Word:
-
   - `addWordArt` now writes the text-path shape type (`_x0000_t136`) that the shape refers to. Without it, Word drew a broken-picture placeholder.
   - In a section with no `w:pgMar`, tables of contents, indexes and other generated content now place their right tab at Word's default margins (1 in each side). Before, the tab sat at the page edge.
 
@@ -317,7 +301,6 @@ this file is a hand-curated overview.
   standalone functions instead of classes. The motivation is
   tree-shaking: classes carry every method along with the prototype,
   so a bundler can't drop unused operations once an instance escapes.
-
   - `Docx` is an `interface` (just `{ opc, document, partName, … }`).
   - `Docx.create(…)` → `createDocx(…)`. `Docx.open(bytes)` → `openDocx(bytes)`.
     `Docx.fromBlob(blob)` → `fromBlob(blob)`.

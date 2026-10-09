@@ -54,6 +54,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "changeset": "changeset",
+    "version-packages": "changeset version && oxfmt",
     "release": "pnpm build:packages && changeset publish",
     "prepublishOnly": "pnpm run build"
   },
