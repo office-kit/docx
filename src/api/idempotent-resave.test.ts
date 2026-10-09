@@ -8,7 +8,7 @@
 // save+open cycles. If they differ, the library is non-deterministic
 // or re-flushes side parts unnecessarily, and we'd want to know.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addBookmark,
   addBulletList,
@@ -97,5 +97,20 @@ describe("idempotent re-save", () => {
     const bytesB = toUint8Array(reopened);
     const bytesC = reSaveCycle(bytesB);
     expect(bytesC).toEqual(bytesB);
+  });
+
+  describe("saving at another time", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("produces the same bytes (no save time in the archive)", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2026, 0, 1, 12, 0, 0));
+      const doc = createDocx({ paragraphs: ["body"] });
+      const first = toUint8Array(doc);
+      vi.setSystemTime(new Date(2026, 5, 30, 23, 59, 59));
+      expect(toUint8Array(doc)).toEqual(first);
+    });
   });
 });
