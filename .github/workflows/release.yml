@@ -77,10 +77,11 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          # `pnpm changeset version` consumes pending changesets and writes the
-          # version bump + CHANGELOG. `pnpm release` is the project-defined
-          # publish script (typically `changeset publish`).
-          version: pnpm changeset version
+          # `pnpm version-packages` consumes pending changesets, writes the
+          # version bump + CHANGELOG, then formats them: changesets' CHANGELOG
+          # output does not match oxfmt, and CI checks formatting. `pnpm
+          # release` is the project-defined publish script.
+          version: pnpm version-packages
           publish: pnpm release
           title: "chore(release): version packages"
           commit: "chore(release): version packages"

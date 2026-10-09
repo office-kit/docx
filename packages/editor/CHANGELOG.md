@@ -36,7 +36,6 @@
 
   The library gains generic property setters so the editor can reach the long
   tail of WordprocessingML formatting without a bespoke function per element:
-
   - run / paragraph: `setRunOnOff` / `setRunValProp` / `getRunProp` and the
     `setParagraphOnOff` / `setParagraphValProp` / `getParagraphProp` equivalents;
   - any properties container: `setElementOnOff` / `setElementValProp` /
@@ -84,7 +83,6 @@
   section break to the second half instead of duplicating it.
 
 - 48ed589: feat: the editor reports and writes formatting the way Microsoft Word does
-
   - New `createStyleResolver(doc)` returns a paragraph's and a run's effective
     formatting: document defaults, the paragraph style's `basedOn` chain, the
     character style and direct formatting, with theme fonts looked up. The canvas
@@ -106,7 +104,6 @@
     margins and borders (none when the document defines none).
 
 - 48ed589: Headers, footers and notes can now be read and edited as stories of their own.
-
   - `@office-kit/docx`:
     - `storyBody` / `storyView` give typed access to the body of a header, footer, footnote, endnote or comment. Edits to it are saved with the document.
     - `sectionProperties`, `resolveHeaderFooter`, `ensureHeaderFooter`, `isHeaderFooterLinked` and `setHeaderFooterLinked` resolve a section's first, even or default header or footer, including what it inherits from the previous section, and support "Link to Previous".
@@ -123,12 +120,10 @@
       - footnote areas.
 
 - 48ed589: Add Word's Design and Layout features.
-
   - `@office-kit/docx`: section layout (`getSectionProperties`, `setSectionProperties` and `insertSectionBreak` for columns, line numbering, page borders, the document grid, vertical alignment, text direction and section start), with a `scope` for `setPageSize`, `setPageMargins` and `setPageOrientation`. Also themes (`setTheme`, `setThemeColors`, `setThemeFonts`, `setThemeEffects`, `getTheme`, plus the built-in Office themes and schemes), style sets (`applyStyleSet`, `currentStyleSet`), default paragraph spacing, page colour including gradient fills (`setPageColor`), and text or picture watermarks (`setWatermark`, `getWatermark`). Document settings are now written in schema order.
   - `@office-kit/docx-editor`: `design.*` and `layout.*` commands for the Design and Layout ribbon tabs and the Page Setup, Columns, Line Numbers, Hyphenation, Text Direction and Page Borders dialogs. Section commands take a `target` of the whole document, the caret section or "this point forward". Also adds the `resolveSectionLayout`, `resolvePageBackground`, `resolveTheme` and `themePalette` helpers.
 
 - 48ed589: Word's Home tab formatting.
-
   - `@office-kit/docx` adds character and paragraph formatting helpers:
     - Theme colours (`setRunColor`) and every underline style with an underline colour (`setRunUnderline`).
     - Theme fonts (`setRunFont`), character shading and borders (`setRunShading`, `setRunBorder`).
@@ -147,7 +142,6 @@
 - 48ed589: feat: Word's Insert tab — fields, links, symbols, equations, pages and page numbers
 
   `@office-kit/docx` can now place what Word's Insert tab places at a character offset of a paragraph:
-
   - Complex fields (`insertField`, `buildComplexField`) with computed results. DATE/TIME (`\@` pictures with localized month and day names via `lang`), document properties, statistics, `=` formulas, IF/COMPARE, SEQ, REF/PAGEREF/NOTEREF, USERNAME and more. `updateFields` recomputes them, `complexFields` lists them, and `insertFormField` writes legacy form fields.
   - Links with ScreenTips, target frames and in-document anchors (`insertHyperlink`, `editHyperlink`, `removeHyperlink`, `paragraphHyperlinks`).
   - Range bookmarks (`insertBookmark`) and Word's hidden `_Ref` bookmarks for cross-references (`ensureReferenceBookmark`).
@@ -157,14 +151,12 @@
   - Cover pages, header and footer content, page numbers and their format (`pgNumType`), and merging another document's body with its styles, lists and relationships (`insertDocumentContent`).
 
   `@office-kit/docx-editor` adds commands for all of these, plus:
-
   - Queries the Insert dialogs need: headings, bookmarks, notes, numbered items and captions to reference, the link at the caret, and the equation under a rendered element.
   - Canvas rendering of field results (with a field-code view), symbol-font characters, and equations as MathML.
 
 - 48ed589: Pictures, charts and object arrangement.
 
   `@office-kit/docx` adds a picture API (`src/api/picture.ts`):
-
   - `readDrawing` reads a `<w:drawing>`: wrap, anchor position, crop, shape, border, effects, color adjustments and image.
   - Arrange: `setDrawingWrap`, `setDrawingPosition`, `setDrawingAnchorOptions`, `arrangeDrawing` (Bring Forward / Send Backward and their variants), `setDrawingTransform`, `setDrawingName`, `setDrawingHidden`, `setDrawingAspectLock`, `setDrawingHyperlink` and `removeDrawing`.
   - Picture formatting: `setPictureCrop`, `setPictureGeometry`, `setPictureOutline`, `setPictureEffects`, `setPictureColorAdjustments`, `changePicture` and `resetPicture`.
@@ -176,13 +168,11 @@
   Fixed: `setImageSizeEmu` no longer writes into an `a:ext` that sits inside an extension list.
 
   `@office-kit/docx-editor` adds:
-
   - Rendering for floating and inline pictures and charts: wrapping, z-order, rotation, crop, effects and blip adjustments.
   - `layoutFloatingObjects` and `floatFrameStart` for placing floating objects in the browser.
   - Picture, arrange and chart commands, including `drawing.layout` for the Layout Options dialog and `chart.insert` / `chart.edit`.
 
 - 48ed589: feat: Word's References and Mailings features, with field results computed so a saved document reads correctly before Word updates it.
-
   - **References** (`@office-kit/docx`):
     - Tables of contents and tables of figures: `insertTableOfContents`, `removeTableOfContents`, `setTocLevel`, and `updateTables`. Page numbers come from an optional page provider.
     - Footnotes and endnotes: `insertNote`, `noteMarks` (numbering per `w:footnotePr` / `w:endnotePr`), `setNoteProperties`, `noteText` / `setNoteText`, and `convertNotes`.
@@ -200,7 +190,6 @@
 - 48ed589: Review and View features.
 
   `@office-kit/docx`:
-
   - Tracked changes: `revisions`, `acceptRevisions` / `rejectRevisions` by id, and recording edits as tracked (`insertTrackedText`, `deleteTrackedText`, `trackParagraphMark`, `trackRunFormatChange`, `trackParagraphFormatChange`). Runs inside `<w:ins>` / `<w:del>` now parse as runs that carry `revision`, so they are editable and save back as the same wrappers.
   - `compareDocuments`: diffs two documents into a new document of tracked changes.
   - Comments: `comments`, `setCommentText` and `removeComment`. `addComment` accepts a `range`.
@@ -211,7 +200,6 @@
   - Settings written through `setDocumentSettingOnOff` / `Val` now follow the schema order of `CT_Settings`.
 
   `@office-kit/docx-editor`:
-
   - While Track Changes is on, typing, deleting, splitting and merging paragraphs, and formatting are recorded as revisions.
   - Review commands: comments, accept / reject, language, protection.
   - Outline commands: level, promote / demote, move.
@@ -220,7 +208,6 @@
   - `protectionRefusal` / `isEditingLocked`, so a UI can honour Restrict Editing.
 
 - 48ed589: Shapes, text boxes, WordArt, ink and SmartArt.
-
   - `@office-kit/docx`: build and edit VML shapes (`addShape` with about 120 Word presets, `addWordArt`, ink strokes, `addDrawingCanvas`, groups), with fill (solid, gradient, pattern, picture), outline, shadow, layout, wrapping, z-order, alt text, linked text boxes and vertical text. Insert and edit SmartArt graphics (`addSmartArt`, `setSmartArtNodes`, layouts, colours, styles, size, `removeSmartArt`) as ECMA-376 DrawingML diagram parts. Existing VML from Word documents is read, including shape types.
   - `@office-kit/docx-editor`: renders VML shapes, text boxes, WordArt, ink and SmartArt on the canvas (`renderPictHtml` is exported for watermarks), with commands for every Shape Format, SmartArt Design and Draw tab action, editable text boxes, and Ink to Shape recognition (`recognizeInkShape`).
 
@@ -251,7 +238,6 @@
   `<w:color w:val>` / `<w:sz w:val>`. Values like `"red"`, `"#FF0000"`, `-1`,
   `23.5` or `NaN` produced files that do not conform to the schema. These writers
   now throw a `RangeError`, before changing anything, unless:
-
   - `color` is six hex digits without `#` (either case) or `"auto"` (ST_HexColor);
   - `fontSizeHalfPoints` is a non-negative safe integer (ST_HpsMeasure). `0` stays
     valid; there is no application-specific upper bound.
@@ -278,7 +264,6 @@
 
 - 48ed589: `contentControlBlocks(block)` reads the paragraphs and tables inside a block-level content control (`<w:sdt>`), the wrapper Word puts around cover pages, watermarks and tables of contents. The editor canvas uses it to show that content (read-only) instead of a "preserved content" placeholder, so watermarks and cover pages now appear on the page.
 - ecb138d: Editing fixes found by adversarial testing:
-
   - Deleting or typing over a selection that crosses table cells no longer fails silently: within one table the covered cells are emptied, and a selection that leaves the table deletes the rows it touches, as in Word.
   - Backspace at the start of a paragraph after a table no longer joins it to the paragraph above the table. An empty paragraph there is removed and the caret moves to the table's last cell.
   - Bold, italic, font and other character formatting with a caret (no selection) now behaves like Word: inside a word it formats the whole word (Japanese words included); elsewhere it applies to the text typed next instead of the whole run.
@@ -286,14 +271,12 @@
   - New `isEmptyParagraph` export.
 
 - d1523b7: `setFontCommand` now treats East Asian fonts the way Word's font box does:
-
   - An East Asian font, such as 游明朝, ＭＳ ゴシック or SimSun, is applied to East Asian text as well as Latin text.
   - A Latin font, such as Arial, changes only the Latin text, so Japanese text keeps its font.
 
   Two new exports, `isEastAsianFont` and `hasEastAsianText`, expose the checks this uses.
 
 - 49e6e8a: The canvas now lays out Japanese and Chinese documents the way Word does. Line heights and spacing were checked against Japanese Word for Mac 16:
-
   - **Vertical text (縦書き).** A section with `textDirection` `tbRl` is laid out top to bottom, right to left, and pages break where Word breaks them.
   - **Document grid (§17.6.5).** Lines snap to whole grid lines; for example, 10.5 pt 游明朝 takes one 18 pt line and 28 pt takes three. Auto line spacing scales the grid line, as in Word. A character grid spaces the characters out to the grid pitch.
   - **East Asian units.** Indents in characters and spacing in lines are converted to points.
@@ -309,7 +292,6 @@
 
 - baf2d5c: The editor keeps a paragraph after a table that ends the document, as Word does. Before, there was no way to type below such a table. This affected documents that end with a table, and tables inserted at the end of a document.
 - 4dd27ca: Formatted paste and pending formatting:
-
   - New `insertFragmentCommand` and `parseClipboardHtml`: pasting HTML (from Word, a web page, Google Docs or the editor itself) keeps bold, italic, underline, strikethrough, superscript / subscript, text color, headings, bullet and numbered lists with their levels, line breaks, tabs and tables. As in Word, the first pasted paragraph continues the caret's paragraph and a pasted table goes between its halves; inside a table cell a pasted table becomes paragraphs.
   - New `releasePendingFormat`: formatting set at a caret (Bold with no selection, say) and left without typing is dropped once the caret moves on, as in Word, instead of leaving an empty run behind.
 
@@ -319,7 +301,6 @@
 
 - 48ed589: Style resolution follows more of ECMA-376: toggle properties (bold, italic, caps …) toggle across the table, paragraph and character style levels (§17.7.3), list numbers take their level's run properties (§17.9.24), and complex-script text (Arabic, Hebrew, Thai …) uses its own bold, italic, size and font (`bCs`, `iCs`, `szCs`, `w:cs`). The canvas lists the East Asian and complex-script fonts after the Latin one, so each script draws in its own font.
 - 48ed589: The canvas now lays out tabs against the paragraph's tab stops, as Word does:
-
   - Custom stops are inherited through styles, and `clear` stops remove inherited ones.
   - Past the custom stops, tabs go to the document's default tab interval.
   - Right, center and decimal stops align the text that follows the tab.
@@ -330,7 +311,6 @@
   Drop caps (`w:framePr w:dropCap`) float into the lines of the paragraph that follows them, instead of sitting on a line of their own.
 
 - 48ed589: fix: find / replace reach table cells, unit font sizes read correctly, and range state sees middle runs
-
   - `findText` and `replaceText` (and the body part of `findTextEverywhere` /
     `replaceTextEverywhere`) skipped every paragraph inside a table cell, despite
     promising "every paragraph" / "every occurrence". They now include cell
