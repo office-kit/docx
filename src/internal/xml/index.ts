@@ -5,7 +5,7 @@
  */
 
 export { decodeEntities, encodeAttrValue, encodeText } from "./entities.js";
-export { type ParseOptions, parseXml, XmlParseError } from "./parser.js";
+export { isXmlWhitespace, type ParseOptions, parseXml, XmlParseError } from "./parser.js";
 export { type SerializeOptions, serializeXml } from "./serializer.js";
 export {
   type QName,

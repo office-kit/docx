@@ -1,4 +1,10 @@
-import type { XmlAttr, XmlDocument, XmlElement, XmlNode } from "../xml/index.js";
+import {
+  isXmlWhitespace,
+  type XmlAttr,
+  type XmlDocument,
+  type XmlElement,
+  type XmlNode,
+} from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
 import type {
   PassThrough,
@@ -132,7 +138,7 @@ function parseRevisionRuns(el: XmlElement): WmlRun[] | undefined {
   if (!isWmlElement(el, "ins") && !isWmlElement(el, "del")) return undefined;
   const runs: WmlRun[] = [];
   for (const child of el.children) {
-    if (child.kind === "text" && child.value.trim() === "") continue;
+    if (child.kind === "text" && isXmlWhitespace(child.value)) continue;
     if (child.kind !== "element" || !isWmlElement(child, "r")) return undefined;
     runs.push(parseRun(child));
   }

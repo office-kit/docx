@@ -60,6 +60,21 @@ describe("parseXml", () => {
     expect(kinds).toEqual(["element", "element"]);
   });
 
+  // XML white space (production [3] `S`) is only U+0020, U+0009, U+000D and
+  // U+000A. `String.prototype.trim` also strips no-break and ideographic
+  // spaces, which are ordinary character data in XML.
+  it("keeps a text node made only of non-XML white space (#35)", () => {
+    for (const ch of [" ", " ", "　", " ", "﻿"]) {
+      const doc = parseXml(`<w:t xmlns:w="urn:test">${ch}</w:t>`);
+      expect(doc.root.children).toEqual([{ kind: "text", value: ch }]);
+    }
+  });
+
+  it("keeps a no-break space that mixes with XML white space between elements", () => {
+    const doc = parseXml("<root>\n  <a/>  \n  <b/>\n</root>");
+    expect(doc.root.children).toContainEqual({ kind: "text", value: "  \n  " });
+  });
+
   it("keeps interior whitespace when mixed with text", () => {
     const doc = parseXml("<root>hello <b/> world</root>");
     const kinds = doc.root.children.map((c) => c.kind);

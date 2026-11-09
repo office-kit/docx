@@ -61,6 +61,18 @@ function cursorExpect(c: Cursor, expected: string): void {
   c.index += expected.length;
 }
 
+const XML_WHITESPACE_ONLY = /^[ \t\r\n]*$/;
+
+/**
+ * Whether `text` holds only XML white space (production [3] `S`: space, tab,
+ * carriage return, line feed). Not `String.prototype.trim`, which also strips
+ * no-break, narrow no-break and ideographic spaces — ordinary character data
+ * in XML that Word writes alone in a run (French `Nom\u202f:`).
+ */
+export function isXmlWhitespace(text: string): boolean {
+  return XML_WHITESPACE_ONLY.test(text);
+}
+
 /** Skip XML whitespace (space, tab, newline, carriage return). */
 function cursorSkipWhitespace(c: Cursor): void {
   while (c.index < c.source.length) {
@@ -315,7 +327,7 @@ function parseElement(
     const rawText = cursorTakeUntil(c, "<");
     if (rawText.length === 0) continue;
     const value = decodeEntities(rawText);
-    if (xmlSpace === "preserve" || value.trim().length > 0 || hasNonElementSiblings(children)) {
+    if (xmlSpace === "preserve" || !isXmlWhitespace(value) || hasNonElementSiblings(children)) {
       children.push({ kind: "text", value });
     }
   }

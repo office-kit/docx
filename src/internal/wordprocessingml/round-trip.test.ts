@@ -114,6 +114,20 @@ describe("WML round-trip", () => {
     expect(out).toContain("<w:t>X</w:t>");
   });
 
+  it("keeps a no-break space that sits between the runs of a revision", () => {
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
+      "<w:body><w:p>",
+      '<w:ins w:id="1" w:author="A">',
+      "<w:r><w:t>a</w:t></w:r> <w:r><w:t>b</w:t></w:r>",
+      "</w:ins>",
+      "</w:p></w:body>",
+      "</w:document>",
+    ].join("");
+    expect(fullCycle(xml)).toContain("</w:r> <w:r>");
+  });
+
   it("returns AST-equivalent output (re-parse equals first parse)", () => {
     const xml = [
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
