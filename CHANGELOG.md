@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- a5fe1b8: `toUint8Array` now produces the same bytes for the same document whenever it is called. The ZIP entries used to carry the time of saving, so two saves of an unchanged document could differ; every entry is now dated 1980-01-01 00:00 (the earliest ZIP date). Word and other readers ignore these dates.
+- 5cfb5cf: Opening and saving a document no longer drops a no-break space (U+00A0), narrow no-break space (U+202F) or ideographic space (U+3000) that sits alone in its run. French text such as `Nom : Dupont` or `« Oui »` came back as `Nom: Dupont` and `«Oui»`, even in paragraphs that were never edited. Only XML white space (space, tab, carriage return, line feed) between elements is now treated as formatting (#35).
+
 ## 0.2.0
 
 ### Minor Changes
