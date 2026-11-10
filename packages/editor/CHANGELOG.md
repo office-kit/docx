@@ -1,5 +1,13 @@
 # @office-kit/docx-editor
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [a5fe1b8]
+- Updated dependencies [5cfb5cf]
+  - @office-kit/docx@0.2.1
+
 ## 0.1.0
 
 ### Minor Changes
