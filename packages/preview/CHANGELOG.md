@@ -1,5 +1,12 @@
 # @office-kit/docx-preview
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [7e01990]
+  - @office-kit/docx@0.2.2
+
 ## 0.1.2
 
 ### Patch Changes
