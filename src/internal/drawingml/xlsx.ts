@@ -14,7 +14,7 @@ import {
   setContentTypeDefault,
   writeOpcPackage,
 } from "../opc/index.js";
-import { escapeXml } from "./xml.js";
+import { encodeText } from "../xml/index.js";
 
 const SML_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -47,7 +47,7 @@ export function columnName(index: number): string {
 function cellMarkup(ref: string, value: CellValue): string {
   if (value === null) return "";
   if (typeof value === "number") return `<c r="${ref}"><v>${value}</v></c>`;
-  return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
+  return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${encodeText(value)}</t></is></c>`;
 }
 
 /** Write rows (row-major, first row first) as a one-sheet `.xlsx`. */

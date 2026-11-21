@@ -13,6 +13,8 @@
  * bytes verbatim — the package layer decides when to re-serialize.
  */
 
+import { encodeAttrValue } from "../xml/entities.js";
+
 export interface MiniElement {
   readonly name: string;
   readonly attrs: ReadonlyArray<readonly [string, string]>;
@@ -56,14 +58,6 @@ function decodeEntities(input: string): string {
     const ent = ENTITIES[body];
     return ent !== undefined ? ent : `&${body};`;
   });
-}
-
-function encodeAttrValue(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 function parseAttrs(body: string): Array<[string, string]> {

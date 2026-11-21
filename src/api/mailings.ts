@@ -34,7 +34,6 @@ import {
   childElement,
   elementFromXml,
   elementXml,
-  escapeXml,
   fieldRunsXml,
   type FlowField,
   inlinesFromXml,
@@ -63,6 +62,7 @@ import {
   insertInlinesAt,
   readSettings,
 } from "./part-helpers.js";
+import { encodeAttrValue, encodeText } from "../internal/xml/index.js";
 
 const SETTINGS_PART_NAME = "/word/settings.xml";
 const MAIL_MERGE_SOURCE_REL =
@@ -297,12 +297,12 @@ export function attachRecipientList(
     setOrderedChild(mm, elementFromXml('<w:connectString w:val=""/>'), MAIL_MERGE_ORDER);
     setOrderedChild(
       mm,
-      elementFromXml(`<w:query w:val="SELECT * FROM ${escapeXml(name)}"/>`),
+      elementFromXml(`<w:query w:val="SELECT * FROM ${encodeAttrValue(name)}"/>`),
       MAIL_MERGE_ORDER,
     );
     setOrderedChild(mm, elementFromXml(`<w:dataSource r:id="${source.id}"/>`), MAIL_MERGE_ORDER);
     const odso = elementFromXml(
-      `<w:odso><w:udl w:val=""/><w:table w:val="${escapeXml(table)}"/><w:src r:id="${odsoSource.id}"/><w:colDelim w:val="${COMMA_CODE}"/><w:fHdr/></w:odso>`,
+      `<w:odso><w:udl w:val=""/><w:table w:val="${encodeAttrValue(table)}"/><w:src r:id="${odsoSource.id}"/><w:colDelim w:val="${COMMA_CODE}"/><w:fHdr/></w:odso>`,
     );
     setOrderedChild(mm, odso, MAIL_MERGE_ORDER);
   });
@@ -398,7 +398,7 @@ export function setMailMergeFieldMap(
     const index = column === undefined ? -1 : columns.indexOf(column);
     if (index < 0)
       return '<w:fieldMapData><w:column w:val="0"/><w:lid w:val="en-US"/></w:fieldMapData>';
-    return `<w:fieldMapData><w:type w:val="dbColumn"/><w:name w:val="${escapeXml(column as string)}"/><w:mappedName w:val="${escapeXml(field)}"/><w:column w:val="${index}"/><w:lid w:val="en-US"/></w:fieldMapData>`;
+    return `<w:fieldMapData><w:type w:val="dbColumn"/><w:name w:val="${encodeAttrValue(column as string)}"/><w:mappedName w:val="${encodeAttrValue(field)}"/><w:column w:val="${index}"/><w:lid w:val="en-US"/></w:fieldMapData>`;
   });
   editMailMerge(doc, (mm) => {
     let odso = findChild(mm, "odso");
@@ -700,15 +700,15 @@ function comparisonXml(
   const op = comparison === "isBlank" ? "=" : comparison === "isNotBlank" ? "<>" : comparison;
   const right = comparison === "isBlank" || comparison === "isNotBlank" ? "" : (value ?? "");
   // The compared field is nested, so its current value takes part in the test.
-  return `${fieldRunsXml(mergeFieldInstruction(field), textRunXml(`«${field}»`))}<w:r><w:instrText xml:space="preserve"> ${escapeXml(op)} ${escapeXml(quotedFieldArg(right))} </w:instrText></w:r>`;
+  return `${fieldRunsXml(mergeFieldInstruction(field), textRunXml(`«${field}»`))}<w:r><w:instrText xml:space="preserve"> ${encodeText(op)} ${encodeText(quotedFieldArg(right))} </w:instrText></w:r>`;
 }
 
 function nestedFieldXml(head: string, middleXml: string, tail: string, resultXml: string): string {
   return [
     '<w:r><w:fldChar w:fldCharType="begin"/></w:r>',
-    `<w:r><w:instrText xml:space="preserve"> ${escapeXml(head)} </w:instrText></w:r>`,
+    `<w:r><w:instrText xml:space="preserve"> ${encodeText(head)} </w:instrText></w:r>`,
     middleXml,
-    tail ? `<w:r><w:instrText xml:space="preserve">${escapeXml(tail)} </w:instrText></w:r>` : "",
+    tail ? `<w:r><w:instrText xml:space="preserve">${encodeText(tail)} </w:instrText></w:r>` : "",
     '<w:r><w:fldChar w:fldCharType="separate"/></w:r>',
     resultXml,
     '<w:r><w:fldChar w:fldCharType="end"/></w:r>',

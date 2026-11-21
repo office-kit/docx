@@ -223,7 +223,7 @@ describe("merge fields", () => {
     expect(xml).toContain(" NEXT ");
     expect(xml).toMatch(/NEXTIF <\/w:instrText>.*?MERGEFIELD City.*? = "" /);
     expect(xml).toContain('SET Fee "10"');
-    expect(xml).toMatch(/SKIPIF <\/w:instrText>.*?MERGEFIELD State.*? &lt;> "VA" /);
+    expect(xml).toMatch(/SKIPIF <\/w:instrText>.*?MERGEFIELD State.*? &lt;&gt; "VA" /);
     expect(() =>
       insertMergeRule(doc, p, 0, { kind: "setBookmark", bookmark: "1 bad", value: "" }),
     ).toThrow();

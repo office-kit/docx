@@ -4,10 +4,10 @@
  * (Word's own included) as far as the spec can describe it.
  */
 
-import { parseXml, type XmlElement } from "../xml/index.js";
+import { encodeText, parseXml, type XmlElement } from "../xml/index.js";
 import { readColor, srgbMarkup } from "./color.js";
 import { type CellValue, columnName, SHEET_NAME } from "./xlsx.js";
-import { A_NS, attr, C_NS, child, descendant, elementChildren, escapeXml, path } from "./xml.js";
+import { A_NS, attr, C_NS, child, descendant, elementChildren, path } from "./xml.js";
 
 /** Insert Chart's chart families (the ECMA-376 `c:` chart types). */
 export type ChartKind =
@@ -81,7 +81,7 @@ function absRef(col: number, row: number): string {
 }
 
 function strCache(values: readonly string[]): string {
-  const pts = values.map((v, i) => `<c:pt idx="${i}"><c:v>${escapeXml(v)}</c:v></c:pt>`).join("");
+  const pts = values.map((v, i) => `<c:pt idx="${i}"><c:v>${encodeText(v)}</c:v></c:pt>`).join("");
   return `<c:strCache><c:ptCount val="${values.length}"/>${pts}</c:strCache>`;
 }
 
@@ -237,7 +237,7 @@ export function chartSpaceXml(spec: ChartSpec, workbookRelId: string): string {
   validateChartSpec(spec);
   const title =
     spec.title !== undefined
-      ? `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${escapeXml(spec.title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>`
+      ? `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${encodeText(spec.title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>`
       : `<c:autoTitleDeleted val="1"/>`;
   const legend =
     spec.legend === "none"

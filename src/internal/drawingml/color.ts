@@ -4,7 +4,8 @@
  */
 
 import type { XmlElement } from "../xml/index.js";
-import { A_NS, attr, elementChildren, escapeXml, numAttr } from "./xml.js";
+import { A_NS, attr, elementChildren, numAttr } from "./xml.js";
+import { encodeAttrValue } from "../xml/index.js";
 
 /** A resolved color: `RRGGBB` and opacity in percent (100 = opaque). */
 export interface ResolvedColor {
@@ -177,7 +178,7 @@ export function resolveColor(el: XmlElement): ResolvedColor | undefined {
 /** `a:srgbClr` markup for a hex color, with `a:alpha` when not opaque. */
 export function srgbMarkup(hex: string, alpha = 100): string {
   if (!HEX6.test(hex)) throw new Error(`Invalid color ${JSON.stringify(hex)}: expected RRGGBB.`);
-  const value = escapeXml(hex.toUpperCase());
+  const value = encodeAttrValue(hex.toUpperCase());
   if (alpha >= 100) return `<a:srgbClr val="${value}"/>`;
   return `<a:srgbClr val="${value}"><a:alpha val="${Math.round(alpha * PERCENT)}"/></a:srgbClr>`;
 }

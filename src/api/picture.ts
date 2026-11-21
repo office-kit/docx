@@ -76,7 +76,6 @@ import {
   descendant,
   DRAWING_PREFIXES,
   ensureDrawingNamespaces,
-  escapeXml,
   fragment,
   nsAttr,
   numAttr,
@@ -94,7 +93,7 @@ import {
   type WmlParagraph,
   type WmlRun,
 } from "../internal/wordprocessingml/index.js";
-import { parseXml, type XmlElement, type XmlNode } from "../internal/xml/index.js";
+import { encodeAttrValue, parseXml, type XmlElement, type XmlNode } from "../internal/xml/index.js";
 import { type Docx, imageDrawings, setImageSizeEmu } from "./docx.js";
 
 export type {
@@ -616,11 +615,11 @@ export function addChartRun(
   const decls = Object.entries(DRAWING_PREFIXES)
     .map(([prefix, uri]) => `xmlns:${prefix}="${uri}"`)
     .join(" ");
-  const descr = options.altText ? ` descr="${escapeXml(options.altText)}"` : "";
+  const descr = options.altText ? ` descr="${encodeAttrValue(options.altText)}"` : "";
   const drawing = parseXml(
     `<w:drawing xmlns:w="${WML_NS}" ${decls}><wp:inline distT="0" distB="0" distL="0" distR="0">` +
       `<wp:extent cx="${Math.round(options.widthEmu)}" cy="${Math.round(options.heightEmu)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
-      `<wp:docPr id="${id}" name="${escapeXml(options.name ?? `Chart ${id}`)}"${descr}/><wp:cNvGraphicFramePr/>` +
+      `<wp:docPr id="${id}" name="${encodeAttrValue(options.name ?? `Chart ${id}`)}"${descr}/><wp:cNvGraphicFramePr/>` +
       `<a:graphic><a:graphicData uri="${C_NS}"><c:chart r:id="${rel.id}"/></a:graphicData></a:graphic>` +
       `</wp:inline></w:drawing>`,
   ).root;

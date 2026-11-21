@@ -40,7 +40,6 @@ import {
   childElement,
   elementFromXml,
   elementXml,
-  escapeXml,
   estimatePages,
   fieldRunsXml,
   type FlowField,
@@ -98,6 +97,7 @@ import {
   styleOutlineLevel,
   textWidthTwips,
 } from "./part-helpers.js";
+import { encodeAttrValue, encodeText } from "../internal/xml/index.js";
 
 export type { NoteKind } from "./part-helpers.js";
 export {
@@ -501,7 +501,7 @@ function tocResult(
       );
     }
     if (hyperlinks && anchor) {
-      content = `<w:hyperlink w:anchor="${escapeXml(anchor)}" w:history="1">${content}</w:hyperlink>`;
+      content = `<w:hyperlink w:anchor="${encodeAttrValue(anchor)}" w:history="1">${content}</w:hyperlink>`;
     }
     return `<w:p><w:pPr><w:pStyle w:val="${style}"/>${tabs}</w:pPr>${content}</w:p>`;
   });
@@ -806,7 +806,7 @@ export function addCaptionLabel(doc: Docx, name: string): void {
       .filter((c): c is XmlElement => c.kind === "element")
       .map((c) => elementXml(c))
       .join("");
-    const caption = `<w:caption w:name="${escapeXml(label)}" w:pos="below"/>`;
+    const caption = `<w:caption w:name="${encodeAttrValue(label)}" w:pos="below"/>`;
     setOrderedChild(
       root,
       elementFromXml(`<w:captions>${kept}${caption}</w:captions>`),
@@ -1564,7 +1564,7 @@ export function insertNote(
   );
   markNotesDirty(doc, kind);
   const reference = custom
-    ? `<w:r><w:rPr><w:rStyle w:val="${refStyle}"/></w:rPr><w:${kind}Reference w:customMarkFollows="1" w:id="${id}"/><w:t>${escapeXml(custom)}</w:t></w:r>`
+    ? `<w:r><w:rPr><w:rStyle w:val="${refStyle}"/></w:rPr><w:${kind}Reference w:customMarkFollows="1" w:id="${id}"/><w:t>${encodeText(custom)}</w:t></w:r>`
     : `<w:r><w:rPr><w:rStyle w:val="${refStyle}"/></w:rPr><w:${kind}Reference w:id="${id}"/></w:r>`;
   insertInlinesAt(paragraph, offset, inlinesFromXml(reference));
   doc.dirty = true;
@@ -1737,7 +1737,7 @@ function retargetReference(
     const T = CAPITAL(target.kind);
     const custom = ref.custom !== undefined;
     const xml = custom
-      ? `<w:r><w:rPr><w:rStyle w:val="${T}Reference"/></w:rPr><w:${target.kind}Reference w:customMarkFollows="1" w:id="${target.id}"/><w:t>${escapeXml(ref.custom ?? "")}</w:t></w:r>`
+      ? `<w:r><w:rPr><w:rStyle w:val="${T}Reference"/></w:rPr><w:${target.kind}Reference w:customMarkFollows="1" w:id="${target.id}"/><w:t>${encodeText(ref.custom ?? "")}</w:t></w:r>`
       : `<w:r><w:rPr><w:rStyle w:val="${T}Reference"/></w:rPr><w:${target.kind}Reference w:id="${target.id}"/></w:r>`;
     return inlinesFromXml(xml)[0] ?? inline;
   }
