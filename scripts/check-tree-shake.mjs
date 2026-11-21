@@ -64,7 +64,9 @@ globalThis.__exports = Object.keys(everything);
 const minimal = await bundleSize(minimalEntry);
 const full = await bundleSize(fullEntry);
 
-const MIN_BUDGET = 50_000; // 50 KB after minify
+// Raised from 50 KB when the writer started rejecting characters XML 1.0
+// cannot represent: that check runs on every save and cannot be shaken out.
+const MIN_BUDGET = 51_000; // 51 KB after minify
 console.log(`minimal bundle: ${minimal.length} bytes`);
 console.log(`full bundle:    ${full.length} bytes`);
 

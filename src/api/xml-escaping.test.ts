@@ -115,7 +115,7 @@ describe("XML escaping survives save+reopen", () => {
     // Mandatory escapes (per XML spec): `<` → `&lt;`, `&` → `&amp;`. `>`,
     // `"`, `'` are legal literal in element text and we don't bother
     // escaping them.
-    expect(xmlText).toContain("&lt;b>&amp;");
+    expect(xmlText).toContain("&lt;b&gt;&amp;");
     expect(xmlText).toContain("x&amp;y");
     // No double-escape regression sentinel.
     expect(xmlText).not.toContain("&amp;amp;");
@@ -198,7 +198,7 @@ describe("XML escaping survives save+reopen", () => {
     const final = expectClean(doc);
     const corePart = final.opc.parts.get("/docProps/core.xml");
     const xml = new TextDecoder().decode(corePart?.data ?? new Uint8Array());
-    expect(xml).toContain("a&lt;b>&amp;");
+    expect(xml).toContain("a&lt;b&gt;&amp;");
     expect(xml).toContain("x&amp;y");
   });
 
@@ -208,7 +208,7 @@ describe("XML escaping survives save+reopen", () => {
     const final = expectClean(doc);
     const corePart = final.opc.parts.get("/docProps/core.xml");
     const xml = new TextDecoder().decode(corePart?.data ?? new Uint8Array());
-    expect(xml).toContain("a&lt;b>&amp;");
+    expect(xml).toContain("a&lt;b&gt;&amp;");
   });
 
   it("appendMergeField name is rejected for unsafe identifiers (defensive)", () => {
@@ -224,7 +224,7 @@ describe("XML escaping survives save+reopen", () => {
     const xml = new TextDecoder().decode(
       final.opc.parts.get("/word/document.xml")?.data ?? new Uint8Array(),
     );
-    expect(xml).toContain("a&lt;b>&amp;");
+    expect(xml).toContain("a&lt;b&gt;&amp;");
   });
 
   it("addStyle name with nasty chars", () => {

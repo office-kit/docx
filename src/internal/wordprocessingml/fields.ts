@@ -1,5 +1,6 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
+import { encodeText } from "../xml/index.js";
 
 /**
  * Common Word field instructions. Pass a literal string for arbitrary
@@ -146,10 +147,6 @@ function wmlAttr(local: string, value: string): XmlAttr {
   return { name: { uri: WML_NS, local, prefix: "w" }, value, isNamespaceDecl: false };
 }
 
-function escapeXmlText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 /**
  * Footer body XML containing one paragraph with a PAGE field.
  *
@@ -161,10 +158,10 @@ export function buildPageNumberFooterXml(prefix = "", suffix = ""): string {
   const preservePrefix = /^\s|\s$/.test(prefix);
   const preserveSuffix = /^\s|\s$/.test(suffix);
   const prefixRun = prefix
-    ? `<w:r><w:t${preservePrefix ? ' xml:space="preserve"' : ""}>${escapeXmlText(prefix)}</w:t></w:r>`
+    ? `<w:r><w:t${preservePrefix ? ' xml:space="preserve"' : ""}>${encodeText(prefix)}</w:t></w:r>`
     : "";
   const suffixRun = suffix
-    ? `<w:r><w:t${preserveSuffix ? ' xml:space="preserve"' : ""}>${escapeXmlText(suffix)}</w:t></w:r>`
+    ? `<w:r><w:t${preserveSuffix ? ' xml:space="preserve"' : ""}>${encodeText(suffix)}</w:t></w:r>`
     : "";
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',

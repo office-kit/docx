@@ -1,4 +1,4 @@
-import { parseXml, type XmlElement } from "../xml/index.js";
+import { encodeAttrValue, parseXml, type XmlElement } from "../xml/index.js";
 
 export interface InlineDrawingOptions {
   /** Relationship id (`rId…`) of the embedded image. */
@@ -27,7 +27,7 @@ const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationship
  */
 export function buildInlineDrawing(options: InlineDrawingOptions): XmlElement {
   const name = options.name ?? `Picture ${options.docPrId}`;
-  const descr = options.altText ? ` descr="${escapeAttr(options.altText)}"` : "";
+  const descr = options.altText ? ` descr="${encodeAttrValue(options.altText)}"` : "";
   const xml = parseXml(
     [
       `<w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" `,
@@ -35,17 +35,17 @@ export function buildInlineDrawing(options: InlineDrawingOptions): XmlElement {
       `<wp:inline distT="0" distB="0" distL="0" distR="0">`,
       `<wp:extent cx="${options.widthEmu}" cy="${options.heightEmu}"/>`,
       `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
-      `<wp:docPr id="${options.docPrId}" name="${escapeAttr(name)}"${descr}/>`,
+      `<wp:docPr id="${options.docPrId}" name="${encodeAttrValue(name)}"${descr}/>`,
       `<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>`,
       `<a:graphic>`,
       `<a:graphicData uri="${PIC_NS}">`,
       `<pic:pic>`,
       `<pic:nvPicPr>`,
-      `<pic:cNvPr id="0" name="${escapeAttr(name)}"/>`,
+      `<pic:cNvPr id="0" name="${encodeAttrValue(name)}"/>`,
       `<pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr>`,
       `</pic:nvPicPr>`,
       `<pic:blipFill>`,
-      `<a:blip r:embed="${escapeAttr(options.relId)}"/>`,
+      `<a:blip r:embed="${encodeAttrValue(options.relId)}"/>`,
       `<a:stretch><a:fillRect/></a:stretch>`,
       `</pic:blipFill>`,
       `<pic:spPr>`,
@@ -60,14 +60,6 @@ export function buildInlineDrawing(options: InlineDrawingOptions): XmlElement {
     ].join(""),
   );
   return xml.root;
-}
-
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 /**

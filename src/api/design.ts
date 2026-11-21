@@ -39,6 +39,7 @@ import {
   wmlElement,
 } from "../internal/wordprocessingml/wml-element.js";
 import {
+  encodeAttrValue,
   parseXml,
   serializeXml,
   type XmlAttr,
@@ -98,14 +99,6 @@ const DEFAULT_THEME_PART = "/word/theme/theme1.xml";
 const STYLES_PART_NAME = "/word/styles.xml";
 const HEX6 = /^[0-9A-Fa-f]{6}$/;
 
-function esc(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function requireHex(value: string, what: string): string {
   if (!HEX6.test(value)) throw new RangeError(`${what} must be hex RRGGBB, got ${value}.`);
   return value.toUpperCase();
@@ -162,27 +155,27 @@ function clrSchemeXml(c: ThemeColorScheme): string {
     return `<a:srgbClr val="${value}"/>`;
   };
   const slots = THEME_COLOR_SLOTS.map((k) => `<a:${k}>${slot(k)}</a:${k}>`).join("");
-  return `<a:clrScheme name="${esc(c.name)}">${slots}</a:clrScheme>`;
+  return `<a:clrScheme name="${encodeAttrValue(c.name)}">${slots}</a:clrScheme>`;
 }
 
 function fontSchemeXml(f: ThemeFontScheme): string {
   const half = (tag: "majorFont" | "minorFont", latin: string, role: "major" | "minor"): string =>
-    `<a:${tag}><a:latin typeface="${esc(latin)}" panose=""/><a:ea typeface=""/><a:cs typeface=""/>` +
+    `<a:${tag}><a:latin typeface="${encodeAttrValue(latin)}" panose=""/><a:ea typeface=""/><a:cs typeface=""/>` +
     SCRIPT_FONTS[role]
       .map(([script, face]) => `<a:font script="${script}" typeface="${face}"/>`)
       .join("") +
     `</a:${tag}>`;
-  return `<a:fontScheme name="${esc(f.name)}">${half("majorFont", f.major, "major")}${half("minorFont", f.minor, "minor")}</a:fontScheme>`;
+  return `<a:fontScheme name="${encodeAttrValue(f.name)}">${half("majorFont", f.major, "major")}${half("minorFont", f.minor, "minor")}</a:fontScheme>`;
 }
 
 function fmtSchemeXml(e: ThemeEffectScheme): string {
-  return `<a:fmtScheme name="${esc(e.name)}">${e.styles}</a:fmtScheme>`;
+  return `<a:fmtScheme name="${encodeAttrValue(e.name)}">${e.styles}</a:fmtScheme>`;
 }
 
 function themeXml(theme: ThemeDefinition): string {
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n' +
-    `<a:theme xmlns:a="${DML_NS}" name="${esc(theme.name)}"><a:themeElements>` +
+    `<a:theme xmlns:a="${DML_NS}" name="${encodeAttrValue(theme.name)}"><a:themeElements>` +
     clrSchemeXml(theme.colors) +
     fontSchemeXml(theme.fonts) +
     fmtSchemeXml(theme.effects) +
@@ -977,7 +970,7 @@ function textWatermarkShape(w: TextWatermark, n: number, textWidthTwips: number)
     `style="${POSITION};width:${pt(width)};height:${pt(height)}${rotation};z-index:${BEHIND_TEXT_Z}" ` +
     `o:allowincell="f" fillcolor="#${color}" stroked="f">` +
     (w.semitransparent ? '<v:fill opacity=".5"/>' : "") +
-    `<v:textpath style="font-family:&quot;${esc(w.font)}&quot;;font-size:${w.size === "auto" ? 1 : w.size}pt" string="${esc(w.text)}"/>` +
+    `<v:textpath style="font-family:&quot;${encodeAttrValue(w.font)}&quot;;font-size:${w.size === "auto" ? 1 : w.size}pt" string="${encodeAttrValue(w.text)}"/>` +
     '<w10:wrap anchorx="margin" anchory="margin"/></v:shape>'
   );
 }

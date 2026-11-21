@@ -1,6 +1,7 @@
 import type { XmlAttr, XmlElement } from "../xml/index.js";
 import { WML_NS } from "./namespaces.js";
 import { insertOrderedChild, SECT_PR_ORDER, upsertOrderedChild } from "./schema-order.js";
+import { encodeText } from "../xml/index.js";
 
 export type HeaderFooterType = "default" | "first" | "even";
 
@@ -156,7 +157,7 @@ export function addSectPrFooterRef(
 
 /** Minimal `header1.xml` body containing a single paragraph with text. */
 export function buildHeaderXml(text: string): string {
-  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escaped = encodeText(text);
   const space = /^\s|\s$/.test(text) ? ' xml:space="preserve"' : "";
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
@@ -168,7 +169,7 @@ export function buildHeaderXml(text: string): string {
 
 /** Minimal `footer1.xml` body containing a single paragraph with text. */
 export function buildFooterXml(text: string): string {
-  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escaped = encodeText(text);
   const space = /^\s|\s$/.test(text) ? ' xml:space="preserve"' : "";
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',

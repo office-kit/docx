@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseXml } from "./parser.js";
 import { serializeXml } from "./serializer.js";
+import type { XmlDocument } from "./types.js";
 
 function roundTrip(xml: string): string {
   return serializeXml(parseXml(xml));
@@ -64,5 +65,35 @@ describe("serializeXml", () => {
     const first = parseXml(xml);
     const second = parseXml(serializeXml(first));
     expect(second).toEqual(first);
+  });
+});
+
+function textDoc(value: string): XmlDocument {
+  return {
+    prologue: [],
+    root: {
+      kind: "element",
+      name: { uri: "", local: "r", prefix: "" },
+      attrs: [],
+      children: [{ kind: "text", value }],
+      xmlSpace: "default",
+      selfClosing: false,
+    },
+    epilogue: [],
+  };
+}
+
+describe("serializeXml text escaping", () => {
+  it("escapes `>` so `]]>` never appears in character data", () => {
+    expect(serializeXml(textDoc("a]]>b"))).toBe("<r>a]]&gt;b</r>");
+  });
+
+  it("round-trips text containing `]]>`", () => {
+    const parsed = parseXml(serializeXml(textDoc("a]]>b"))).root.children[0];
+    expect(parsed).toMatchObject({ kind: "text", value: "a]]>b" });
+  });
+
+  it("throws on a character outside the XML 1.0 Char range", () => {
+    expect(() => serializeXml(textDoc("a\u0008b"))).toThrow(/U\+0008/);
   });
 });

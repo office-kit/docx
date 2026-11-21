@@ -10,8 +10,7 @@
  * publisher, journal, web site) and fall back to a generic entry otherwise.
  */
 
-import { parseXml, type XmlElement } from "../xml/index.js";
-import { escapeXml } from "./field-flow.js";
+import { encodeAttrValue, encodeText, parseXml, type XmlElement } from "../xml/index.js";
 
 export const BIBLIOGRAPHY_NS = "http://schemas.openxmlformats.org/officeDocument/2006/bibliography";
 
@@ -191,9 +190,9 @@ function peopleXml(people: readonly PersonName[]): string {
   return `<b:NameList>${people
     .map(
       (p) =>
-        `<b:Person><b:Last>${escapeXml(p.last)}</b:Last>${
-          p.first ? `<b:First>${escapeXml(p.first)}</b:First>` : ""
-        }${p.middle ? `<b:Middle>${escapeXml(p.middle)}</b:Middle>` : ""}</b:Person>`,
+        `<b:Person><b:Last>${encodeText(p.last)}</b:Last>${
+          p.first ? `<b:First>${encodeText(p.first)}</b:First>` : ""
+        }${p.middle ? `<b:Middle>${encodeText(p.middle)}</b:Middle>` : ""}</b:Person>`,
     )
     .join("")}</b:NameList>`;
 }
@@ -204,18 +203,20 @@ export function writeSources(part: SourcesPart): string {
   const sources = part.sources.map((s) => {
     const roles: string[] = [];
     if (s.corporateAuthor) {
-      roles.push(`<b:Author><b:Corporate>${escapeXml(s.corporateAuthor)}</b:Corporate></b:Author>`);
+      roles.push(
+        `<b:Author><b:Corporate>${encodeText(s.corporateAuthor)}</b:Corporate></b:Author>`,
+      );
     } else if (s.authors?.length) {
       roles.push(`<b:Author>${peopleXml(s.authors)}</b:Author>`);
     }
     if (s.editors?.length) roles.push(`<b:Editor>${peopleXml(s.editors)}</b:Editor>`);
     const fields = SOURCE_FIELDS.flatMap((name) => {
       const value = s.fields?.[name];
-      return value ? [`<b:${name}>${escapeXml(value)}</b:${name}>`] : [];
+      return value ? [`<b:${name}>${encodeText(value)}</b:${name}>`] : [];
     });
     return [
       "<b:Source>",
-      `<b:Tag>${escapeXml(s.tag)}</b:Tag>`,
+      `<b:Tag>${encodeText(s.tag)}</b:Tag>`,
       `<b:SourceType>${s.type}</b:SourceType>`,
       roles.length ? `<b:Author>${roles.join("")}</b:Author>` : "",
       ...fields,
@@ -224,7 +225,7 @@ export function writeSources(part: SourcesPart): string {
   });
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    `<b:Sources xmlns:b="${BIBLIOGRAPHY_NS}" xmlns="${BIBLIOGRAPHY_NS}" SelectedStyle="${escapeXml(style.selectedStyle)}" StyleName="${escapeXml(part.style)}">`,
+    `<b:Sources xmlns:b="${BIBLIOGRAPHY_NS}" xmlns="${BIBLIOGRAPHY_NS}" SelectedStyle="${encodeAttrValue(style.selectedStyle)}" StyleName="${encodeAttrValue(part.style)}">`,
     ...sources,
     "</b:Sources>",
   ].join("");

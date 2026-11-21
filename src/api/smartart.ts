@@ -20,7 +20,7 @@ import {
   removeRelationship,
 } from "../internal/opc/index.js";
 import { REL_NS, type WmlParagraph, type WmlRun } from "../internal/wordprocessingml/index.js";
-import { parseXml, type XmlElement } from "../internal/xml/index.js";
+import { encodeAttrValue, encodeText, parseXml, type XmlElement } from "../internal/xml/index.js";
 import {
   colorsDefinitionXml,
   colorsUniqueId,
@@ -116,14 +116,6 @@ export interface SmartArtInfo {
 const DEFAULT_WIDTH = 432;
 const DEFAULT_HEIGHT = 252;
 
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 /**
  * Model ids are GUIDs in braces (`ST_ModelId`); sequential ones keep the
  * output deterministic while staying unique within the diagram.
@@ -136,7 +128,7 @@ function textBody(text: string): string {
   const run =
     text === ""
       ? `<a:endParaRPr lang="en-US"/>`
-      : `<a:r><a:rPr lang="en-US"/><a:t>${escapeXml(text)}</a:t></a:r>`;
+      : `<a:r><a:rPr lang="en-US"/><a:t>${encodeText(text)}</a:t></a:r>`;
   return `<dgm:t><a:bodyPr/><a:lstStyle/><a:p>${run}</a:p></dgm:t>`;
 }
 
@@ -238,7 +230,7 @@ export function addSmartArt(
   const cx = Math.round((options.width ?? DEFAULT_WIDTH) * EMU_PER_POINT);
   const cy = Math.round((options.height ?? DEFAULT_HEIGHT) * EMU_PER_POINT);
   const id = nextDocPrId(doc);
-  const descr = options.altText ? ` descr="${escapeXml(options.altText)}"` : "";
+  const descr = options.altText ? ` descr="${encodeAttrValue(options.altText)}"` : "";
   const drawing = parseXml(
     `<w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="${WP_NS}" ` +
       `xmlns:a="${A_NS}" xmlns:dgm="${DGM_NS}" xmlns:r="${REL_NS}">` +

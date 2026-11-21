@@ -60,14 +60,6 @@ export function ensureDrawingNamespaces(drawing: XmlElement): void {
   }
 }
 
-export function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 export function elementChildren(el: XmlElement): XmlElement[] {
   return el.children.filter((c): c is XmlElement => c.kind === "element");
 }

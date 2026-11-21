@@ -5,7 +5,7 @@
  * BIBLIOGRAPHY), and an estimate of the page each paragraph lands on.
  */
 
-import { parseXml, serializeXml, type XmlElement, type XmlNode } from "../xml/index.js";
+import { encodeText, parseXml, serializeXml, type XmlElement, type XmlNode } from "../xml/index.js";
 
 /** Replace an element's children in place (the XML AST types them read-only). */
 export function replaceChildren(el: XmlElement, nodes: readonly XmlNode[]): void {
@@ -25,15 +25,6 @@ import {
 const W_DECL = `xmlns:w="${WML_NS}"`;
 const R_DECL = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
 
-/** Escape text for an XML text node or attribute value. */
-export function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 /** `<w:r>` XML for plain text; `\t` becomes `<w:tab/>` and `\n` `<w:br/>`. */
 export function textRunXml(text: string, rPr = ""): string {
   if (text === "") return "";
@@ -44,7 +35,7 @@ export function textRunXml(text: string, rPr = ""): string {
       if (part === "\n") return "<w:br/>";
       if (part === "") return "";
       const space = /^\s|\s$/.test(part) ? ' xml:space="preserve"' : "";
-      return `<w:t${space}>${escapeXml(part)}</w:t>`;
+      return `<w:t${space}>${encodeText(part)}</w:t>`;
     })
     .join("");
   return `<w:r>${rPr ? `<w:rPr>${rPr}</w:rPr>` : ""}${inner}</w:r>`;
@@ -58,7 +49,7 @@ export function fieldRunsXml(instruction: string, resultXml: string, rPr = ""): 
   const props = rPr ? `<w:rPr>${rPr}</w:rPr>` : "";
   return [
     `<w:r>${props}<w:fldChar w:fldCharType="begin"/></w:r>`,
-    `<w:r>${props}<w:instrText xml:space="preserve"> ${escapeXml(instruction)} </w:instrText></w:r>`,
+    `<w:r>${props}<w:instrText xml:space="preserve"> ${encodeText(instruction)} </w:instrText></w:r>`,
     `<w:r>${props}<w:fldChar w:fldCharType="separate"/></w:r>`,
     resultXml,
     `<w:r>${props}<w:fldChar w:fldCharType="end"/></w:r>`,
@@ -74,7 +65,7 @@ export function blockFieldSkeletonXml(instruction: string, pPr = ""): string {
   return [
     `<w:p>${pPr ? `<w:pPr>${pPr}</w:pPr>` : ""}`,
     '<w:r><w:fldChar w:fldCharType="begin"/></w:r>',
-    `<w:r><w:instrText xml:space="preserve"> ${escapeXml(instruction)} </w:instrText></w:r>`,
+    `<w:r><w:instrText xml:space="preserve"> ${encodeText(instruction)} </w:instrText></w:r>`,
     '<w:r><w:fldChar w:fldCharType="separate"/></w:r>',
     "</w:p>",
     '<w:p><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>',
@@ -85,7 +76,7 @@ export function blockFieldSkeletonXml(instruction: string, pPr = ""): string {
 export function resultlessFieldRunsXml(instruction: string): string {
   return [
     '<w:r><w:fldChar w:fldCharType="begin"/></w:r>',
-    `<w:r><w:instrText xml:space="preserve"> ${escapeXml(instruction)} </w:instrText></w:r>`,
+    `<w:r><w:instrText xml:space="preserve"> ${encodeText(instruction)} </w:instrText></w:r>`,
     '<w:r><w:fldChar w:fldCharType="end"/></w:r>',
   ].join("");
 }
